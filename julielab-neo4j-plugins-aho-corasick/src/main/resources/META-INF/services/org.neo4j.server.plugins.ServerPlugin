@@ -1,0 +1,3 @@
+de.julielab.neo4j.plugins.ahocorasick.ACFactoryEmbedded
+de.julielab.neo4j.plugins.ahocorasick.ACRefactory
+de.julielab.neo4j.plugins.ahocorasick.ACSearch
