@@ -3,11 +3,11 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>de.julielab</groupId>
-		<artifactId>julie-neo4j-server-plugins</artifactId>
-		<version>1.5.0-SNAPSHOT</version>
-		<relativePath>../julie-neo4j-server-plugins</relativePath>
+		<artifactId>julielab-neo4j-server-plugins</artifactId>
+		<version>1.5.0</version>
+		<relativePath>..</relativePath>
 	</parent>
-	<artifactId>julie-neo4j-plugins-semedico-terms</artifactId>
+	<artifactId>julielab-neo4j-plugins-concepts</artifactId>
 	<name>SeMedico Terms Neo4j Server Plugins</name>
 	<description>This project includes multiple plugins for the Neo4j server to support to import, management and query of terms and facets for SeMedico.</description>
 	<build>
@@ -20,7 +20,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>de.julielab</groupId>
-			<artifactId>julie-neo4j-plugins-utilities</artifactId>
+			<artifactId>julielab-neo4j-plugins-utilities</artifactId>
 			<version>${project.parent.version}</version>
 		</dependency>
 			<dependency>

@@ -12,7 +12,7 @@ import org.neo4j.server.plugins.ServerPlugin;
  * overlapping (longest match).
  * 
  * @author SebOh
- * @deprecated
+ * @deprecated must be updated to the current Neo4j API to work
  */
 public class AhoCorasick extends ServerPlugin {
 

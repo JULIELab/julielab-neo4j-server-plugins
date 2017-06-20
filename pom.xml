@@ -4,10 +4,10 @@
 	<parent>
 		<artifactId>julielab-parent</artifactId>
 		<groupId>de.julielab</groupId>
-		<version>1.0.0-SNAPSHOT</version>
+		<version>1.0.0</version>
 	</parent>
-	<artifactId>julie-neo4j-server-plugins</artifactId>
-	<version>1.5.0-SNAPSHOT</version>
+	<artifactId>julielab-neo4j-server-plugins</artifactId>
+	<version>1.5.0</version>
 	<name>JULIE Neo4j Server Plugins</name>
 	<build>
 		<pluginManagement>
@@ -98,9 +98,9 @@
 	</properties>
 	<packaging>pom</packaging>
 	<modules>
-		<module>../julie-neo4j-plugins-aho-corasick</module>
-		<module>../julie-neo4j-plugins-semedico-terms</module>
-		<module>../julie-neo4j-plugins-utilities</module>
+		<module>julielab-neo4j-plugins-aho-corasick</module>
+		<module>julielab-neo4j-plugins-concepts</module>
+		<module>julielab-neo4j-plugins-utilities</module>
 	</modules>
 	<organization>
 		<name>JULIE Lab Jena, Germany</name>
