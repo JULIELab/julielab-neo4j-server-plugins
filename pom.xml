@@ -1,0 +1,108 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<artifactId>julielab-parent</artifactId>
+		<groupId>de.julielab</groupId>
+		<version>1.0.0-SNAPSHOT</version>
+	</parent>
+	<artifactId>julie-neo4j-server-plugins</artifactId>
+	<version>1.5.0-SNAPSHOT</version>
+	<name>JULIE Neo4j Server Plugins</name>
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<version>2.4</version>
+					<inherited>true</inherited>
+					<configuration>
+						<descriptors>
+							<descriptor>jar-with-non-provided-dependencies.xml</descriptor>
+						</descriptors>
+						<archive />
+						<!-- <appendAssemblyId>false</appendAssemblyId> -->
+					</configuration>
+					<executions>
+						<execution>
+							<phase>package</phase> <!-- append to the packaging phase. -->
+							<goals>
+								<goal>single</goal> <!-- goals == mojos -->
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+	<dependencies>
+		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>server-api</artifactId>
+			<version>${neo4j-release-version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>neo4j</artifactId>
+			<version>${neo4j-release-version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>neo4j-shell</artifactId>
+			<version>${neo4j-release-version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>neo4j-kernel</artifactId>
+			<version>${neo4j-release-version}</version>
+			<type>test-jar</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.neo4j</groupId>
+			<artifactId>neo4j-slf4j</artifactId>
+			<version>${neo4j-release-version}</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>4.10</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<version>3.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>18.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>2.4</version>
+		</dependency>
+	</dependencies>
+	<description>This project contains Neo4j server plugins used by the Julie Lab team.</description>
+	<properties>
+		<neo4j-release-version>2.3.2</neo4j-release-version>
+	</properties>
+	<packaging>pom</packaging>
+	<modules>
+		<module>../julie-neo4j-plugins-aho-corasick</module>
+		<module>../julie-neo4j-plugins-semedico-terms</module>
+		<module>../julie-neo4j-plugins-utilities</module>
+	</modules>
+	<organization>
+		<name>JULIE Lab Jena, Germany</name>
+	</organization>
+</project>
