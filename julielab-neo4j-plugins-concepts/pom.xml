@@ -8,8 +8,8 @@
 		<relativePath>..</relativePath>
 	</parent>
 	<artifactId>julielab-neo4j-plugins-concepts</artifactId>
-	<name>SeMedico Terms Neo4j Server Plugins</name>
-	<description>This project includes multiple plugins for the Neo4j server to support to import, management and query of terms and facets for SeMedico.</description>
+	<name>JULIE Lab Neo4j Concept Management Plugin</name>
+	<description>This project includes multiple plugins for the Neo4j server to support to import, management and query of concepts.</description>
 	<build>
 		<plugins>
 			<plugin>

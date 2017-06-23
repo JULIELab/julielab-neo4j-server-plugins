@@ -8,7 +8,7 @@
 	</parent>
 	<artifactId>julielab-neo4j-server-plugins</artifactId>
 	<version>1.5.0</version>
-	<name>JULIE Neo4j Server Plugins</name>
+	<name>JULIE Lab Neo4j Server Plugins</name>
 	<build>
 		<pluginManagement>
 			<plugins>
