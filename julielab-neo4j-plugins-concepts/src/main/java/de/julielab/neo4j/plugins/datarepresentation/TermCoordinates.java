@@ -1,5 +1,11 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
+/**
+ * 
+ * @author faessler
+ * @deprecated Use {@link ConceptCoordinates} instead
+ */
+@Deprecated
 public class TermCoordinates {
 	public TermCoordinates(String id, String source) {
 		this.id = id;

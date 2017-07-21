@@ -56,19 +56,19 @@ public class ExportTest {
 		for (ImportTerm term : testTerms.terms) { 
 			term.generalLabels = Lists.newArrayList("TESTLABEL");
 			// clear the original ID and source of the test terms for this test
-			term.originalId = null;
-			term.originalSource = null;
+			term.coordinates.originalId = null;
+			term.coordinates.originalSource = null;
 		}
-		testTerms.terms.get(0).originalId = "orgId1";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(1).originalId = "orgId2";
-		testTerms.terms.get(1).originalSource = "src2";
-		testTerms.terms.get(2).originalId = "orgId3";
-		testTerms.terms.get(2).originalSource = "src3";
+		testTerms.terms.get(0).coordinates.originalId = "orgId1";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(1).coordinates.originalId = "orgId2";
+		testTerms.terms.get(1).coordinates.originalSource = "src2";
+		testTerms.terms.get(2).coordinates.originalId = "orgId3";
+		testTerms.terms.get(2).coordinates.originalSource = "src3";
 		// We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
 		ImportTerm term = new ImportTerm("Added Last PrefName", "addedLastSourceId");
-		term.originalId = "orgId2";
-		term.originalSource = "src2";
+		term.coordinates.originalId = "orgId2";
+		term.coordinates.originalSource = "src2";
 		testTerms.terms.add(term);
 		TermManager tm = new TermManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
@@ -76,8 +76,8 @@ public class ExportTest {
 		testTerms = TermManagerTest.getTestTerms(15);
 		testTerms.facet.name = "facet2";
 		for (ImportTerm t : testTerms.terms) {
-			t.originalId = null;
-			t.originalSource = null;
+			t.coordinates.originalId = null;
+			t.coordinates.originalSource = null;
 		}
 
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
@@ -141,19 +141,19 @@ public class ExportTest {
 		ImportTermAndFacet testTerms = TermManagerTest.getTestTerms(10);
 		for (ImportTerm term : testTerms.terms) {
 			term.generalLabels = Lists.newArrayList("TESTLABEL");
-			term.originalId = null;
-			term.originalSource = null;
+			term.coordinates.originalId = null;
+			term.coordinates.originalSource = null;
 		}
-		testTerms.terms.get(0).originalId = "orgId1";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(1).originalId = "orgId2";
-		testTerms.terms.get(1).originalSource = "src2";
-		testTerms.terms.get(2).originalId = "orgId3";
-		testTerms.terms.get(2).originalSource = "src3";
+		testTerms.terms.get(0).coordinates.originalId = "orgId1";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(1).coordinates.originalId = "orgId2";
+		testTerms.terms.get(1).coordinates.originalSource = "src2";
+		testTerms.terms.get(2).coordinates.originalId = "orgId3";
+		testTerms.terms.get(2).coordinates.originalSource = "src3";
 		// We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
 		ImportTerm term = new ImportTerm("Added Last PrefName", "addedLastSourceId");
-		term.originalId = "orgId2";
-		term.originalSource = "src2";
+		term.coordinates.originalId = "orgId2";
+		term.coordinates.originalSource = "src2";
 		testTerms.terms.add(term);
 		TermManager tm = new TermManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));

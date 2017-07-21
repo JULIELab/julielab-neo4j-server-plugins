@@ -1,58 +1,63 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.google.common.collect.Lists;
 import com.google.gson.annotations.SerializedName;
 
 import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
 
 public class ImportTerm {
 
-	public ImportTerm(String prefName, String sourceId, String description) {
-		this.prefName = prefName;
-		this.sourceId = sourceId;
-		this.descriptions = Lists.newArrayList(description);
+	public ImportTerm(String preferredName, ConceptCoordinates coordinates) {
+		prefName = preferredName;
+		this.coordinates = coordinates;
 	}
 
-	public ImportTerm(String prefName, String sourceId, List<String> synonyms) {
-		this.prefName = prefName;
-		this.sourceId = sourceId;
+	public ImportTerm(String preferredName, String description, ConceptCoordinates coordinates) {
+		this(preferredName, coordinates);
+		this.descriptions = Arrays.asList(description);
+	}
+
+	public ImportTerm(String preferredName, List<String> synonyms, ConceptCoordinates coordinates) {
+		this(preferredName, coordinates);
 		this.synonyms = synonyms;
 	}
-
-	public ImportTerm(String prefName, String sourceId) {
-		this.prefName = prefName;
-		this.sourceId = sourceId;
+	
+	public ImportTerm(String preferredName, List<String> synonyms, String description, ConceptCoordinates coordinates) {
+		this(preferredName, synonyms, coordinates);
+		this.descriptions = Arrays.asList(description);
 	}
 
-	public ImportTerm(String prefName, String sourceId, String description, List<String> synonyms,
-			List<String> parentSrcIds) {
-		this.prefName = prefName;
-		this.sourceId = sourceId;
-		this.synonyms = synonyms;
-		this.descriptions = Lists.newArrayList(description);
-		this.parentSrcIds = parentSrcIds;
+	public ImportTerm(String preferredName, List<String> synonyms, String description, ConceptCoordinates coordinates,
+			ConceptCoordinates parentCoordinates) {
+		this(preferredName, synonyms, description, coordinates);
+		this.parentCoordinates = Arrays.asList(parentCoordinates);
 	}
 
-	public ImportTerm(String prefName, String sourceId, List<String> descriptions, List<String> synonyms,
-			List<String> parentSrcIds) {
-		this.prefName = prefName;
-		this.sourceId = sourceId;
-		this.descriptions = descriptions;
-		this.synonyms = synonyms;
-		this.parentSrcIds = parentSrcIds;
+	public ImportTerm(String preferredName, ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
+		this(preferredName, coordinates);
+		this.parentCoordinates = Arrays.asList(parentCoordinates);
+	}
+
+	public ImportTerm(String preferredName, ConceptCoordinates coordinates,
+			List<ConceptCoordinates> parentCoordinates) {
+		this(preferredName, coordinates);
+		this.parentCoordinates = parentCoordinates;
 	}
 
 	/**
 	 * Constructor for aggregate terms.
 	 * 
-	 * @param elementCoords Coordinates of the elements to be aggregated.
-	 * @param copyProperties The properties that should be copied from elements to the aggregates.
+	 * @param elementCoords
+	 *            Coordinates of the elements to be aggregated.
+	 * @param copyProperties
+	 *            The properties that should be copied from elements to the
+	 *            aggregates.
 	 */
 	public ImportTerm(List<TermCoordinates> elementCoords, List<String> copyProperties) {
 		this.elementCoordinates = elementCoords;
@@ -64,10 +69,6 @@ public class ImportTerm {
 		this.sourceId = sourceId;
 	}
 
-	public ImportTerm() {
-		// TODO Auto-generated constructor stub
-	}
-
 	@SerializedName(TermConstants.PROP_PREF_NAME)
 	public String prefName;
 	@SerializedName(TermConstants.PROP_DESCRIPTIONS)
@@ -76,26 +77,39 @@ public class ImportTerm {
 	public List<String> synonyms;
 	@SerializedName(TermConstants.PROP_WRITING_VARIANTS)
 	public List<String> writingVariants;
+	@SerializedName(TermConstants.PROP_COORDINATES)
+	public ConceptCoordinates coordinates;
 	@SerializedName(TermConstants.PROP_SRC_IDS)
+	@Deprecated
 	public String sourceId;
 	@SerializedName(TermConstants.PROP_UNIQUE_SRC_ID)
+	@Deprecated
 	public boolean uniqueSourceId;
 	@SerializedName(TermConstants.PROP_SOURCES)
 	/**
 	 * An identifier of the source this term came from, e.g. "MESH".
 	 */
+	@Deprecated
 	public String source;
 	@SerializedName(TermConstants.PROP_ORG_ID)
+	@Deprecated
 	public String originalId;
 	@SerializedName(TermConstants.PROP_ORG_SRC)
 	/**
 	 * An identifier of the original source this term came from, e.g. "MESH".
 	 */
+	@Deprecated
 	public String originalSource;
 	@SerializedName(TermConstants.PARENT_SRC_IDS)
+	/**
+	 * @deprecated use parent coordinates instead.
+	 */
+	@Deprecated
 	public List<String> parentSrcIds;
 	@SerializedName(TermConstants.PARENT_SOURCES)
 	public List<String> parentSources;
+	@SerializedName(TermConstants.PARENT_COORDINATES)
+	public List<ConceptCoordinates> parentCoordinates;
 	@SerializedName(TermConstants.RELATIONSHIPS)
 	public List<ImportFacetTermRelationship> relationships;
 	@SerializedName(TermConstants.PROP_GENERAL_LABELS)

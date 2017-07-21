@@ -18,7 +18,7 @@
 				<include>com.google.code.gson:gson</include>
 				<include>org.apache.commons:commons-lang3</include>
 				<include>com.google.guava:guava</include>
-				<include>de.julielab:julie-neo4j-plugins-utilities</include>
+				<include>de.julielab:julielab-neo4j-plugins-utilities</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>

@@ -1,8 +1,5 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.addToArrayProperty;
-import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.findFirstValueInArrayProperty;
-import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayProperty;
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
 import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PARENT_SRC_IDS;
@@ -19,14 +16,12 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
-import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 
-import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
 
@@ -163,4 +158,5 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 		}
 		return firstNode;
 	}
+
 }

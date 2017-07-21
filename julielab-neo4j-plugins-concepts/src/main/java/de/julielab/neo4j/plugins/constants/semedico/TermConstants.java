@@ -1,7 +1,15 @@
 package de.julielab.neo4j.plugins.constants.semedico;
 
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+
 public class TermConstants extends NodeConstants {
 
+	/**
+	 * @deprecated should be merged with ConceptCoordinates enum
+	 * @author faessler
+	 *
+	 */
+	@Deprecated
 	public enum IdType {
 		ORIGINAL_SOURCE, SOURCE
 	}
@@ -44,23 +52,33 @@ public class TermConstants extends NodeConstants {
 	 * that in another - e.g. the original - facet.
 	 */
 	public static final String PROP_CHILDREN_IN_FACETS = "childrenInFacets";
-
 	/**
 	 * Field in the input data format. The parent source identifier is only used
 	 * for the import of terms. The parent source ID indicates which term is to
 	 * be connected to which other term in the graph. Since this information is
 	 * explicitly represented by relationships in Neo4j, there is no such node
 	 * property in the graph.
+	 * @deprecated Use {@link #PARENT_COORDINATES} instead
 	 */
+	@Deprecated
 	public static final String PARENT_SRC_IDS = "parentSrcIds";
 
 	/**
 	 * Field in the input data format. Specifies for each - or for none - of the
 	 * parent source IDs given with {@link #PARENT_SRC_IDS} the respective
 	 * source. This information is used to identify the correct parent node.
+	 * @deprecated Use {@link #PARENT_COORDINATES} instead
 	 */
+	@Deprecated
 	public static final String PARENT_SOURCES = "parentSources";
 
+	/**
+	 * Field in the input data format. Specifies for each - or for none - of the
+	 * parent source IDs given with {@link #PARENT_SRC_IDS} the respective
+	 * source. This information is used to identify the correct parent node.
+	 */
+	public static final String PARENT_COORDINATES = "parentCoordinates";
+	
 	public static final String INDEX_NAME = "termIndex";
 
 	public static final String SET_INDEX_NAME = "termSetIndex";
@@ -123,6 +141,7 @@ public class TermConstants extends NodeConstants {
 	/**
 	 * Field in the input data format of aggregate terms. Specifies the source
 	 * ID of the elements aggregated by this aggregate node.
+	 * @deprecated use {@link #ELEMENT_COORDINATES} instead
 	 */
 	@Deprecated
 	public static final String ELEMENT_SRC_IDS = "elementSrcIds";
@@ -130,6 +149,7 @@ public class TermConstants extends NodeConstants {
 	 * Field in the input data format of aggregate terms. Specifies for each -
 	 * or none - of the elements their respective source. Null values are
 	 * allowed but for each source ID there must be one source or none at all.
+	 * @deprecated use {@link #ELEMENT_COORDINATES} instead
 	 */
 	@Deprecated
 	public static final String ELEMENT_SOURCES = "elementSources";
@@ -169,11 +189,17 @@ public class TermConstants extends NodeConstants {
 	
 	/**
 	 * Property of a term coordinates object. Denotes the ID coordinate.
+	 * @deprecated Use default properties on {@link ConceptCoordinates} instead
 	 */
+	@Deprecated
 	public static final String COORD_ID = "id";
 	/**
 	 * Property of a term coordinates object. Denotes the source coordinate.
+	 * @deprecated Use default properties on {@link ConceptCoordinates} instead
 	 */
+	@Deprecated
 	public static final String COORD_SOURCE = "source";
+	// TODO should not be named "PROP_" since it is not a node property
+	public static final String PROP_COORDINATES = "coordinates";
 
 }

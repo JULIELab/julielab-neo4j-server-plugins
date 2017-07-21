@@ -9,12 +9,24 @@ import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
 
 public class ImportFacetTermRelationship {
 
+	/**
+	 * @deprecated used {@link ConceptCoordinates}
+	 */
 	@SerializedName(TermConstants.RS_TARGET_SRC_ID)
 	public String targetSrcId;
+	/**
+	 * @deprecated used {@link ConceptCoordinates}
+	 */
 	@SerializedName(TermConstants.RS_TARGET_SRC)
 	public String targetSource;
+	/**
+	 * @deprecated used {@link ConceptCoordinates}
+	 */
 	@SerializedName(TermConstants.RS_TARGET_ORG_ID)
 	public String targetOrgSrcId;
+	/**
+	 * @deprecated used {@link ConceptCoordinates}
+	 */
 	@SerializedName(TermConstants.RS_TARGET_ORG_SRC)
 	public String targetOrgSource;
 	@SerializedName(TermConstants.RS_TYPE)

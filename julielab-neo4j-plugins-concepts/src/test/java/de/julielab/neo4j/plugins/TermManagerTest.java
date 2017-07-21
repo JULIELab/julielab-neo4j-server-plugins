@@ -12,6 +12,7 @@ import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_PR
 import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SOURCES;
 import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SRC_IDS;
 import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SYNONYMS;
+import static de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates.CoordinateType.SRC;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,7 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +70,7 @@ import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermNameAndSynonymComparator;
+import de.julielab.neo4j.plugins.constants.semedico.CoordinateConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
 import de.julielab.neo4j.plugins.constants.semedico.MorphoConstants;
 import de.julielab.neo4j.plugins.constants.semedico.MorphoRelationConstants;
@@ -78,6 +79,8 @@ import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
 import de.julielab.neo4j.plugins.constants.semedico.TermRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.AddToNonFacetGroupCommand;
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates.CoordinateType;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetTermRelationship;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
@@ -117,22 +120,22 @@ public class TermManagerTest {
 
 		ImportTermAndFacet testTerms;
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(0).source = "src1";
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(0).coordinates.source = "src1";
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(0).source = "src2";
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(0).coordinates.source = "src2";
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).sourceId = "TERM42";
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(0).source = null;
+		testTerms.terms.get(0).coordinates.sourceId = "TERM42";
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(0).coordinates.source = null;
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -157,9 +160,9 @@ public class TermManagerTest {
 
 		ImportTermAndFacet testTerms;
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(0).source = "someSource";
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(0).coordinates.source = "someSource";
 		testTerms.terms.get(0).descriptions = null;
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
@@ -172,9 +175,9 @@ public class TermManagerTest {
 
 		// Now add a description, only by knowing the term's original ID.
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src1";
-		testTerms.terms.get(0).sourceId = null;
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
+		testTerms.terms.get(0).coordinates.sourceId = null;
 		testTerms.terms.get(0).descriptions = Lists.newArrayList("desc");
 		ImportOptions importOptions = new ImportOptions();
 		importOptions.merge = true;
@@ -201,19 +204,19 @@ public class TermManagerTest {
 
 		ImportTermAndFacet testTerms;
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src1";
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src1";
 		// we also have to set the source ID and source of at least one term to
 		// a different value or we will get an exception telling us that our
 		// data is inconsistent (because source ID and source would match but
 		// the original ID and original source wouldn't)
-		testTerms.terms.get(0).sourceId = "anothersourceid";
-		testTerms.terms.get(0).source = "anothersource";
+		testTerms.terms.get(0).coordinates.sourceId = "anothersourceid";
+		testTerms.terms.get(0).coordinates.source = "anothersource";
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.terms.get(0).originalId = "orgId";
-		testTerms.terms.get(0).originalSource = "src2";
+		testTerms.terms.get(0).coordinates.originalId = "orgId";
+		testTerms.terms.get(0).coordinates.originalSource = "src2";
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -284,37 +287,17 @@ public class TermManagerTest {
 		// Note the ===== relationship: We will insert term2 twice but we expect
 		// that only ONE relationship is created in the end, i.e. the duplicate
 		// is recognized.
-		List<Map<String, Object>> termList = new ArrayList<>();
-		Map<String, Object> termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname1");
-		termMap.put(PROP_DESCRIPTIONS, Lists.newArrayList("desc of term1"));
-		termMap.put(PROP_SRC_IDS, "TERM1");
-		termList.add(termMap);
-		termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname2");
-		termMap.put(PROP_ORG_ID, "orgId2");
-		termMap.put(PROP_ORG_SRC, "orgSrc1");
-		termMap.put(PROP_SRC_IDS, "TERM2");
-		termMap.put(PARENT_SRC_IDS, Lists.newArrayList("TERM1"));
-		termList.add(termMap);
+		List<ImportTerm> termList = new ArrayList<>();
+		ConceptCoordinates coord1 = new ConceptCoordinates("TERM1", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord2 = new ConceptCoordinates("TERM2", "TEST_SOURCE", "orgId2", "orgSrc1");
+		ConceptCoordinates coord3 = new ConceptCoordinates("TERM3", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord4 = new ConceptCoordinates("TERM4", "TEST_SOURCE", SRC);
+		termList.add(new ImportTerm("prefname1", "desc of term1", coord1));
+		termList.add(new ImportTerm("prefname2", coord2, coord1));
 		// duplicate of term 2 to test relationship de-duplication.
-		termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname2");
-		termMap.put(PROP_ORG_ID, "orgId2");
-		termMap.put(PROP_ORG_SRC, "orgSrc1");
-		termMap.put(PROP_SRC_IDS, "TERM2");
-		termMap.put(PARENT_SRC_IDS, Lists.newArrayList("TERM1"));
-		termList.add(termMap);
-		termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname3");
-		termMap.put(PROP_SRC_IDS, "TERM3");
-		termMap.put(PARENT_SRC_IDS, Lists.newArrayList("TERM1"));
-		termList.add(termMap);
-		termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname4");
-		termMap.put(PROP_SRC_IDS, "TERM4");
-		termMap.put(PARENT_SRC_IDS, Lists.newArrayList("TERM2"));
-		termList.add(termMap);
+		termList.add(new ImportTerm("prefname2", coord2, coord1));
+		termList.add(new ImportTerm("prefname3", coord3, coord1));
+		termList.add(new ImportTerm("prefname4", coord4, coord2));
 
 		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
 		termsAndFacet.put("facet", facetMap);
@@ -411,13 +394,8 @@ public class TermManagerTest {
 		// just be added to it.
 		ImportFacet facetMap = FacetManagerTest.getTestFacetMap(1);
 
-		List<Map<String, Object>> termList = new ArrayList<Map<String, Object>>();
-		Map<String, Object> termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname1");
-		termMap.put(PROP_DESCRIPTIONS, Lists.newArrayList("desc of term1"));
-		termMap.put(PROP_SRC_IDS, "TERM1");
-		termMap.put(TermConstants.PROP_SOURCES, "TEST_SOURCE");
-		termList.add(termMap);
+		List<ImportTerm> termList = new ArrayList<>();
+		termList.add(new ImportTerm("prefname1", "desc of term1", new ConceptCoordinates("TERM1", "TEST_SOURCE", SRC)));
 
 		// -------- SEND TERM WITH FACET DEFINITION ------
 		Gson gson = new Gson();
@@ -499,55 +477,35 @@ public class TermManagerTest {
 
 		// ------------ INSERT 1 ---------------
 
-		Map<String, Object> termMap = new HashMap<String, Object>();
-		termMap.put(PROP_PREF_NAME, "prefname1");
-		termMap.put(PROP_SRC_IDS, "TERM1");
-		termMap.put(PROP_ORG_ID, "ORGID");
-		termMap.put(PROP_ORG_SRC, "orgSrc1");
+ImportTerm concept = new ImportTerm("prefname1", new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		Gson gson = new Gson();
 		TermManager ftm = new TermManager();
 
 		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
 		termsAndFacet.put("facet", facetMap);
-		termsAndFacet.put("terms", Lists.newArrayList(termMap));
+		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		String termsAndFacetJson = gson.toJson(termsAndFacet);
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 2 ---------------
-		termMap = new HashMap<String, Object>();
-		termMap.put(PROP_PREF_NAME, "prefname1");
-		termMap.put(PROP_DESCRIPTIONS, Lists.newArrayList("description1"));
-		termMap.put(PROP_SRC_IDS, "TERM1");
-		termMap.put(PROP_ORG_ID, "ORGID");
-		termMap.put(PROP_ORG_SRC, "orgSrc1");
+		concept = new ImportTerm("prefname1", "description1", new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-		termsAndFacet.put("terms", Lists.newArrayList(termMap));
+		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		termsAndFacetJson = gson.toJson(termsAndFacet);
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 3 ---------------
-		termMap = new HashMap<String, Object>();
-		termMap.put(PROP_PREF_NAME, "prefname2");
-		termMap.put(PROP_SYNONYMS, Lists.newArrayList("syn1"));
-		termMap.put(PROP_SRC_IDS, "TERM2");
-		termMap.put(PROP_ORG_ID, "ORGID");
-		termMap.put(PROP_ORG_SRC, "orgSrc1");
+		concept = new ImportTerm("prefname2", Arrays.asList("syn1"), new ConceptCoordinates("TERM2", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-		termsAndFacet.put("terms", Lists.newArrayList(termMap));
+		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		termsAndFacetJson = gson.toJson(termsAndFacet);
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 4 ---------------
-		termMap = new HashMap<String, Object>();
-		termMap.put(PROP_PREF_NAME, "prefname3");
-		termMap.put(PROP_SYNONYMS, Lists.newArrayList("syn2"));
-		termMap.put(PROP_DESCRIPTIONS, Lists.newArrayList("description2"));
-		termMap.put(PROP_SRC_IDS, "TERM3");
-		termMap.put(PROP_ORG_ID, "ORGID");
-		termMap.put(PROP_ORG_SRC, "orgSrc1");
+		concept = new ImportTerm("prefname3", Arrays.asList("syn2"), "description2",  new ConceptCoordinates("TERM3", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-		termsAndFacet.put("terms", Lists.newArrayList(termMap));
+		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		termsAndFacetJson = gson.toJson(termsAndFacet);
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
@@ -587,13 +545,9 @@ public class TermManagerTest {
 		ImportFacet importFacet;
 		ftm = new TermManager();
 		ImportTermAndFacet importTermAndFacet;
-
-		terms.add(new ImportTerm("name0", "source0"));
-		terms.add(new ImportTerm("name1", "source1", (String) null, null, Lists.newArrayList("source0")));
-		// we have to specify the sources, otherwise there will be multiple
-		// inserts
-		terms.get(0).source = "TEST_SOURCE";
-		terms.get(1).source = "TEST_SOURCE";
+		terms.add(new ImportTerm("name0", new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name1", new ConceptCoordinates("source1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(importTermAndFacet));
@@ -617,12 +571,9 @@ public class TermManagerTest {
 		ftm = new TermManager();
 		ImportTermAndFacet importTermAndFacet;
 
-		terms.add(new ImportTerm("name0", "source0"));
-		terms.add(new ImportTerm("name1", "source1", (String) null, null, Lists.newArrayList("source0")));
-		// we have to specify the sources, otherwise there will be multiple
-		// inserts
-		terms.get(0).source = "TEST_SOURCE";
-		terms.get(1).source = "TEST_SOURCE";
+		terms.add(new ImportTerm("name0", new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name1", new ConceptCoordinates("source1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(importTermAndFacet));
@@ -634,12 +585,9 @@ public class TermManagerTest {
 		}
 
 		terms.clear();
-		terms.add(new ImportTerm("name0", "source0"));
-		terms.add(new ImportTerm("name1", "source1", (String) null, null, Lists.newArrayList("source0")));
-		// we have to specify the sources, otherwise there will be multiple
-		// inserts
-		terms.get(0).source = "TEST_SOURCE";
-		terms.get(1).source = "TEST_SOURCE";
+		terms.add(new ImportTerm("name0", new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name1", new ConceptCoordinates("source1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(importTermAndFacet));
@@ -651,7 +599,8 @@ public class TermManagerTest {
 		}
 
 		terms.clear();
-		terms.add(new ImportTerm("name1", "source1", (String) null, null, Lists.newArrayList("source0")));
+		terms.add(new ImportTerm("name1", new ConceptCoordinates("source1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(importTermAndFacet));
@@ -876,13 +825,8 @@ public class TermManagerTest {
 		// In this test, we have a term that specifies its preferred term as a
 		// synonym, too. The FacetTermManager should detect this and remove the
 		// synonym that equals the preferred name.
-		List<Map<String, Object>> termList = new ArrayList<>();
-		Map<String, Object> termMap = new HashMap<>();
-		termMap.put(PROP_PREF_NAME, "prefname");
-		termMap.put(PROP_DESCRIPTIONS, Lists.newArrayList("desc of term"));
-		termMap.put(PROP_SRC_IDS, "TERM");
-		termMap.put(PROP_SYNONYMS, Lists.newArrayList("prefname", "othersynonym"));
-		termList.add(termMap);
+		List<ImportTerm> termList = new ArrayList<>();
+		termList.add(new ImportTerm("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term", new ConceptCoordinates("TERM", "TEST_SOURCE", SRC)));
 		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
 		termsAndFacet.put("facet", FacetManagerTest.getImportFacet());
 		termsAndFacet.put("terms", termList);
@@ -929,7 +873,7 @@ public class TermManagerTest {
 		// Note that the test uses "TERM<number>" for source IDs and that we
 		// have to define the relationships via source
 		// IDs (we don't know the ultimate term IDs yet).
-		String termSource = terms.get(0).originalSource;
+		String termSource = terms.get(0).coordinates.originalSource;
 		terms.get(0).addRelationship(new ImportFacetTermRelationship("TERM" + 1, termSource,
 				TermManager.EdgeTypes.HAS_SAME_NAMES.name(), TermConstants.IdType.ORIGINAL_SOURCE));
 		terms.get(0).addRelationship(new ImportFacetTermRelationship("TERM" + 3, termSource,
@@ -972,6 +916,10 @@ public class TermManagerTest {
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> nodesIt = GlobalGraphOperations.at(graphDb)
 					.getAllNodesWithLabel(TermManager.TermLabel.TERM).iterator();
+			while (nodesIt.hasNext()) {
+				Node node = nodesIt.next();
+				System.out.println(NodeUtilities.getNodePropertiesAsString(node));
+			}
 			assertEquals(4, ftt.getNumTerms(graphDb));
 			while (nodesIt.hasNext()) {
 				Node node = nodesIt.next();
@@ -1022,7 +970,7 @@ public class TermManagerTest {
 	public void testAdditionalRelationships2() throws JSONException {
 		ImportTermAndFacet testTermsAndFacet = getTestTerms(4);
 		List<ImportTerm> terms = testTermsAndFacet.terms;
-		String termSource = terms.get(0).originalSource;
+		String termSource = terms.get(0).coordinates.originalSource;
 		ImportFacetTermRelationship rel1 = new ImportFacetTermRelationship("TERM" + 1, termSource,
 				TermManager.EdgeTypes.HAS_SAME_NAMES.name(), TermConstants.IdType.ORIGINAL_SOURCE);
 		rel1.addProperty("prop1", "value1");
@@ -1062,8 +1010,8 @@ public class TermManagerTest {
 		// Add an aggregate term with terms 0-3 as elements. The term on
 		// position 4 will stay alone.
 		List<String> aggregateElementSrcIds = Lists.newArrayList("TERM" + 0, "TERM" + 1, "TERM" + 2, "TERM" + 3);
-		List<String> aggregateElementSources = Lists.newArrayList(terms.get(0).source, terms.get(1).source,
-				terms.get(2).source, terms.get(3).source);
+		List<String> aggregateElementSources = Lists.newArrayList(terms.get(0).coordinates.source,
+				terms.get(1).coordinates.source, terms.get(2).coordinates.source, terms.get(3).coordinates.source);
 		List<TermCoordinates> aggregateElementCoords = new ArrayList<>();
 		for (int i = 0; i < aggregateElementSrcIds.size(); i++) {
 			String id = aggregateElementSrcIds.get(i);
@@ -1129,12 +1077,11 @@ public class TermManagerTest {
 		ImportTerm aggregate = new ImportTerm(
 				Arrays.asList(new TermCoordinates("TERM0", "TEST_DATA"), new TermCoordinates("TERM1", "TEST_DATA")),
 				Arrays.asList(PROP_PREF_NAME));
-		aggregate.source = "TEST_TERMS";
-		aggregate.sourceId = "testagg";
+		aggregate.coordinates = new ConceptCoordinates("testagg", "TEST_DATA", SRC);
 		aggregate.aggregateIncludeInHierarchy = true;
 		testTerms.terms.add(aggregate);
-		testTerms.terms.get(0).parentSrcIds = Arrays.asList("testagg");
-		testTerms.terms.get(1).parentSrcIds = Arrays.asList("testagg");
+		testTerms.terms.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
+		testTerms.terms.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
 
 		Gson gson = new Gson();
 		TermManager ftm = new TermManager();
@@ -1168,13 +1115,12 @@ public class TermManagerTest {
 		ImportTerm aggregate = new ImportTerm(
 				Arrays.asList(new TermCoordinates("TERM0", "TEST_DATA"), new TermCoordinates("TERM1", "TEST_DATA")),
 				Arrays.asList(PROP_PREF_NAME));
-		aggregate.source = "TEST_TERMS";
-		aggregate.sourceId = "testagg";
+		aggregate.coordinates = new ConceptCoordinates("testagg", "TEST_TERM", SRC);
 		aggregate.aggregateIncludeInHierarchy = true;
 		aggregate.generalLabels = Arrays.asList("MY_COOL_AGGREGATE_LABEL");
 		testTerms.terms.add(aggregate);
-		testTerms.terms.get(0).parentSrcIds = Arrays.asList("testagg");
-		testTerms.terms.get(1).parentSrcIds = Arrays.asList("testagg");
+		testTerms.terms.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_TERM", SRC));
+		testTerms.terms.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_TERM", SRC));
 
 		Gson gson = new Gson();
 		TermManager ftm = new TermManager();
@@ -1196,12 +1142,15 @@ public class TermManagerTest {
 		// same name and no synonyms and one will be completely
 		// different. Another two will have same names, without any synonyms.
 		List<ImportTerm> terms = new ArrayList<>();
-		terms.add(new ImportTerm("name1", "source1", Lists.newArrayList("syn1", "syn2")));
-		terms.add(new ImportTerm("name1", "source2", Lists.newArrayList("syn1", "syn2")));
-		terms.add(new ImportTerm("name1", "source3"));
-		terms.add(new ImportTerm("name2", "source4"));
-		terms.add(new ImportTerm("name3", "source5"));
-		terms.add(new ImportTerm("name3", "source6"));
+
+		terms.add(new ImportTerm("name1", Lists.newArrayList("syn1", "syn2"),
+				new ConceptCoordinates("source1", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name1", Lists.newArrayList("syn1", "syn2"),
+				new ConceptCoordinates("source2", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name1", new ConceptCoordinates("source3", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name2", new ConceptCoordinates("source4", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name3", new ConceptCoordinates("source5", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("name3", new ConceptCoordinates("source6", "TEST_SOURCE", SRC)));
 		// Lets shuffle the terms to be simulate the situation where terms are
 		// added in random order.
 		Collections.shuffle(terms);
@@ -1337,11 +1286,9 @@ public class TermManagerTest {
 		// "grandparent" will become the root.
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		List<ImportTerm> terms = new ArrayList<>();
-		terms.add(new ImportTerm("prefname1", "srcid1", "desc1", Lists.newArrayList("syn1"),
-				Lists.newArrayList("parentid1")));
-		// we have to specify the sources, otherwise there will be multiple
-		// inserts
-		terms.get(0).source = "TEST_SOURCE";
+		terms.add(new ImportTerm("prefname1", Lists.newArrayList("syn1"), "desc1",
+				new ConceptCoordinates("srcid1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC)));
 		ImportTermAndFacet termAndFacet = new ImportTermAndFacet(terms, importFacet);
 		// Allow hollow parents:
 		termAndFacet.importOptions = new ImportOptions();
@@ -1392,13 +1339,9 @@ public class TermManagerTest {
 		// become the facet root, the former hollow term shouldn't be
 		// hollow anymore.
 		terms.clear();
-		terms.add(new ImportTerm("prefname2", "parentid1", "desc2", Lists.newArrayList("syn2"),
-				Lists.newArrayList("parentid2")));
-		terms.add(new ImportTerm("prefname3", "parentid2"));
-		// we have to specify the sources, otherwise there will be multiple
-		// inserts
-		terms.get(0).source = "TEST_SOURCE";
-		terms.get(1).source = "TEST_SOURCE";
+		terms.add(new ImportTerm("prefname2", Lists.newArrayList("syn2"), "desc2", new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("prefname3", new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
 		// We need to replace the facet definition by the ID of the already
 		// created facet because a new facet will be
 		// created otherwise.
@@ -1448,10 +1391,10 @@ public class TermManagerTest {
 		// same data, there is only one node
 		// created.
 		terms.clear();
-		terms.add(new ImportTerm("prefname2", "parentid1", "desc2", Lists.newArrayList("syn2"),
-				Lists.newArrayList("parentid42")));
-		terms.add(new ImportTerm("prefname5", "parentid8", "desc2", Lists.newArrayList("syn2"),
-				Lists.newArrayList("parentid42")));
+		terms.add(new ImportTerm("prefname2",Lists.newArrayList("syn2"), "desc2", new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC)
+				, new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
+		terms.add(new ImportTerm("prefname5", Lists.newArrayList("syn2"),"desc2", new ConceptCoordinates("parentid8", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
 		termAndFacet.facet = new ImportFacet("fid0");
 
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet));
@@ -1481,10 +1424,10 @@ public class TermManagerTest {
 		List<ImportTerm> terms = testTerms.terms;
 		// Here, we just give any parent so that the non-facet-group-command
 		// does not trigger.
-		List<String> parentSrcIds = Lists.newArrayList("nonExistingParent");
-		terms.get(0).parentSrcIds = parentSrcIds;
-		terms.get(1).parentSrcIds = parentSrcIds;
-		options.cutParents = parentSrcIds;
+		List<ConceptCoordinates> parentSrcIds = Lists.newArrayList(new ConceptCoordinates("nonExistingParent", "TEST_DATA", SRC));
+		terms.get(0).parentCoordinates = parentSrcIds;
+		terms.get(1).parentCoordinates = parentSrcIds;
+		options.cutParents = Arrays.asList("nonExistingParent");
 		// We activate this so we can test parent cutting appropriately. If it
 		// would be off, the child terms of
 		// non-existing parents get to be the facet roots no matter what.
@@ -1540,22 +1483,18 @@ public class TermManagerTest {
 		// and source2 are the facet roots, all other nodes are direct or
 		// indirect descendants of them.
 		List<ImportTerm> terms = new ArrayList<>();
-		terms.add(new ImportTerm("name1", "source1"));
-		terms.add(new ImportTerm("name2", "source2"));
-		terms.add(new ImportTerm("name3", "source3", (String) null, null, Lists.newArrayList("source1", "source2")));
-		terms.add(new ImportTerm("name4", "source4", (String) null, null, Lists.newArrayList("source3")));
-		terms.add(new ImportTerm("name5", "source5", (String) null, null, Lists.newArrayList("source3")));
-		terms.add(new ImportTerm("name6", "source6", (String) null, null, Lists.newArrayList("source5")));
-		// terms.add(new ImportFacetTerm("name1", "source0"));
-		// terms.add(new ImportFacetTerm("name2", "source1"));
-		// terms.add(new ImportFacetTerm("name3", "source2", null, null,
-		// Lists.newArrayList("source0")));
-		// terms.add(new ImportFacetTerm("name4", "source3", null, null,
-		// Lists.newArrayList("source0")));
-		// terms.add(new ImportFacetTerm("name5", "source4", null, null,
-		// Lists.newArrayList("source2", "source3")));
-		// terms.add(new ImportFacetTerm("name6", "source5", null, null,
-		// Lists.newArrayList("source4")));
+		ConceptCoordinates coord1 = new ConceptCoordinates("source1", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord2 = new ConceptCoordinates("source2", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord3 = new ConceptCoordinates("source3", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord4 = new ConceptCoordinates("source4", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord5 = new ConceptCoordinates("source5", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord6 = new ConceptCoordinates("source6", "TEST_SOURCE", SRC);
+		terms.add(new ImportTerm("name1", coord1));
+		terms.add(new ImportTerm("name2", coord2));
+		terms.add(new ImportTerm("name3", coord3, Lists.newArrayList(coord1, coord2)));
+		terms.add(new ImportTerm("name4", coord4, coord3));
+		terms.add(new ImportTerm("name5", coord5, coord3));
+		terms.add(new ImportTerm("name6", coord6, coord5));
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		ImportTermAndFacet importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
 		TermManager ftm = new TermManager();
@@ -1624,13 +1563,19 @@ public class TermManagerTest {
 		// in path finding.
 		// The following is a simple chain.
 		List<ImportTerm> terms = new ArrayList<>();
-		terms.add(new ImportTerm("name1", "source1"));
-		terms.add(new ImportTerm("name2", "source2", (String) null, null, Lists.newArrayList("source1")));
-		terms.add(new ImportTerm("name3", "source3", (String) null, null, Lists.newArrayList("source2")));
-		terms.add(new ImportTerm("name4", "source4", (String) null, null, Lists.newArrayList("source3")));
-		terms.add(new ImportTerm("name5", "source5", (String) null, null, Lists.newArrayList("source4")));
+		ConceptCoordinates coord1 = new ConceptCoordinates("source1", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord2 = new ConceptCoordinates("source2", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord3 = new ConceptCoordinates("source3", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord4 = new ConceptCoordinates("source4", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord5 = new ConceptCoordinates("source5", "TEST_SOURCE", SRC);
+		ConceptCoordinates coord6 = new ConceptCoordinates("source6", "TEST_SOURCE", SRC);
+		terms.add(new ImportTerm("name1", coord1));
+		terms.add(new ImportTerm("name2", coord2, coord1));
+		terms.add(new ImportTerm("name3", coord3, coord2));
+		terms.add(new ImportTerm("name4", coord4, coord3));
+		terms.add(new ImportTerm("name5", coord5, coord4));
 		for (ImportTerm term : terms)
-			term.source = "TEST_SOURCE";
+			term.coordinates.source = "TEST_SOURCE";
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		ImportTermAndFacet importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
 		TermManager ftm = new TermManager();
@@ -1645,11 +1590,11 @@ public class TermManagerTest {
 		// source5 --> source6 --> source1 and that similarly source1 was added
 		// as a root term for the new facet.
 		terms = new ArrayList<>();
-		terms.add(new ImportTerm("name1", "source1"));
-		terms.add(new ImportTerm("name6", "source6", (String) null, null, Lists.newArrayList("source1")));
-		terms.add(new ImportTerm("name5", "source5", (String) null, null, Lists.newArrayList("source6")));
+		terms.add(new ImportTerm("name1", coord1));
+		terms.add(new ImportTerm("name6", coord6,coord1));
+		terms.add(new ImportTerm("name5",coord5, coord6));
 		for (ImportTerm term : terms)
-			term.source = "TEST_SOURCE";
+			term.coordinates.source = "TEST_SOURCE";
 		importFacet = FacetManagerTest.getImportFacet();
 		importFacet.name = "otherfacet";
 		importTermAndFacet = new ImportTermAndFacet(terms, importFacet);
@@ -1696,7 +1641,7 @@ public class TermManagerTest {
 		ImportTermAndFacet testTerms;
 		TermManager ftm = new TermManager();
 		testTerms = getTestTerms(2);
-		testTerms.terms.get(1).parentSrcIds = Lists.newArrayList("TERM0");
+		testTerms.terms.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		// Insert terms for the second facet. We have to adjust some values here
@@ -1704,10 +1649,12 @@ public class TermManagerTest {
 		// two because the duplicate source IDs would be detected.
 		testTerms = getTestTerms(2);
 		testTerms.facet.name = "secondfacet";
-		testTerms.terms.get(0).sourceId = "TERM2";
-		testTerms.terms.get(1).sourceId = "TERM3";
-		testTerms.terms.get(0).parentSrcIds = Lists.newArrayList("TERM0");
-		testTerms.terms.get(1).parentSrcIds = Lists.newArrayList("TERM0");
+		testTerms.terms.get(0).coordinates.sourceId = "TERM2";
+		testTerms.terms.get(0).coordinates.originalId = "TERM2";
+		testTerms.terms.get(1).coordinates.sourceId = "TERM3";
+		testTerms.terms.get(1).coordinates.originalId = "TERM3";
+		testTerms.terms.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.terms.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		ftm.updateChildrenInformation(graphDb);
@@ -1729,10 +1676,10 @@ public class TermManagerTest {
 		ImportTermAndFacet testTerms;
 		TermManager ftm = new TermManager();
 		testTerms = getTestTerms(5);
-		testTerms.terms.get(1).parentSrcIds = Lists.newArrayList("TERM0");
-		testTerms.terms.get(2).parentSrcIds = Lists.newArrayList("TERM0");
-		testTerms.terms.get(3).parentSrcIds = Lists.newArrayList("TERM0");
-		testTerms.terms.get(4).parentSrcIds = Lists.newArrayList("TERM3");
+		testTerms.terms.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.terms.get(2).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.terms.get(3).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.terms.get(4).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -1898,9 +1845,8 @@ public class TermManagerTest {
 		// terms.
 		ImportTermAndFacet testTerms = getTestTerms(4);
 		// add a fifth term that has the first term as a parent
-		testTerms.terms.add(new ImportTerm("someterm", "somesrcid", (List<String>) null, (List<String>) null,
-				Lists.newArrayList("TERM0")));
-		testTerms.terms.get(testTerms.terms.size() - 1).source = "somesource";
+		testTerms.terms.add(new ImportTerm("someterm",  new ConceptCoordinates("somesrcid", "TEST_SOURCE", SRC), new ConceptCoordinates("TERM0", "TEST_SOURCE", SRC)));
+		testTerms.terms.get(testTerms.terms.size() - 1).coordinates.source = "somesource";
 		TermManager tm = new TermManager();
 		// first insert.
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
@@ -1923,7 +1869,7 @@ public class TermManagerTest {
 		ImportTerm term = new ImportTerm("somesrcid");
 		term.descriptions = Lists.newArrayList("newdesc2");
 		term.synonyms = Lists.newArrayList("newsynonym2");
-		term.source = "somesource";
+		term.coordinates = new ConceptCoordinates("somesrcid", "somesource", SRC);
 		testTerms.terms.add(term);
 		// second insert, duplicate terms should now be merged.
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
@@ -1972,9 +1918,13 @@ public class TermManagerTest {
 		List<Map<String, Object>> terms = new ArrayList<>();
 		Map<String, Object> term = new HashMap<>();
 		term.put(PROP_PREF_NAME, "testPrefName");
-		term.put(PROP_SRC_IDS, "testSrcId");
 		term.put("someIntegerProperty", 42);
 		term.put("someIntegerArrayProperty", new Integer[] { 23, 98 });
+		
+		Map<String, String> coordinates = new HashMap<>();
+		coordinates.put(CoordinateConstants.SOURCE_ID, "testSrcId");
+		coordinates.put(CoordinateConstants.SOURCE, "TEST_SOURCE");
+		term.put(TermConstants.PROP_COORDINATES, coordinates);
 		terms.add(term);
 
 		Map<String, Object> termsMap = new HashMap<>();
@@ -2291,24 +2241,26 @@ public class TermManagerTest {
 	@Test
 	public void testUniqueSourceIds() throws JSONException {
 		ImportTermAndFacet testTerms = getTestTerms(2);
-		// first, remove original ID and source because otherwise the original ID checks will take over
-		testTerms.terms.get(0).originalId = null;
-		testTerms.terms.get(0).originalSource = null;
-		testTerms.terms.get(1).originalId = null;
-		testTerms.terms.get(1).originalSource = null;
-		
-		// now set terms that should be equal by source ID despite having a differenz source
-		testTerms.terms.get(0).uniqueSourceId = true;
-		testTerms.terms.get(0).sourceId = "id0";
-		testTerms.terms.get(0).source = "source0";
-		testTerms.terms.get(1).uniqueSourceId = true;
-		testTerms.terms.get(1).sourceId = "id0";
-		testTerms.terms.get(1).source = "source1";
-		
+		// first, remove original ID and source because otherwise the original
+		// ID checks will take over
+		testTerms.terms.get(0).coordinates.originalId = null;
+		testTerms.terms.get(0).coordinates.originalSource = null;
+		testTerms.terms.get(1).coordinates.originalId = null;
+		testTerms.terms.get(1).coordinates.originalSource = null;
+
+		// now set terms that should be equal by source ID despite having a
+		// different source
+		testTerms.terms.get(0).coordinates.uniqueSourceId = true;
+		testTerms.terms.get(0).coordinates.sourceId = "id0";
+		testTerms.terms.get(0).coordinates.source = "source0";
+		testTerms.terms.get(1).coordinates.uniqueSourceId = true;
+		testTerms.terms.get(1).coordinates.sourceId = "id0";
+		testTerms.terms.get(1).coordinates.source = "source1";
+
 		TermManager tm = new TermManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 	}
-	
+
 	public static void printNodeLabels(Node n) {
 		for (Label l : n.getLabels()) {
 			System.out.println(l.name());
@@ -2338,10 +2290,9 @@ public class TermManagerTest {
 	public static ImportTermAndFacet getTestTerms(int amount, int startAt) {
 		List<ImportTerm> termList = new ArrayList<>(amount);
 		for (int i = startAt; i < amount + startAt; i++) {
-			ImportTerm term = new ImportTerm("prefname" + i, "TERM" + i, "desc of term" + i);
-			term.originalId = term.sourceId;
-			term.originalSource = "TEST_DATA";
-			term.source = "TEST_DATA";
+			ConceptCoordinates coordinates = new ConceptCoordinates("TERM" + i, "TEST_DATA", "TERM" + i, "TEST_DATA",
+					false);
+			ImportTerm term = new ImportTerm("prefname" + i, "desc of term" + i, coordinates);
 			termList.add(term);
 		}
 

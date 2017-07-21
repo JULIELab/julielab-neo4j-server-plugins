@@ -111,4 +111,10 @@ public class NodeUtilities extends PropertyUtilities {
 			ret = (String[]) propertyValue;
 		return ret;
 	}
+	
+	public static String getString(Node term, String property) {
+		if (term.hasProperty(property))
+			return (String) term.getProperty(property);
+		return null;
+	}
 }
