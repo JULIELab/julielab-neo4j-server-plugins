@@ -1,3 +1,3 @@
 de.julielab.neo4j.plugins.FacetManager
-de.julielab.neo4j.plugins.TermManager
+de.julielab.neo4j.plugins.ConceptManager
 de.julielab.neo4j.plugins.Export

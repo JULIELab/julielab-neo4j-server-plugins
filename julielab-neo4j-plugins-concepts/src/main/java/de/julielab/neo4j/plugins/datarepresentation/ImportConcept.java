@@ -196,8 +196,14 @@ public class ImportConcept {
 		this.parentCoordinates.add(parentCoordinates);
 	}
 	
+	public void addParentIfNotExists(ConceptCoordinates parentCoordinates) {
+		if (this.parentCoordinates == null || this.parentCoordinates.isEmpty() || !this.parentCoordinates.contains(parentCoordinates))
+			addParent(parentCoordinates);
+	}
+	
 	public boolean hasParents() {
 		return parentCoordinates != null && !parentCoordinates.isEmpty();
 	}
+
 	
 }

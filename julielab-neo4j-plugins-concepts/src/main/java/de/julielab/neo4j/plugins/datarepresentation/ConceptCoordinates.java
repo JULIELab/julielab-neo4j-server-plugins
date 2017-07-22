@@ -71,4 +71,55 @@ public class ConceptCoordinates {
 		}
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((originalId == null) ? 0 : originalId.hashCode());
+		result = prime * result + ((originalSource == null) ? 0 : originalSource.hashCode());
+		result = prime * result + ((source == null) ? 0 : source.hashCode());
+		result = prime * result + ((sourceId == null) ? 0 : sourceId.hashCode());
+		result = prime * result + (uniqueSourceId ? 1231 : 1237);
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		ConceptCoordinates other = (ConceptCoordinates) obj;
+		if (originalId == null) {
+			if (other.originalId != null)
+				return false;
+		} else if (!originalId.equals(other.originalId))
+			return false;
+		if (originalSource == null) {
+			if (other.originalSource != null)
+				return false;
+		} else if (!originalSource.equals(other.originalSource))
+			return false;
+		if (source == null) {
+			if (other.source != null)
+				return false;
+		} else if (!source.equals(other.source))
+			return false;
+		if (sourceId == null) {
+			if (other.sourceId != null)
+				return false;
+		} else if (!sourceId.equals(other.sourceId))
+			return false;
+		if (uniqueSourceId != other.uniqueSourceId)
+			return false;
+		return true;
+	}
+	
+	@Override
+	public String toString() {
+		return "org(" + originalId + ", " + originalSource + ") / src(" + sourceId + ", " + source + ")";
+	}
+
 }

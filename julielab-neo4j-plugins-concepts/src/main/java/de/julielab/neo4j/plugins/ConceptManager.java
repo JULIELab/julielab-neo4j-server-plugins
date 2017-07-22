@@ -410,11 +410,11 @@ public class ConceptManager extends ServerPlugin {
 			// Default-relationships (taxonomical).
 			{
 				if (jsonTerm.has(PARENT_COORDINATES)) {
-					JSONArray parentCoordinates = jsonTerm.getJSONArray(PARENT_COORDINATES);
-					for (int j = 0; j < parentCoordinates.length(); j++) {
-						JSONObject parentCoordinate = parentCoordinates.getJSONObject(j);
-						String parentSrcId = parentCoordinate.getString(CoordinateConstants.SOURCE_ID);
-						String parentSource = parentCoordinate.getString(CoordinateConstants.SOURCE);
+					JSONArray parentCoordinateArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
+					for (int j = 0; j < parentCoordinateArray.length(); j++) {
+						JSONObject parentCoordinates = parentCoordinateArray.getJSONObject(j);
+						String parentSrcId = parentCoordinates.getString(CoordinateConstants.SOURCE_ID);
+						String parentSource = parentCoordinates.getString(CoordinateConstants.SOURCE);
 						if (importOptions.cutParents.contains(parentSrcId)) {
 							createRelationShipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 							continue;
@@ -423,6 +423,12 @@ public class ConceptManager extends ServerPlugin {
 						// The term has another term as parent. Connect
 						// them.
 						Node parent = nodesBySrcId.get(parentSrcId);
+						
+						// The parent was not in the imported data; check if it already exists in the database
+						if (parent == null) {
+							log.debug("Searching for parent concept to create hierarchical relationships");
+							parent = lookupTerm(new ConceptCoordinates(parentCoordinates), idIndex);
+						}
 
 						if (null != parent) {
 							long creationTime = System.currentTimeMillis();
@@ -452,7 +458,7 @@ public class ConceptManager extends ServerPlugin {
 							// other cases where they aren't? Then perhaps we
 							// need an option to allow "source-less" lookup
 							// explicitly.
-							log.info("Term with source ID \"" + srcId + "\" referenced the term with source ID \""
+							log.info("Concept with source ID \"" + srcId + "\" referenced the term with source ID \""
 									+ parentSrcId + "\" as its parent. However, that parent node does not exist.");
 
 							if (importOptions.createHollowParents) {
@@ -1010,22 +1016,8 @@ public class ConceptManager extends ServerPlugin {
 				++numElementsFound;
 			}
 		}
-		// don't create aggregates with less than two elements, they would be
-		// obsolete
-		// if (numElementsFound < 2) {
-		// log.debug(
-		// "The aggregate with source ID {} and elements {} has only a single
-		// element in the current database. The aggregate will not be created
-		// because it is redundant.",
-		// aggSrcId, elementSrcIds);
-		// for (Relationship rel : aggregate.getRelationships()) {
-		// rel.delete();
-		// }
-		// aggregate.delete();
-		// insertionReport.omittedTerms.add(aggSrcId);
-		// } else {
 
-		// now that we know we will keep the aggregate, set its properties
+		// Set the aggregate's properties
 		if (null != aggSrcId) {
 			int idIndex = findFirstValueInArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId);
 			int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
@@ -1058,7 +1050,6 @@ public class ConceptManager extends ServerPlugin {
 		termIndex.add(aggregate, PROP_ID, aggregateId);
 
 		insertionReport.numTerms++;
-		// }
 	}
 
 	private void insertFacetTerm(GraphDatabaseService graphDb, String facetId, Index<Node> termIndex,
@@ -1291,6 +1282,7 @@ public class ConceptManager extends ServerPlugin {
 		// lookup for relationship creation.
 		// NOTE that this currently can only connect to parents having the same
 		// source as the currently inserted concept.
+		log.debug("Looking up parents");
 		JSONArray parentCoordinateArray = JSON.getJSONArray(jsonTerm, PARENT_COORDINATES);
 		for (int i = 0; null != parentCoordinateArray && i < parentCoordinateArray.length(); i++) {
 			ConceptCoordinates parentCoordinates = new ConceptCoordinates(parentCoordinateArray.getJSONObject(i));
