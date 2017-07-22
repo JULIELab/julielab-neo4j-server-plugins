@@ -3,23 +3,21 @@ package de.julielab.neo4j.plugins;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.addToArrayProperty;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.findFirstValueInArrayProperty;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayProperty;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.INDEX_NAME;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PARENT_COORDINATES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_CHILDREN_IN_FACETS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_COORDINATES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_COPY_PROPERTIES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_FACETS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_ORG_ID;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_ORG_SRC;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_PREF_NAME;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SOURCES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SRC_IDS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SYNONYMS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_UNIQUE_SRC_ID;
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.AGGREGATE_INCLUDE_IN_HIERARCHY;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.INDEX_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PARENT_COORDINATES;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PARENT_SOURCES;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PARENT_SRC_IDS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_CHILDREN_IN_FACETS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_COORDINATES;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_COPY_PROPERTIES;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_ORG_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_ORG_SRC;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SOURCES;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SRC_IDS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SYNONYMS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_UNIQUE_SRC_ID;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -89,6 +87,8 @@ import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder.CopyAggregatePropertiesStatistics;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermVariantComparator;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptRelationConstants;
 import de.julielab.neo4j.plugins.constants.semedico.CoordinateConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
 import de.julielab.neo4j.plugins.constants.semedico.MorphoConstants;
@@ -96,8 +96,6 @@ import de.julielab.neo4j.plugins.constants.semedico.MorphoRelationConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.AddToNonFacetGroupCommand;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
@@ -105,7 +103,7 @@ import de.julielab.neo4j.plugins.datarepresentation.PushTermsToSetCommand;
 import de.julielab.neo4j.plugins.datarepresentation.PushTermsToSetCommand.TermSelectionDefinition;
 
 @Description("This plugin discloses special operation for efficient access to the FacetTerms for Semedico.")
-public class TermManager extends ServerPlugin {
+public class ConceptManager extends ServerPlugin {
 
 	private static final String UNKNOWN_TERM_SOURCE = "<unknown>";
 
@@ -256,7 +254,7 @@ public class TermManager extends ServerPlugin {
 	public static final String KEY_TERMS = "terms";
 	public static final String KEY_TIME = "time";
 	public static final String KEY_MAPPINGS = "mappings";
-	private static final Logger log = LoggerFactory.getLogger(TermManager.class);
+	private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
 	public static final String POP_TERMS_FROM_SET = "pop_terms_from_set";
 	public static final String PUSH_TERMS_TO_SET = "push_terms_to_set";
 	public static final String RET_KEY_CHILDREN = "children";
@@ -274,7 +272,7 @@ public class TermManager extends ServerPlugin {
 	 * The REST context path to this plugin. This is for convenience for usage
 	 * from external programs that make use of the plugin.
 	 */
-	public static final String TERM_MANAGER_ENDPOINT = "db/data/ext/" + TermManager.class.getSimpleName() + "/graphdb/";
+	public static final String TERM_MANAGER_ENDPOINT = "db/data/ext/" + ConceptManager.class.getSimpleName() + "/graphdb/";
 
 	private static final int TERM_INSERT_BATCH_SIZE = 10000;
 
@@ -376,7 +374,7 @@ public class TermManager extends ServerPlugin {
 			Map<String, Node> nodesBySrcId, ImportOptions importOptions, InsertionReport insertionReport)
 			throws JSONException {
 		log.info("Creating relationship between inserted terms.");
-		Index<Node> idIndex = graphDb.index().forNodes(TermConstants.INDEX_NAME);
+		Index<Node> idIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
 		String facetId = null;
 		if (null != facet)
 			facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
@@ -393,8 +391,8 @@ public class TermManager extends ServerPlugin {
 		for (int i = 0; i < jsonTerms.length(); i++) {
 			long time = System.currentTimeMillis();
 			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
-			if (JSON.getBoolean(jsonTerm, TermConstants.AGGREGATE)
-					&& !JSON.getBoolean(jsonTerm, TermConstants.AGGREGATE_INCLUDE_IN_HIERARCHY))
+			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE)
+					&& !JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY))
 				continue;
 			JSONObject coordinates = jsonTerm.getJSONObject(PROP_COORDINATES);
 			// Every term must have a source ID...
@@ -501,7 +499,7 @@ public class TermManager extends ServerPlugin {
 							throw new IllegalArgumentException("Concept with source ID " + srcId
 									+ " specifies source ID " + parentSrcId
 									+ " as parent. This node is an aggregate but not a TERM itself and thus is not included in the hierarchy and cannot be the conceptual parent of other concepts. To achieve this, import the aggregate with the property "
-									+ TermConstants.AGGREGATE_INCLUDE_IN_HIERARCHY
+									+ ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY
 									+ " set to true or build the aggregates in a way that assignes the TERM label to them.");
 					}
 
@@ -530,16 +528,16 @@ public class TermManager extends ServerPlugin {
 			// is-mapped-to,
 			// whatever...)
 			{
-				if (jsonTerm.has(TermConstants.RELATIONSHIPS)) {
+				if (jsonTerm.has(ConceptConstants.RELATIONSHIPS)) {
 					log.info("Adding explicitly specified relationships");
-					JSONArray jsonRelationships = jsonTerm.getJSONArray(TermConstants.RELATIONSHIPS);
+					JSONArray jsonRelationships = jsonTerm.getJSONArray(ConceptConstants.RELATIONSHIPS);
 					for (int j = 0; j < jsonRelationships.length(); j++) {
 						JSONObject jsonRelationship = jsonRelationships.getJSONObject(j);
-						String rsTypeStr = jsonRelationship.getString(TermConstants.RS_TYPE);
-						String targetOrgId = JSON.getString(jsonRelationship, TermConstants.RS_TARGET_ORG_ID);
-						String targetOrgSource = JSON.getString(jsonRelationship, TermConstants.RS_TARGET_ORG_SRC);
-						String targetSrcId = JSON.getString(jsonRelationship, TermConstants.RS_TARGET_SRC_ID);
-						String targetSource = JSON.getString(jsonRelationship, TermConstants.RS_TARGET_SRC);
+						String rsTypeStr = jsonRelationship.getString(ConceptConstants.RS_TYPE);
+						String targetOrgId = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_ORG_ID);
+						String targetOrgSource = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_ORG_SRC);
+						String targetSrcId = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_SRC_ID);
+						String targetSource = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_SRC);
 						Node target = lookupTerm(new ConceptCoordinates(targetSrcId, targetSource, targetOrgId, targetOrgSource,
 								JSON.getBoolean(jsonTerm, PROP_UNIQUE_SRC_ID, false)), idIndex);
 						if (null == target) {
@@ -560,8 +558,8 @@ public class TermManager extends ServerPlugin {
 						}
 						EdgeTypes type = EdgeTypes.valueOf(rsTypeStr);
 						Object[] properties = null;
-						if (jsonRelationship.has(TermConstants.RS_PROPS)) {
-							JSONObject relProps = jsonRelationship.getJSONObject(TermConstants.RS_PROPS);
+						if (jsonRelationship.has(ConceptConstants.RS_PROPS)) {
+							JSONObject relProps = jsonRelationship.getJSONObject(ConceptConstants.RS_PROPS);
 							JSONArray propNames = relProps.names();
 							properties = new Object[propNames.length() * 2];
 							for (int k = 0; k < propNames.length(); ++k) {
@@ -592,7 +590,7 @@ public class TermManager extends ServerPlugin {
 
 	/**
 	 * Checks whether an automatic index for the <tt>label</tt> exists on the
-	 * {@link TermConstants#PROP_ID} property and creates it, if not.
+	 * {@link ConceptConstants#PROP_ID} property and creates it, if not.
 	 * 
 	 * @param graphDb
 	 * @param label
@@ -701,13 +699,13 @@ public class TermManager extends ServerPlugin {
 
 	@Name(CREATE_SCHEMA_INDEXES)
 	@Description("Creates uniqueness constraints (and thus, indexes), on the following label / property combinations: TERM / "
-			+ TermConstants.PROP_ID + "; TERM / " + TermConstants.PROP_ORG_ID + "; FACET / " + FacetConstants.PROP_ID
+			+ ConceptConstants.PROP_ID + "; TERM / " + ConceptConstants.PROP_ORG_ID + "; FACET / " + FacetConstants.PROP_ID
 			+ "; NO_FACET / " + FacetConstants.PROP_ID + "; ROOT / " + NodeConstants.PROP_NAME
 			+ ". This should be done after the main initial import because node insertion with uniqueness switched on costs significant insertion performance.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void createSchemaIndexes(@Source GraphDatabaseService graphDb) {
-		createIndexIfAbsent(graphDb, TermLabel.TERM, TermConstants.PROP_ID, true);
-		createIndexIfAbsent(graphDb, TermLabel.TERM, TermConstants.PROP_ORG_ID, true);
+		createIndexIfAbsent(graphDb, TermLabel.TERM, ConceptConstants.PROP_ID, true);
+		createIndexIfAbsent(graphDb, TermLabel.TERM, ConceptConstants.PROP_ORG_ID, true);
 		createIndexIfAbsent(graphDb, FacetLabel.FACET, FacetConstants.PROP_ID, true);
 		createIndexIfAbsent(graphDb, FacetLabel.NO_FACET, FacetConstants.PROP_ID, true);
 		createIndexIfAbsent(graphDb, NodeConstants.Labels.ROOT, NodeConstants.PROP_NAME, true);
@@ -813,8 +811,8 @@ public class TermManager extends ServerPlugin {
 			}
 
 		};
-		RelationshipType relType = StringUtils.isBlank(facetId) ? TermManager.EdgeTypes.IS_BROADER_THAN
-				: DynamicRelationshipType.withName(TermManager.EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
+		RelationshipType relType = StringUtils.isBlank(facetId) ? ConceptManager.EdgeTypes.IS_BROADER_THAN
+				: DynamicRelationshipType.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
 		TraversalDescription td = graphDb.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
 				.relationships(relType, Direction.INCOMING).evaluator(rootTermEvaluator);
 
@@ -948,13 +946,13 @@ public class TermManager extends ServerPlugin {
 		// be a TERM for path creation
 		if (includeAggreationInHierarchy)
 			aggregate.addLabel(TermLabel.TERM);
-		JSONArray elementCoords = jsonTerm.getJSONArray(TermConstants.ELEMENT_COORDINATES);
+		JSONArray elementCoords = jsonTerm.getJSONArray(ConceptConstants.ELEMENT_COORDINATES);
 		int numElementsFound = 0;
 		log.debug("    looking up aggregate elements");
 		for (int i = 0; i < elementCoords.length(); i++) {
 			JSONObject elementCoord = elementCoords.getJSONObject(i);
-			String elementSrcId = elementCoord.getString(TermConstants.COORD_ID);
-			String elementSource = elementCoord.getString(TermConstants.COORD_SOURCE);
+			String elementSrcId = elementCoord.getString(ConceptConstants.COORD_ID);
+			String elementSource = elementCoord.getString(ConceptConstants.COORD_SOURCE);
 			if (null == elementSource)
 				elementSource = UNKNOWN_TERM_SOURCE;
 			Node element = nodesBySrcId.get(elementSrcId);
@@ -1045,11 +1043,11 @@ public class TermManager extends ServerPlugin {
 			aggregate.setProperty(PROP_ORG_ID, aggOrgId);
 		if (null != aggOrgSource)
 			aggregate.setProperty(PROP_ORG_SRC, aggOrgSource);
-		JSONArray copyProperties = JSON.getJSONArray(jsonTerm, TermConstants.PROP_COPY_PROPERTIES);
+		JSONArray copyProperties = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_COPY_PROPERTIES);
 		if (null != copyProperties && copyProperties.length() > 0)
-			aggregate.setProperty(TermConstants.PROP_COPY_PROPERTIES, JSON.json2JavaArray(copyProperties));
+			aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, JSON.json2JavaArray(copyProperties));
 
-		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, TermConstants.PROP_GENERAL_LABELS);
+		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_GENERAL_LABELS);
 		for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
 			aggregate.addLabel(DynamicLabel.label(generalLabels.getString(i)));
 		}
@@ -1070,7 +1068,7 @@ public class TermManager extends ServerPlugin {
 		// null-convenience method here.
 		String prefName = JSON.getString(jsonTerm, PROP_PREF_NAME);
 		JSONArray synonyms = JSON.getJSONArray(jsonTerm, PROP_SYNONYMS);
-		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, TermConstants.PROP_GENERAL_LABELS);
+		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_GENERAL_LABELS);
 
 		JSONObject coordinates = jsonTerm.getJSONObject(PROP_COORDINATES);
 
@@ -1105,7 +1103,7 @@ public class TermManager extends ServerPlugin {
 			throw new IllegalArgumentException(
 					"Term to be inserted defines only its original ID or its original source but not both. This is not allowed. The term data was: "
 							+ jsonTerm);
-		if (importOptions.merge && jsonTerm.has(PARENT_SRC_IDS))
+		if (importOptions.merge && jsonTerm.has(PARENT_COORDINATES))
 			// The problem is that we use the nodeBySrcId map to check whether
 			// relationships have to be created or not.
 			// Thus, for relationships we need source IDs. Could be adapted in
@@ -1134,7 +1132,7 @@ public class TermManager extends ServerPlugin {
 		String termId = null;
 		if (null != term && !term.hasLabel(TermLabel.HOLLOW))
 			// If we found a term by now, get its ID.
-			termId = (String) term.getProperty(TermConstants.PROP_ID);
+			termId = (String) term.getProperty(ConceptConstants.PROP_ID);
 		if (null == term || term.hasLabel(TermLabel.HOLLOW)) {
 			// The term could already exist as a hollow node, e.g. because it
 			// was the
@@ -1198,9 +1196,9 @@ public class TermManager extends ServerPlugin {
 		// Currently, just do the following: For non-array property
 		// values, set those properties which are currently non
 		// existent. For array, merge the arrays.
-		PropertyUtilities.mergeJSONObjectIntoPropertyContainer(jsonTerm, term, TermConstants.PROP_GENERAL_LABELS,
-				PROP_SRC_IDS, PROP_SOURCES, PROP_UNIQUE_SRC_ID, PROP_SYNONYMS, PARENT_SRC_IDS, PROP_COORDINATES,
-				PARENT_COORDINATES, TermConstants.RELATIONSHIPS);
+		PropertyUtilities.mergeJSONObjectIntoPropertyContainer(jsonTerm, term, ConceptConstants.PROP_GENERAL_LABELS,
+				PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, PROP_COORDINATES,
+				PARENT_COORDINATES, ConceptConstants.RELATIONSHIPS);
 		// set the original ID and source
 		if (orgId != null) {
 			term.setProperty(PROP_ORG_ID, orgId);
@@ -1229,7 +1227,7 @@ public class TermManager extends ServerPlugin {
 			addToArrayProperty(term, PROP_SOURCES, source, true);
 			addToArrayProperty(term, PROP_UNIQUE_SRC_ID, uniqueSourceId, true);
 		}
-		mergeArrayProperty(term, TermConstants.PROP_SYNONYMS, JSON.json2JavaArray(synonyms, prefName));
+		mergeArrayProperty(term, ConceptConstants.PROP_SYNONYMS, JSON.json2JavaArray(synonyms, prefName));
 		addToArrayProperty(term, PROP_FACETS, facetId);
 
 		for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
@@ -1251,7 +1249,7 @@ public class TermManager extends ServerPlugin {
 				termIndex.add(term, PROP_SRC_IDS, srcId);
 			if (null != orgId)
 				termIndex.putIfAbsent(term, PROP_ORG_ID, orgId);
-			termIndex.putIfAbsent(term, TermConstants.PROP_ID, termId);
+			termIndex.putIfAbsent(term, ConceptConstants.PROP_ID, termId);
 			nodesBySrcId.put(srcId, term);
 		}
 
@@ -1346,7 +1344,7 @@ public class TermManager extends ServerPlugin {
 		log.info("Starting to insert " + jsonTerms.length() + " terms.");
 		for (int i = 0; i < jsonTerms.length(); i++) {
 			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
-			boolean isAggregate = JSON.getBoolean(jsonTerm, TermConstants.AGGREGATE);
+			boolean isAggregate = JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE);
 			if (isAggregate) {
 				insertAggregateTerm(graphDb, termIndex, jsonTerm, nodesBySrcId, insertionReport, importOptions);
 			} else {
@@ -1874,7 +1872,7 @@ public class TermManager extends ServerPlugin {
 		JSONArray mappings = new JSONArray(mappingsJson);
 		log.info("Starting to insert " + mappings.length() + " mappings.");
 		try (Transaction tx = graphDb.beginTx()) {
-			Index<Node> termIndex = graphDb.index().forNodes(TermConstants.INDEX_NAME);
+			Index<Node> termIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
 			Map<String, Node> nodesBySrcId = new HashMap<>(mappings.length());
 			InsertionReport insertionReport = new InsertionReport();
 
@@ -1948,7 +1946,7 @@ public class TermManager extends ServerPlugin {
 				insertionReport.addExistingTerm(n1);
 				insertionReport.addExistingTerm(n2);
 				createRelationShipIfNotExists(n1, n2, EdgeTypes.IS_MAPPED_TO, insertionReport, Direction.BOTH,
-						TermRelationConstants.PROP_MAPPING_TYPE, new String[] { mappingType });
+						ConceptRelationConstants.PROP_MAPPING_TYPE, new String[] { mappingType });
 			}
 			tx.success();
 			log.info(insertionReport.numRelationships + " of " + mappings.length()

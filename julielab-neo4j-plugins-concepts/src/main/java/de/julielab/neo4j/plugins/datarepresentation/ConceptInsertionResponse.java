@@ -1,10 +1,10 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import de.julielab.neo4j.plugins.TermManager;
+import de.julielab.neo4j.plugins.ConceptManager;
 
 /**
  * A convenience class to parse the HTTP response from the
- * {@link TermManager#INSERT_TERMS} plugin endpoint in another application. This
+ * {@link ConceptManager#INSERT_TERMS} plugin endpoint in another application. This
  * class is not actually used in the plugin code.
  * 
  * @author faessler

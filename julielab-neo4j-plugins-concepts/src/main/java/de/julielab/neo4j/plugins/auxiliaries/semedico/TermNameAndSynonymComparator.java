@@ -11,7 +11,7 @@ import org.neo4j.graphdb.Node;
 import com.ibm.icu.text.Collator;
 import com.ibm.icu.text.RuleBasedCollator;
 
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 
 /**
  * This comparator can be used to sort nodes according to their similarity in preferred name and synonyms. The
@@ -25,8 +25,8 @@ public class TermNameAndSynonymComparator implements Comparator<Node> {
 
 	@Override
 	public int compare(Node o1, Node o2) {
-		Object o1Name = o1.getProperty(TermConstants.PROP_PREF_NAME);
-		Object o2Name = o2.getProperty(TermConstants.PROP_PREF_NAME);
+		Object o1Name = o1.getProperty(ConceptConstants.PROP_PREF_NAME);
+		Object o2Name = o2.getProperty(ConceptConstants.PROP_PREF_NAME);
 		int prefLabelComp = collator.compare(o1Name, o2Name);
 		if (prefLabelComp != 0)
 			return prefLabelComp;
@@ -37,8 +37,8 @@ public class TermNameAndSynonymComparator implements Comparator<Node> {
 	}
 
 	private String getSortedAndNormalizedSynonyms(Node n) {
-		if (n.hasProperty(TermConstants.PROP_SYNONYMS)) {
-			String[] synonyms = (String[]) n.getProperty(TermConstants.PROP_SYNONYMS);
+		if (n.hasProperty(ConceptConstants.PROP_SYNONYMS)) {
+			String[] synonyms = (String[]) n.getProperty(ConceptConstants.PROP_SYNONYMS);
 			List<String> synonymsList = Arrays.asList(synonyms);
 			Collections.sort(synonymsList);
 			String concatSynonyms = StringUtils.join(synonymsList, "");

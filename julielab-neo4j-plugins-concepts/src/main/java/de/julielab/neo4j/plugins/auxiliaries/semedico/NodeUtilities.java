@@ -1,14 +1,16 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PARENT_COORDINATES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_COORDINATES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_FACETS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_PREF_NAME;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SOURCES;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SRC_IDS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SYNONYMS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_UNIQUE_SRC_ID;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.RELATIONSHIPS;
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PARENT_SRC_IDS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SOURCES;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SRC_IDS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SYNONYMS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_UNIQUE_SRC_ID;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,7 +25,7 @@ import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 
 public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUtilities {
 
@@ -58,7 +60,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 	public static Set<String> getSourcesForSourceId(Node conceptNode, String sourceId) {
 		Set<String> sourcesForSourceId = new HashSet<>();
 
-		String[] conceptSrcIds = (String[]) conceptNode.getProperty(TermConstants.PROP_SRC_IDS);
+		String[] conceptSrcIds = (String[]) conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS);
 		String[] conceptSources = conceptNode.hasProperty(PROP_SOURCES)
 				? (String[]) conceptNode.getProperty(PROP_SOURCES) : new String[0];
 		if (conceptSources.length > 0 && conceptSrcIds.length != conceptSources.length) {
@@ -89,8 +91,8 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 	 *         marked as unique.
 	 */
 	public static boolean isSourceUnique(Node conceptNode, String srcId) {
-		String[] conceptSrcIds = (String[]) conceptNode.getProperty(TermConstants.PROP_SRC_IDS);
-		boolean[] conceptUniqueSrcIds = (boolean[]) conceptNode.getProperty(TermConstants.PROP_UNIQUE_SRC_ID);
+		String[] conceptSrcIds = (String[]) conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS);
+		boolean[] conceptUniqueSrcIds = (boolean[]) conceptNode.getProperty(ConceptConstants.PROP_UNIQUE_SRC_ID);
 		if (conceptSrcIds.length > 0 && conceptSrcIds.length != conceptUniqueSrcIds.length) {
 			throw new IllegalStateException("Concept " + NodeUtilities.getNodePropertiesAsString(conceptNode)
 					+ " has a differing number of source IDs and unique source ID markers.");
@@ -117,8 +119,8 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 			boolean addConceptPrefToSynonyms = !firstNodePrefName.equals(conceptPrefName);
 			
 			// ----- merging of general properties
-			PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, TermConstants.PROP_GENERAL_LABELS,
-					PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, PARENT_SRC_IDS, TermConstants.RELATIONSHIPS);
+			PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_GENERAL_LABELS,
+					PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, PROP_COORDINATES, PARENT_COORDINATES);
 			
 			// ----- merging of source IDs and sources
 			// we merge the coordinates (source ID, source) that do not yet exist in first node
@@ -141,7 +143,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 			
 			// ----- merging of synonyms
 			String[] conceptSynonyms = (String[]) conceptNode.getProperty(PROP_SYNONYMS);
-			mergeArrayProperty(firstNode, TermConstants.PROP_SYNONYMS, conceptSynonyms);
+			mergeArrayProperty(firstNode, ConceptConstants.PROP_SYNONYMS, conceptSynonyms);
 			if (addConceptPrefToSynonyms)
 				addToArrayProperty(firstNode, PROP_SYNONYMS, conceptPrefName);
 			

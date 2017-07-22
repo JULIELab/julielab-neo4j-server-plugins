@@ -1,9 +1,9 @@
 package de.julielab.neo4j.plugins;
 
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.PROP_SYNONYMS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_FACETS;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_PREF_NAME;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SYNONYMS;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,8 +46,8 @@ import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.tooling.GlobalGraphOperations;
 
-import de.julielab.neo4j.plugins.TermManager.EdgeTypes;
-import de.julielab.neo4j.plugins.TermManager.TermLabel;
+import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -56,7 +56,7 @@ import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.constants.NodeConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
 import de.julielab.neo4j.plugins.constants.semedico.MorphoConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 
 public class Export extends ServerPlugin {
 
@@ -116,7 +116,7 @@ public class Export extends ServerPlugin {
 					Label label = DynamicLabel.label(labelString);
 					for (ResourceIterator<Node> terms = graphDb.findNodes(label); terms.hasNext();) {
 						Node term = terms.next();
-						String termId = (String) term.getProperty(TermConstants.PROP_ID);
+						String termId = (String) term.getProperty(ConceptConstants.PROP_ID);
 						Object idObject = PropertyUtilities.getNonNullNodeProperty(term, idProperty);
 						if (null == idObject)
 							continue;
@@ -205,12 +205,12 @@ public class Export extends ServerPlugin {
 										+ " label.");
 							String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
 							DynamicRelationshipType reltype = DynamicRelationshipType
-									.withName(TermManager.EdgeTypes.IS_BROADER_THAN + "_" + facetId);
+									.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN + "_" + facetId);
 							relationshipTypeList.add(reltype);
 						}
 					}
 				} else {
-					relationshipTypeList.add(TermManager.EdgeTypes.IS_BROADER_THAN);
+					relationshipTypeList.add(ConceptManager.EdgeTypes.IS_BROADER_THAN);
 				}
 
 				for (int i = 0; i < labels.length(); i++) {
@@ -257,7 +257,7 @@ public class Export extends ServerPlugin {
 				continue;
 			if (visitedNodes.contains(directHypernym))
 				continue;
-			String directHypernymId = ((String) directHypernym.getProperty(TermConstants.PROP_ID)).intern();
+			String directHypernymId = ((String) directHypernym.getProperty(ConceptConstants.PROP_ID)).intern();
 			hypernyms.add(directHypernymId);
 			hypernyms.addAll(load(directHypernym, cache, relationshipTypes));
 		}
@@ -279,7 +279,7 @@ public class Export extends ServerPlugin {
 			return;
 		Set<String> hypernyms = cache.get(n);
 		if (hypernyms.size() > 0)
-			IOUtils.write(n.getProperty(TermConstants.PROP_ID) + "\t" + StringUtils.join(hypernyms, "|") + "\n", os,
+			IOUtils.write(n.getProperty(ConceptConstants.PROP_ID) + "\t" + StringUtils.join(hypernyms, "|") + "\n", os,
 					"UTF-8");
 		for (Relationship rel : n.getRelationships(Direction.OUTGOING, EdgeTypes.IS_BROADER_THAN)) {
 			writeHypernyms(rel.getEndNode(), visitedNodes, cache, os, relationshipTypes);
@@ -307,7 +307,7 @@ public class Export extends ServerPlugin {
 					+ " NOTE that it is expected that array-valued properties are or of the same size. "
 					+ "The concatenation will be done for the same index in all value-arrays, i.e. not all combinations are built. For aggregates that not have a requested properties, their elements will be used instead.") @Parameter(name = PARAM_ID_PROPERTY, optional = true) String[] nodeCategories)
 			throws IOException {
-		Label label = StringUtils.isBlank(labelString) ? TermManager.TermLabel.TERM : DynamicLabel.label(labelString);
+		Label label = StringUtils.isBlank(labelString) ? ConceptManager.TermLabel.TERM : DynamicLabel.label(labelString);
 		List<String> propertiesToWrite = new ArrayList<>();
 		if (nodeCategories == null || nodeCategories.length == 0) {
 			propertiesToWrite.add(PROP_ID);
@@ -362,7 +362,7 @@ public class Export extends ServerPlugin {
 						if (null == value && term.hasLabel(TermLabel.AGGREGATE))
 							// perhaps we have an aggregate term, then we can
 							// try and retrieve the value from its elements
-							value = TermManager.getPropertyValueOfElements(term, idProperty);
+							value = ConceptManager.getPropertyValueOfElements(term, idProperty);
 						if (null == value) {
 							terms.close();
 							throw new IllegalArgumentException("Term " + NodeUtilities.getNodePropertiesAsString(term)
@@ -380,7 +380,7 @@ public class Export extends ServerPlugin {
 									// perhaps we have an aggregate term, then
 									// we can try and retrieve the value from
 									// its elements
-									value = TermManager.getPropertyValueOfElements(term, idProperty);
+									value = ConceptManager.getPropertyValueOfElements(term, idProperty);
 								if (null == value || value.length == 0) {
 									terms.close();
 									throw new IllegalArgumentException("The property \"" + property
@@ -454,7 +454,7 @@ public class Export extends ServerPlugin {
 			@Description("The term label to create the ID map for. Defaults to TERM.") @Parameter(name = PARAM_LABEL, optional = true) String labelString)
 			throws IOException {
 		log.info("Exporting lingpipe dictionary data.");
-		Label label = !StringUtils.isBlank(labelString) ? DynamicLabel.label(labelString) : TermManager.TermLabel.TERM;
+		Label label = !StringUtils.isBlank(labelString) ? DynamicLabel.label(labelString) : ConceptManager.TermLabel.TERM;
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
 		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 			try (Transaction tx = graphDb.beginTx()) {
@@ -519,23 +519,23 @@ public class Export extends ServerPlugin {
 					TraversalDescription td = PredefinedTraversals.getNonAggregateAggregateElements(graphDb);
 					while (aggregates.hasNext()) {
 						Node aggregate = aggregates.next();
-						String aggregateId = (String) aggregate.getProperty(TermConstants.PROP_ID);
+						String aggregateId = (String) aggregate.getProperty(ConceptConstants.PROP_ID);
 						if (!visitedAggregates.add(aggregateId))
 							continue;
 						Traverser traverse = td.traverse(aggregate);
 						for (Path elementPath : traverse) {
 							for (Node n : elementPath.nodes()) {
-								if (n.hasLabel(TermManager.TermLabel.AGGREGATE))
-									visitedAggregates.add((String) n.getProperty(TermConstants.PROP_ID));
+								if (n.hasLabel(ConceptManager.TermLabel.AGGREGATE))
+									visitedAggregates.add((String) n.getProperty(ConceptConstants.PROP_ID));
 							}
 							Node element = elementPath.endNode();
-							if (!element.hasProperty(TermConstants.PROP_ID)) {
+							if (!element.hasProperty(ConceptConstants.PROP_ID)) {
 								log.warning("Node " + element.getId() + " does not have the ID property "
-										+ TermConstants.PROP_ID
+										+ ConceptConstants.PROP_ID
 										+ " and is discarded for the creation of the element aggregate ID mapping.");
 								continue;
 							}
-							String elementId = (String) element.getProperty(TermConstants.PROP_ID);
+							String elementId = (String) element.getProperty(ConceptConstants.PROP_ID);
 							ele2Agg.put(elementId, aggregateId);
 						}
 

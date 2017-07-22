@@ -9,7 +9,7 @@ import org.neo4j.graphdb.traversal.TraversalDescription;
 
 import de.julielab.neo4j.plugins.FacetManager;
 import de.julielab.neo4j.plugins.FacetManager.EdgeTypes;
-import de.julielab.neo4j.plugins.TermManager;
+import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.evaluators.FacetGroupPathEvaluator;
 import de.julielab.neo4j.plugins.evaluators.HasRelationShipEvaluator;
 import de.julielab.neo4j.plugins.evaluators.NodeLabelEvaluator;
@@ -81,34 +81,34 @@ public class PredefinedTraversals {
 
 	public static TraversalDescription getAcronymsTraversal(GraphDatabaseService graphDb) {
 		TraversalDescription td = graphDb.traversalDescription().depthFirst()
-				.relationships(TermManager.EdgeTypes.HAS_ACRONYMS, Direction.OUTGOING)
-				.relationships(TermManager.EdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
-				.evaluator(new NodeLabelEvaluator(TermManager.MorphoLabel.ACRONYM));
+				.relationships(ConceptManager.EdgeTypes.HAS_ACRONYMS, Direction.OUTGOING)
+				.relationships(ConceptManager.EdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
+				.evaluator(new NodeLabelEvaluator(ConceptManager.MorphoLabel.ACRONYM));
 
 		return td;
 	}
 
 	public static TraversalDescription getWritingVariantsTraversal(GraphDatabaseService graphDb) {
 		TraversalDescription td = graphDb.traversalDescription().depthFirst()
-				.relationships(TermManager.EdgeTypes.HAS_VARIANTS, Direction.OUTGOING)
-				.relationships(TermManager.EdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
-				.evaluator(new NodeLabelEvaluator(TermManager.MorphoLabel.WRITING_VARIANT));
+				.relationships(ConceptManager.EdgeTypes.HAS_VARIANTS, Direction.OUTGOING)
+				.relationships(ConceptManager.EdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
+				.evaluator(new NodeLabelEvaluator(ConceptManager.MorphoLabel.WRITING_VARIANT));
 
 		return td;
 	}
 
 	public static TraversalDescription getNonAggregateAggregateElements(GraphDatabaseService graphDb) {
 		TraversalDescription td = graphDb.traversalDescription().depthFirst()
-				.relationships(TermManager.EdgeTypes.HAS_ELEMENT)
-				.evaluator(new NodeLabelEvaluator(TermManager.TermLabel.AGGREGATE, true));
+				.relationships(ConceptManager.EdgeTypes.HAS_ELEMENT)
+				.evaluator(new NodeLabelEvaluator(ConceptManager.TermLabel.AGGREGATE, true));
 		return td;
 	}
 
 	public static TraversalDescription getTopAggregates(GraphDatabaseService graphDb) {
 		TraversalDescription td = graphDb.traversalDescription().breadthFirst()
-				.relationships(TermManager.EdgeTypes.HAS_ELEMENT)
+				.relationships(ConceptManager.EdgeTypes.HAS_ELEMENT)
 				.evaluator(new HasRelationShipEvaluator(Direction.INCOMING,
-						new RelationshipType[] { de.julielab.neo4j.plugins.TermManager.EdgeTypes.HAS_ELEMENT }, false));
+						new RelationshipType[] { de.julielab.neo4j.plugins.ConceptManager.EdgeTypes.HAS_ELEMENT }, false));
 		return td;
 	}
 }

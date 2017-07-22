@@ -12,6 +12,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import org.apache.commons.lang.StringUtils;
 import org.junit.AfterClass;
@@ -30,28 +32,41 @@ import org.neo4j.tooling.GlobalGraphOperations;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import de.julielab.neo4j.plugins.ConceptManager;
+import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.FacetManagerTest;
-import de.julielab.neo4j.plugins.TermManager;
-import de.julielab.neo4j.plugins.TermManager.TermLabel;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder.CopyAggregatePropertiesStatistics;
 import de.julielab.neo4j.plugins.constants.semedico.AggregateConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
-import de.julielab.neo4j.plugins.datarepresentation.ImportTerm;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class TermAggregateBuilderTest {
 	private static GraphDatabaseService graphDb;
+	/**
+	 * Takes a source ID <code>srcId</code> and creates a coordinate for
+	 * <code>(srcId, TEST_SOURCE)</code> with original ID coordinates.
+	 */
+	private static Function<String, ConceptCoordinates> coords;
+	/**
+	 * Takes a preferred name and a source ID. Creates an ImportConcept with the
+	 * respective name and source ID using {@link #coords}.
+	 */
+	private static BiFunction<String, String, ImportConcept> cs;
 
 	@BeforeClass
 	public static void initialize() {
 		graphDb = TestUtilities.getGraphDB();
+		coords = srcId -> new ConceptCoordinates(srcId, "TEST_DATA", CoordinateType.SRC);
+		cs = (name, srcId) -> new ImportConcept(name, coords.apply(srcId));
 	}
 
 	@Before
@@ -82,10 +97,10 @@ public class TermAggregateBuilderTest {
 			element4.setProperty("synonyms", new String[] { "apfelsine" });
 
 			// Connect the element nodes to the aggregate.
-			aggregate.createRelationshipTo(element1, TermManager.EdgeTypes.HAS_ELEMENT);
-			aggregate.createRelationshipTo(element2, TermManager.EdgeTypes.HAS_ELEMENT);
-			aggregate.createRelationshipTo(element3, TermManager.EdgeTypes.HAS_ELEMENT);
-			aggregate.createRelationshipTo(element4, TermManager.EdgeTypes.HAS_ELEMENT);
+			aggregate.createRelationshipTo(element1, ConceptManager.EdgeTypes.HAS_ELEMENT);
+			aggregate.createRelationshipTo(element2, ConceptManager.EdgeTypes.HAS_ELEMENT);
+			aggregate.createRelationshipTo(element3, ConceptManager.EdgeTypes.HAS_ELEMENT);
+			aggregate.createRelationshipTo(element4, ConceptManager.EdgeTypes.HAS_ELEMENT);
 
 			// Copy the element properties to the aggregate.
 			CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
@@ -122,8 +137,10 @@ public class TermAggregateBuilderTest {
 			// note: we make actually no effort to decide for a specific
 			// writing variant (here: orange vs. oraNgE) so this test might fail
 			// if the original array order changes for any reason
-			// this test sometimes fails because on different machines, the relationships may be ordered differently and another aggregate element comes first
-//			assertEquals("orange", synonyms[1]);
+			// this test sometimes fails because on different machines, the
+			// relationships may be ordered differently and another aggregate
+			// element comes first
+			// assertEquals("orange", synonyms[1]);
 
 			tx.success();
 		}
@@ -138,25 +155,25 @@ public class TermAggregateBuilderTest {
 		// aggregation, the two paths will be connected
 		// through
 		// one aggregation node.
-		ImportTerm t11 = new ImportTerm("t11", "t11");
-		ImportTerm t12 = new ImportTerm("t12", "t12");
-		t12.parentSrcIds = Lists.newArrayList("t11");
-		ImportTerm t13 = new ImportTerm("t13", "t13");
-		t13.parentSrcIds = Lists.newArrayList("t12");
-		ArrayList<ImportTerm> terms1 = Lists.newArrayList(t11, t12, t13);
+		ImportConcept t11 = cs.apply("t11", "t11");
+		ImportConcept t12 = cs.apply("t12", "t12");
+		t12.parentCoordinates = Arrays.asList(coords.apply("t11"));
+		ImportConcept t13 = cs.apply("t13", "t13");
+		t13.parentCoordinates = Arrays.asList(coords.apply("t12"));
+		ArrayList<ImportConcept> terms1 = Lists.newArrayList(t11, t12, t13);
 		ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
-		ImportTerm t21 = new ImportTerm("t21", "t21");
-		ImportTerm t22 = new ImportTerm("t22", "t22");
-		t22.parentSrcIds = Lists.newArrayList("t21");
-		ImportTerm t23 = new ImportTerm("t23", "t23");
-		t23.parentSrcIds = Lists.newArrayList("t22");
-		ArrayList<ImportTerm> terms2 = Lists.newArrayList(t21, t22, t23);
+		ImportConcept t21 = cs.apply("t21", "t21");
+		ImportConcept t22 = cs.apply("t22", "t22");
+		t22.parentCoordinates = Arrays.asList(coords.apply("t21"));
+		ImportConcept t23 = cs.apply("t23", "t3");
+		t23.parentCoordinates = Arrays.asList(coords.apply("t22"));
+		ArrayList<ImportConcept> terms2 = Lists.newArrayList(t21, t22, t23);
 		ImportFacet importFacet2 = FacetManagerTest.getImportFacet();
 
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t12", "t21", "EQUAL"));
 
-		TermManager tm = new TermManager();
+		ConceptManager tm = new ConceptManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet2), JsonSerializer.toJson(terms2), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
@@ -174,14 +191,14 @@ public class TermAggregateBuilderTest {
 
 				// Check that all element terms are there
 				Set<String> elementIds = new HashSet<>();
-				Iterable<Relationship> elementRels = aggregate.getRelationships(TermManager.EdgeTypes.HAS_ELEMENT);
+				Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
 				for (Relationship rel : elementRels) {
 					Node element = rel.getOtherNode(aggregate);
-					String[] srcIds = (String[]) element.getProperty(TermConstants.PROP_SRC_IDS);
+					String[] srcIds = (String[]) element.getProperty(ConceptConstants.PROP_SRC_IDS);
 					elementIds.add(srcIds[0]);
 				}
-				assertTrue(elementIds.contains(t12.sourceId));
-				assertTrue(elementIds.contains(t21.sourceId));
+				assertTrue(elementIds.contains(t12.coordinates.sourceId));
+				assertTrue(elementIds.contains(t21.coordinates.sourceId));
 			}
 			assertEquals(1, count);
 
@@ -196,17 +213,17 @@ public class TermAggregateBuilderTest {
 					"[\"" + NodeIDPrefixConstants.AGGREGATE_TERM + 0 + "\"]", aggregatedTermsLabel.name());
 			Map<String, Object> map = (Map<String, Object>) responseMap.getUnderlyingMap()
 					.get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
-			Map<String, List<String>> reltypes = (Map<String, List<String>>) map.get(TermManager.RET_KEY_RELTYPES);
+			Map<String, List<String>> reltypes = (Map<String, List<String>>) map.get(ConceptManager.RET_KEY_RELTYPES);
 			List<String> list1 = reltypes.get(NodeIDPrefixConstants.TERM + 1);
 			assertEquals("HAS_ELEMENT", list1.get(0));
 			List<String> list2 = reltypes.get(NodeIDPrefixConstants.TERM + 3);
 			assertEquals("HAS_ELEMENT", list2.get(0));
-			Set<Node> children = (Set<Node>) map.get(TermManager.RET_KEY_CHILDREN);
+			Set<Node> children = (Set<Node>) map.get(ConceptManager.RET_KEY_CHILDREN);
 			Set<String> childrenIds = new HashSet<>();
 			for (Node term : children)
-				childrenIds.add(((String[]) term.getProperty(TermConstants.PROP_SRC_IDS))[0]);
-			assertTrue(childrenIds.contains(t12.sourceId));
-			assertTrue(childrenIds.contains(t21.sourceId));
+				childrenIds.add(((String[]) term.getProperty(ConceptConstants.PROP_SRC_IDS))[0]);
+			assertTrue(childrenIds.contains(t12.coordinates.sourceId));
+			assertTrue(childrenIds.contains(t21.coordinates.sourceId));
 		}
 
 		// Now test whether the removal of aggregates is working as well
@@ -238,18 +255,18 @@ public class TermAggregateBuilderTest {
 		// The algorithm should recognize the transitive mapping by first
 		// creating a "small" aggregate only spanning two
 		// terms and later including the third term.
-		ImportTerm t1 = new ImportTerm("t1", "t1");
-		ImportTerm t2 = new ImportTerm("t2", "t2");
-		t2.parentSrcIds = Lists.newArrayList("t1");
-		ImportTerm t3 = new ImportTerm("t3", "t3");
-		t3.parentSrcIds = Lists.newArrayList("t2");
-		ArrayList<ImportTerm> terms1 = Lists.newArrayList(t1, t2, t3);
+		ImportConcept t1 = cs.apply("t1", "t1");
+		ImportConcept t2 = cs.apply("t2", "t2");
+		t2.parentCoordinates = Arrays.asList(coords.apply("t1"));
+		ImportConcept t3 = cs.apply("t3", "t3");
+		t3.parentCoordinates = Arrays.asList(coords.apply("t2"));
+		ArrayList<ImportConcept> terms1 = Lists.newArrayList(t1, t2, t3);
 		ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
-		TermManager tm = new TermManager();
+		ConceptManager tm = new ConceptManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
 		Label aggLabel = DynamicLabel.label("EQUAL_AGG");
@@ -264,17 +281,17 @@ public class TermAggregateBuilderTest {
 
 				// Check that all element terms are there
 				Set<String> elementIds = new HashSet<>();
-				Iterable<Relationship> elementRels = aggregate.getRelationships(TermManager.EdgeTypes.HAS_ELEMENT);
+				Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
 				for (Relationship rel : elementRels) {
 					Node element = rel.getOtherNode(aggregate);
-					String[] srcIds = (String[]) element.getProperty(TermConstants.PROP_SRC_IDS);
+					String[] srcIds = (String[]) element.getProperty(ConceptConstants.PROP_SRC_IDS);
 					elementIds.add(srcIds[0]);
 				}
 				assertTrue(aggregate.hasLabel(aggLabel));
 
-				assertTrue(elementIds.contains(t1.sourceId));
-				assertTrue(elementIds.contains(t2.sourceId));
-				assertTrue(elementIds.contains(t3.sourceId));
+				assertTrue(elementIds.contains(t1.coordinates.sourceId));
+				assertTrue(elementIds.contains(t2.coordinates.sourceId));
+				assertTrue(elementIds.contains(t3.coordinates.sourceId));
 			}
 			assertEquals(1, count);
 		}
@@ -286,25 +303,25 @@ public class TermAggregateBuilderTest {
 		// The first three nodes are mapped to each other transitively.
 		// Terms 4 and 5 are mapped to each other.
 		// Term 6 is not mapped at all and thus forms "its own aggregate".
-		ImportTerm t1 = new ImportTerm("t1", "t1");
-		ImportTerm t2 = new ImportTerm("t2", "t2");
-		t2.parentSrcIds = Lists.newArrayList("t1");
-		ImportTerm t3 = new ImportTerm("t3", "t3");
-		t3.parentSrcIds = Lists.newArrayList("t2");
-		ImportTerm t4 = new ImportTerm("t4", "t4");
-		t4.parentSrcIds = Lists.newArrayList("t3");
-		ImportTerm t5 = new ImportTerm("t5", "t5");
-		t5.parentSrcIds = Lists.newArrayList("t4");
-		ImportTerm t6 = new ImportTerm("t6", "t6");
-		t6.parentSrcIds = Lists.newArrayList("t5");
-		ArrayList<ImportTerm> terms1 = Lists.newArrayList(t1, t2, t3, t4, t5, t6);
+		ImportConcept t1 = cs.apply("t1", "t1");
+		ImportConcept t2 = cs.apply("t2", "t2");
+		t2.parentCoordinates = Arrays.asList(coords.apply("t1"));
+		ImportConcept t3 = cs.apply("t3", "t3");
+		t3.parentCoordinates = Arrays.asList(coords.apply("t2"));
+		ImportConcept t4 = cs.apply("t4", "t4");
+		t4.parentCoordinates = Arrays.asList(coords.apply("t3"));
+		ImportConcept t5 = cs.apply("t5", "t5");
+		t5.parentCoordinates = Arrays.asList(coords.apply("t4"));
+		ImportConcept t6 = cs.apply("t6", "t6");
+		t6.parentCoordinates = Arrays.asList(coords.apply("t"));
+		ArrayList<ImportConcept> terms1 = Lists.newArrayList(t1, t2, t3, t4, t5, t6);
 		ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
 		// Define the mappings. Term 6 is not mapped.
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
-		TermManager tm = new TermManager();
+		ConceptManager tm = new ConceptManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
 		// The label by which we will identify all nodes representing an
@@ -327,20 +344,20 @@ public class TermAggregateBuilderTest {
 
 				// Check that all element terms are there
 				Set<String> elementIds = new HashSet<>();
-				Iterable<Relationship> elementRels = aggregate.getRelationships(TermManager.EdgeTypes.HAS_ELEMENT);
+				Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
 				for (Relationship rel : elementRels) {
 					Node element = rel.getOtherNode(aggregate);
-					String[] srcIds = (String[]) element.getProperty(TermConstants.PROP_SRC_IDS);
+					String[] srcIds = (String[]) element.getProperty(ConceptConstants.PROP_SRC_IDS);
 					elementIds.add(srcIds[0]);
 				}
 				if (elementIds.size() == 3) {
-					assertTrue(elementIds.contains(t1.sourceId));
-					assertTrue(elementIds.contains(t2.sourceId));
-					assertTrue(elementIds.contains(t3.sourceId));
+					assertTrue(elementIds.contains(t1.coordinates.sourceId));
+					assertTrue(elementIds.contains(t2.coordinates.sourceId));
+					assertTrue(elementIds.contains(t3.coordinates.sourceId));
 				}
 				if (elementIds.size() == 2) {
-					assertTrue(elementIds.contains(t4.sourceId));
-					assertTrue(elementIds.contains(t5.sourceId));
+					assertTrue(elementIds.contains(t4.coordinates.sourceId));
+					assertTrue(elementIds.contains(t5.coordinates.sourceId));
 				}
 			}
 			assertEquals(2, aggCount);
@@ -355,11 +372,12 @@ public class TermAggregateBuilderTest {
 				aggregatedTermsCount++;
 
 				// Check that all element terms are there
-				Iterable<Relationship> elementRels = aggregatedTerm.getRelationships(TermManager.EdgeTypes.HAS_ELEMENT);
+				Iterable<Relationship> elementRels = aggregatedTerm
+						.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
 				Iterator<Relationship> elementIt = elementRels.iterator();
 				if (!elementIt.hasNext()) {
-					String[] srcIds = (String[]) aggregatedTerm.getProperty(TermConstants.PROP_SRC_IDS);
-					assertEquals(t6.sourceId, srcIds[0]);
+					String[] srcIds = (String[]) aggregatedTerm.getProperty(ConceptConstants.PROP_SRC_IDS);
+					assertEquals(t6.coordinates.sourceId, srcIds[0]);
 				}
 			}
 			assertEquals(3, aggregatedTermsCount);

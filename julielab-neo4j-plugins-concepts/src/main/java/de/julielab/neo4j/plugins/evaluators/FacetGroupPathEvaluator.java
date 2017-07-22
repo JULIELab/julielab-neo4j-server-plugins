@@ -6,7 +6,7 @@ import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
 
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 
 /**
  * An <tt>Evaluator</tt> which includes the facet groups node as well as the
@@ -27,7 +27,7 @@ public class FacetGroupPathEvaluator implements Evaluator {
 	public Evaluation evaluate(Path path) {
 		Node endNode = path.endNode();
 		String name = (String) endNode.getProperty(
-				TermConstants.PROP_NAME, null);
+				ConceptConstants.PROP_NAME, null);
 		if (facetGroupName.equals(name)) {
 			return Evaluation.INCLUDE_AND_PRUNE;
 		} else if (FacetConstants.NAME_FACET_GROUPS.equals(name)) {

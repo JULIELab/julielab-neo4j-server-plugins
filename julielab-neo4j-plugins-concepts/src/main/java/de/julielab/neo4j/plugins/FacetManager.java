@@ -47,7 +47,7 @@ import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
 
-import de.julielab.neo4j.plugins.TermManager.TermLabel;
+import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -161,7 +161,7 @@ public class FacetManager extends ServerPlugin {
 				if (!isFacetWithoutPredefinedRoots) {
 					// Leave out facets without any root terms (this may happen
 					// by some weird BioPortal ontologies).
-					Iterator<Relationship> rootIt = facet.getRelationships(TermManager.EdgeTypes.HAS_ROOT_TERM)
+					Iterator<Relationship> rootIt = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM)
 							.iterator();
 					if (!rootIt.hasNext())
 						continue;
@@ -311,7 +311,7 @@ public class FacetManager extends ServerPlugin {
 			Node node = getFacetNode(graphDb, fid);
 
 			Traverser traverser = graphDb.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
-					.relationships(TermManager.EdgeTypes.HAS_ROOT_TERM, Direction.OUTGOING)
+					.relationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM, Direction.OUTGOING)
 					.relationships(dynRel, Direction.OUTGOING).traverse(node);
 			for (@SuppressWarnings("unused")
 			Node n : traverser.nodes()) {

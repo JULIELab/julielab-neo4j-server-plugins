@@ -5,37 +5,37 @@ import java.util.Map;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 
 public class ImportFacetTermRelationship {
 
 	/**
 	 * @deprecated used {@link ConceptCoordinates}
 	 */
-	@SerializedName(TermConstants.RS_TARGET_SRC_ID)
+	@SerializedName(ConceptConstants.RS_TARGET_SRC_ID)
 	public String targetSrcId;
 	/**
 	 * @deprecated used {@link ConceptCoordinates}
 	 */
-	@SerializedName(TermConstants.RS_TARGET_SRC)
+	@SerializedName(ConceptConstants.RS_TARGET_SRC)
 	public String targetSource;
 	/**
 	 * @deprecated used {@link ConceptCoordinates}
 	 */
-	@SerializedName(TermConstants.RS_TARGET_ORG_ID)
+	@SerializedName(ConceptConstants.RS_TARGET_ORG_ID)
 	public String targetOrgSrcId;
 	/**
 	 * @deprecated used {@link ConceptCoordinates}
 	 */
-	@SerializedName(TermConstants.RS_TARGET_ORG_SRC)
+	@SerializedName(ConceptConstants.RS_TARGET_ORG_SRC)
 	public String targetOrgSource;
-	@SerializedName(TermConstants.RS_TYPE)
+	@SerializedName(ConceptConstants.RS_TYPE)
 	public String type;
-	@SerializedName(TermConstants.RS_PROPS)
+	@SerializedName(ConceptConstants.RS_PROPS)
 	public Map<String, Object> properties;
 
 	public ImportFacetTermRelationship(String targetSrcId, String targetSource, String type,
-			TermConstants.IdType idType) {
+			ConceptConstants.IdType idType) {
 		switch (idType) {
 		case SOURCE:
 			this.targetSrcId = targetSrcId;

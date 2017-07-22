@@ -5,13 +5,8 @@ import org.neo4j.shell.util.json.JSONObject;
 
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.constants.semedico.CoordinateConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
 
 public class ConceptCoordinates {
-
-	public enum CoordinateType {
-		SRC, OSRC
-	}
 
 	public String sourceId;
 	public String source;
@@ -33,7 +28,7 @@ public class ConceptCoordinates {
 		this(sourceId, source, originalId, originalSource, false);
 	}
 
-	public ConceptCoordinates(String id, String source, CoordinateType src) throws JSONException {
+	public ConceptCoordinates(String id, String source, CoordinateType src) {
 		switch (src) {
 		case OSRC:
 			originalId = id;

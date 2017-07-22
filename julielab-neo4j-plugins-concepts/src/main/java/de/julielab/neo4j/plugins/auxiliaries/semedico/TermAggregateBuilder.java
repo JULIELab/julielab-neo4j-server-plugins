@@ -3,7 +3,7 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayProperty;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.setNonNullNodeProperty;
 import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.TermConstants.INDEX_NAME;
+import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.INDEX_NAME;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,17 +28,17 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Multiset.Entry;
 
-import de.julielab.neo4j.plugins.TermManager;
-import de.julielab.neo4j.plugins.TermManager.EdgeTypes;
-import de.julielab.neo4j.plugins.TermManager.TermLabel;
+import de.julielab.neo4j.plugins.ConceptManager;
+import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.constants.semedico.AggregateConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermRelationConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptRelationConstants;
 
 public class TermAggregateBuilder {
 
@@ -61,7 +61,7 @@ public class TermAggregateBuilder {
 			// At first, delete all equal-name aggregates since they will be
 			// built again afterwards.
 			ResourceIterable<Node> aggregates = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(TermManager.TermLabel.AGGREGATE_EQUAL_NAMES);
+					.getAllNodesWithLabel(ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
 			for (Node aggregate : aggregates) {
 				for (Relationship rel : aggregate.getRelationships())
 					rel.delete();
@@ -70,15 +70,15 @@ public class TermAggregateBuilder {
 
 			// Get all terms and sort them by name and synonyms
 			ResourceIterable<Node> termIterable = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(TermManager.TermLabel.TERM);
+					.getAllNodesWithLabel(ConceptManager.TermLabel.TERM);
 			List<Node> terms = new ArrayList<Node>();
 			for (Node term : termIterable) {
 				terms.add(term);
 			}
 			Collections.sort(terms, nameAndSynonymComparator);
 
-			String[] copyProperties = new String[] { TermConstants.PROP_PREF_NAME, TermConstants.PROP_SYNONYMS,
-					TermConstants.PROP_DESCRIPTIONS };
+			String[] copyProperties = new String[] { ConceptConstants.PROP_PREF_NAME, ConceptConstants.PROP_SYNONYMS,
+					ConceptConstants.PROP_DESCRIPTIONS };
 			List<Node> equalNameTerms = new ArrayList<Node>();
 			for (Node term : terms) {
 				boolean equalTerm = 0 == equalNameTerms.size()
@@ -87,8 +87,8 @@ public class TermAggregateBuilder {
 					equalNameTerms.add(term);
 				} else if (equalNameTerms.size() > 1) {
 					createAggregate(graphDb, copyProperties, new HashSet<Node>(equalNameTerms),
-							new String[] { TermManager.TermLabel.AGGREGATE_EQUAL_NAMES.toString() }, termIndex,
-							TermManager.TermLabel.AGGREGATE_EQUAL_NAMES);
+							new String[] { ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES.toString() }, termIndex,
+							ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
 					for (Node equalNameTerm : equalNameTerms)
 						NodeUtilities.mergeArrayProperty(equalNameTerm, termPropertyKey,
 								JSON.json2JavaArray(propertyValues));
@@ -101,8 +101,8 @@ public class TermAggregateBuilder {
 			}
 			if (equalNameTerms.size() > 1)
 				createAggregate(graphDb, copyProperties, new HashSet<Node>(equalNameTerms),
-						new String[] { TermManager.TermLabel.AGGREGATE_EQUAL_NAMES.toString() }, termIndex,
-						TermManager.TermLabel.AGGREGATE_EQUAL_NAMES);
+						new String[] { ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES.toString() }, termIndex,
+						ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
 			for (Node term : equalNameTerms)
 				NodeUtilities.mergeArrayProperty(term, termPropertyKey, JSON.json2JavaArray(propertyValues));
 
@@ -155,8 +155,8 @@ public class TermAggregateBuilder {
 			Label allowedTermLabel, Label aggregatedTermsLabel) {
 		log.info("Building aggregates for mappings " + allowedMappingTypes + " and terms with label "
 				+ allowedTermLabel);
-		String[] copyProperties = new String[] { TermConstants.PROP_PREF_NAME, TermConstants.PROP_SYNONYMS,
-				TermConstants.PROP_WRITING_VARIANTS, TermConstants.PROP_DESCRIPTIONS, TermConstants.PROP_FACETS };
+		String[] copyProperties = new String[] { ConceptConstants.PROP_PREF_NAME, ConceptConstants.PROP_SYNONYMS,
+				ConceptConstants.PROP_WRITING_VARIANTS, ConceptConstants.PROP_DESCRIPTIONS, ConceptConstants.PROP_FACETS };
 		try (Transaction tx = graphDb.beginTx()) {
 			Index<Node> termIndex = graphDb.index().forNodes(INDEX_NAME);
 			// At first, delete all mapping aggregates since they will be built
@@ -165,7 +165,7 @@ public class TermAggregateBuilder {
 
 			// Iterate through terms, look for mappings and generate mapping
 			// aggregates
-			Label label = null == allowedTermLabel ? TermManager.TermLabel.TERM : allowedTermLabel;
+			Label label = null == allowedTermLabel ? ConceptManager.TermLabel.TERM : allowedTermLabel;
 			ResourceIterable<Node> termIterable = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
 			for (Node term : termIterable) {
 				// Determine recursively other nodes with which a new aggregate
@@ -176,7 +176,7 @@ public class TermAggregateBuilder {
 				// We use this for duplicate avoidance.
 				Set<Node> aggregateNodes = getMatchingAggregates(term, allowedMappingTypes, aggregatedTermsLabel);
 				if (aggregateNodes.size() > 1)
-					throw new IllegalStateException("Term with ID " + term.getProperty(TermConstants.PROP_ID)
+					throw new IllegalStateException("Term with ID " + term.getProperty(ConceptConstants.PROP_ID)
 							+ " is part of multiple aggregates of the same type, thus duplicates. The aggregate nodes are: "
 							+ aggregateNodes);
 				if (aggregateNodes.size() == 1)
@@ -220,14 +220,14 @@ public class TermAggregateBuilder {
 		if (visited.contains(term))
 			return;
 		visited.add(term);
-		Iterable<Relationship> mappings = term.getRelationships(TermManager.EdgeTypes.IS_MAPPED_TO);
+		Iterable<Relationship> mappings = term.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
 		// Set<String> aggregateMappingTypes = new HashSet<>();
 		for (Relationship mapping : mappings) {
-			if (!mapping.hasProperty(TermRelationConstants.PROP_MAPPING_TYPE))
+			if (!mapping.hasProperty(ConceptRelationConstants.PROP_MAPPING_TYPE))
 				throw new IllegalStateException("The mapping relationship " + mapping + " does not specify its type.");
 			// We must check whether the found mapping is of a type that should
 			// be aggregated in this call.
-			String[] mappingTypes = (String[]) mapping.getProperty(TermRelationConstants.PROP_MAPPING_TYPE);
+			String[] mappingTypes = (String[]) mapping.getProperty(ConceptRelationConstants.PROP_MAPPING_TYPE);
 			for (int i = 0; i < mappingTypes.length; i++) {
 				String mappingType = mappingTypes[i];
 				if (allowedMappingTypes.contains(mappingType)) {
@@ -264,11 +264,11 @@ public class TermAggregateBuilder {
 	protected static Set<Node> getMatchingAggregates(Node conceptNode, Set<String> allowedMappingTypes, Label aggregateLabel) {
 		Set<Node> aggregateNodes;
 		aggregateNodes = new HashSet<>();
-		Iterable<Relationship> elementRelationships = conceptNode.getRelationships(TermManager.EdgeTypes.HAS_ELEMENT);
+		Iterable<Relationship> elementRelationships = conceptNode.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
 		for (Relationship elementRelationship : elementRelationships) {
 			Node aggregate = elementRelationship.getOtherNode(conceptNode);
-			if (aggregate.hasLabel(aggregateLabel) && aggregate.hasLabel(TermLabel.AGGREGATE) && aggregate.hasProperty(TermConstants.PROP_MAPPING_TYPE)) {
-				String[] mappingTypes = (String[]) aggregate.getProperty(TermConstants.PROP_MAPPING_TYPE);
+			if (aggregate.hasLabel(aggregateLabel) && aggregate.hasLabel(TermLabel.AGGREGATE) && aggregate.hasProperty(ConceptConstants.PROP_MAPPING_TYPE)) {
+				String[] mappingTypes = (String[]) aggregate.getProperty(ConceptConstants.PROP_MAPPING_TYPE);
 				List<String> mappingTypesList = Arrays.asList(mappingTypes);
 				boolean correctMappingTypes = true;
 				for (String mappingType : mappingTypesList) {
@@ -291,15 +291,15 @@ public class TermAggregateBuilder {
 		if (elementTerms.isEmpty())
 			return null;
 		Node aggregate = graphDb.createNode(labels);
-		aggregate.addLabel(TermManager.TermLabel.AGGREGATE);
-		aggregate.setProperty(TermConstants.PROP_COPY_PROPERTIES, copyProperties);
-		aggregate.setProperty(TermConstants.PROP_MAPPING_TYPE, mappingTypes);
+		aggregate.addLabel(ConceptManager.TermLabel.AGGREGATE);
+		aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties);
+		aggregate.setProperty(ConceptConstants.PROP_MAPPING_TYPE, mappingTypes);
 		for (int i = 0; i < labels.length; i++) {
 			Label termLabel = labels[i];
 			aggregate.addLabel(termLabel);
 		}
 		for (Node elementTerm : elementTerms) {
-			aggregate.createRelationshipTo(elementTerm, TermManager.EdgeTypes.HAS_ELEMENT);
+			aggregate.createRelationshipTo(elementTerm, ConceptManager.EdgeTypes.HAS_ELEMENT);
 			elementTerm.addLabel(TermLabel.AGGREGATE_ELEMENT);
 		}
 		String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
@@ -403,13 +403,13 @@ public class TermAggregateBuilder {
 		// already resolved by a majority
 		// vote above. We now additionally merge the minority names to the
 		// synonyms.
-		PropertyUtilities.mergeArrayProperty(aggregate, TermConstants.PROP_SYNONYMS,
+		PropertyUtilities.mergeArrayProperty(aggregate, ConceptConstants.PROP_SYNONYMS,
 				(Object[]) PropertyUtilities.getNonNullNodeProperty(aggregate,
-						TermConstants.PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY));
+						ConceptConstants.PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY));
 
 		// As a last step, remove duplicate synonyms, case ignored
-		if (aggregate.hasProperty(TermConstants.PROP_SYNONYMS)) {
-			String[] synonyms = (String[]) aggregate.getProperty(TermConstants.PROP_SYNONYMS);
+		if (aggregate.hasProperty(ConceptConstants.PROP_SYNONYMS)) {
+			String[] synonyms = (String[]) aggregate.getProperty(ConceptConstants.PROP_SYNONYMS);
 			Set<String> lowerCaseSynonyms = new HashSet<>();
 			List<String> acceptedSynonyms = new ArrayList<>();
 			for (int i = 0; i < synonyms.length; i++) {
@@ -421,7 +421,7 @@ public class TermAggregateBuilder {
 				}
 			}
 			Collections.sort(acceptedSynonyms);
-			aggregate.setProperty(TermConstants.PROP_SYNONYMS,
+			aggregate.setProperty(ConceptConstants.PROP_SYNONYMS,
 					acceptedSynonyms.toArray(new String[acceptedSynonyms.size()]));
 		}
 	}

@@ -48,15 +48,17 @@ import com.google.gson.Gson;
 
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetGroupConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
-import de.julielab.neo4j.plugins.constants.semedico.TermConstants;
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
-import de.julielab.neo4j.plugins.datarepresentation.ImportTerm;
-import de.julielab.neo4j.plugins.datarepresentation.ImportTermAndFacet;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
@@ -118,8 +120,8 @@ public class FacetManagerTest {
 
 			Node facetGroupNode2 = (Node) createFacetGroupMethod.invoke(fm, graphDb,
 					facetGroupsNode, jsonFacetGroup2);
-			assertEquals("fgid1", facetGroupNode2.getProperty(TermConstants.PROP_ID));
-			assertEquals("Test Facet Group 2", facetGroupNode2.getProperty(TermConstants.PROP_NAME));
+			assertEquals("fgid1", facetGroupNode2.getProperty(ConceptConstants.PROP_ID));
+			assertEquals("Test Facet Group 2", facetGroupNode2.getProperty(ConceptConstants.PROP_NAME));
 			assertEquals(2, facetGroupNode2.getProperty(FacetGroupConstants.PROP_POSITION));
 			// List<String> properties2 = Lists.newArrayList((String[])
 			// facetGroupNode2
@@ -369,20 +371,20 @@ public class FacetManagerTest {
 		// FacetManager#getFacets. I.e. the last facet should
 		// not be returned since we don't add terms for it.
 
-		ImportTermAndFacet termAndFacet0 = new ImportTermAndFacet(
-				Lists.newArrayList(new ImportTerm("prefname", "TERM")), new ImportFacet(
+		ImportConceptAndFacet termAndFacet0 = new ImportConceptAndFacet(
+				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "0"));
-		ImportTermAndFacet termAndFacet1 = new ImportTermAndFacet(
-				Lists.newArrayList(new ImportTerm("prefname1", "TERM1")), new ImportFacet(
+		ImportConceptAndFacet termAndFacet1 = new ImportConceptAndFacet(
+				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM1", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "1"));
-		ImportTermAndFacet termAndFacet2 = new ImportTermAndFacet(
-				Lists.newArrayList(new ImportTerm("prefname2", "TERM2")), new ImportFacet(
+		ImportConceptAndFacet termAndFacet2 = new ImportConceptAndFacet(
+				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM2", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "2"));
-		ImportTermAndFacet termAndFacet3 = new ImportTermAndFacet(
-				Lists.newArrayList(new ImportTerm("prefname3", "TERM3")), new ImportFacet(
+		ImportConceptAndFacet termAndFacet3 = new ImportConceptAndFacet(
+				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM3", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "3"));
 
-		TermManager ftm = new TermManager();
+		ConceptManager ftm = new ConceptManager();
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet0));
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet1));
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet2));
@@ -428,8 +430,8 @@ public class FacetManagerTest {
 		int amount = 10;
 		String facet = "fid0";
 
-		ImportTermAndFacet terms = TermManagerTest.getTestTerms(amount);
-		TermManager termManager = new TermManager();
+		ImportConceptAndFacet terms = ConceptManagerTest.getTestTerms(amount);
+		ConceptManager termManager = new ConceptManager();
 		termManager.insertFacetTerms(graphDb, JsonSerializer.toJson(terms));
 		FacetManager facetManager = new FacetManager();
 

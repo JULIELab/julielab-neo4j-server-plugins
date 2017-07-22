@@ -2,7 +2,7 @@ package de.julielab.neo4j.plugins.constants.semedico;
 
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 
-public class TermConstants extends NodeConstants {
+public class ConceptConstants extends NodeConstants {
 
 	/**
 	 * @deprecated should be merged with ConceptCoordinates enum
@@ -52,25 +52,6 @@ public class TermConstants extends NodeConstants {
 	 * that in another - e.g. the original - facet.
 	 */
 	public static final String PROP_CHILDREN_IN_FACETS = "childrenInFacets";
-	/**
-	 * Field in the input data format. The parent source identifier is only used
-	 * for the import of terms. The parent source ID indicates which term is to
-	 * be connected to which other term in the graph. Since this information is
-	 * explicitly represented by relationships in Neo4j, there is no such node
-	 * property in the graph.
-	 * @deprecated Use {@link #PARENT_COORDINATES} instead
-	 */
-	@Deprecated
-	public static final String PARENT_SRC_IDS = "parentSrcIds";
-
-	/**
-	 * Field in the input data format. Specifies for each - or for none - of the
-	 * parent source IDs given with {@link #PARENT_SRC_IDS} the respective
-	 * source. This information is used to identify the correct parent node.
-	 * @deprecated Use {@link #PARENT_COORDINATES} instead
-	 */
-	@Deprecated
-	public static final String PARENT_SOURCES = "parentSources";
 
 	/**
 	 * Field in the input data format. Specifies for each - or for none - of the
@@ -185,7 +166,7 @@ public class TermConstants extends NodeConstants {
 	 * Property for aggregates. The value of the property exposes information
 	 * about the exact set of mapping types allowed to create the aggregate.
 	 */
-	public static final String PROP_MAPPING_TYPE = TermRelationConstants.PROP_MAPPING_TYPE;
+	public static final String PROP_MAPPING_TYPE = ConceptRelationConstants.PROP_MAPPING_TYPE;
 	
 	/**
 	 * Property of a term coordinates object. Denotes the ID coordinate.
