@@ -2,7 +2,7 @@ package de.julielab.neo4j.plugins.datarepresentation;
 
 
 /**
- * A convenience class for the usage of the "push all terms to set" endpoint of the <code>FacetTermManager</code>. The
+ * A convenience class for the usage of the "push all terms to set" endpoint of the <code>FacetConceptManager</code>. The
  * fields of this class are modeled after the required parameters for the endpoint. Thus, this class may be used to
  * declare the desired command and then be serialized as-is for the correct output format, e.g. by using
  * <code>Gson</code>.

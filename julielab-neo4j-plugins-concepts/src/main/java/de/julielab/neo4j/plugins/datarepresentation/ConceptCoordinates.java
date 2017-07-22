@@ -14,6 +14,9 @@ public class ConceptCoordinates {
 	public String originalSource;
 	public boolean uniqueSourceId;
 
+	public ConceptCoordinates() {
+	}
+	
 	public ConceptCoordinates(String sourceId, String source, String originalId, String originalSource,
 			boolean uniqueSourceId) {
 		super();
@@ -26,6 +29,10 @@ public class ConceptCoordinates {
 
 	public ConceptCoordinates(String sourceId, String source, String originalId, String originalSource) {
 		this(sourceId, source, originalId, originalSource, false);
+	}
+	
+	public ConceptCoordinates(String sourceId, String source, boolean uniqueSourceId) {
+		this(sourceId, source, null, null, uniqueSourceId);
 	}
 
 	public ConceptCoordinates(String id, String source, CoordinateType src) {

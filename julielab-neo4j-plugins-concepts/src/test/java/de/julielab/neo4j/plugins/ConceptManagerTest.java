@@ -245,13 +245,13 @@ public class ConceptManagerTest {
 	 * @throws SecurityException
 	 */
 	@Test
-	public void testImportTermsWithFacetDefinition() throws JSONException, SecurityException, IllegalArgumentException,
+	public void testImportConceptsWithFacetDefinition() throws JSONException, SecurityException, IllegalArgumentException,
 			NoSuchFieldException, IllegalAccessException {
 		testTermImportWithOrWithoutFacetDefinition(true);
 	}
 
 	@Test
-	public void testImportTermsWithoutFacetDefinition() throws JSONException, SecurityException,
+	public void testImportConceptsWithoutFacetDefinition() throws JSONException, SecurityException,
 			IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
 		// Here, create the facet "manually" and then do the term import. The
 		// import method "knows" which facet Id to use (there will only be this
@@ -536,7 +536,7 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 	}
 
 	@Test
-	public void testImportTermMultipleTimes() throws Exception {
+	public void testImportConceptMultipleTimes() throws Exception {
 		List<ImportConcept> terms;
 		ConceptManager ftm;
 		terms = new ArrayList<>();
@@ -821,7 +821,7 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 	@Test
 	public void testOrganizeSynonyms() throws JSONException {
 		// In this test, we have a term that specifies its preferred term as a
-		// synonym, too. The FacetTermManager should detect this and remove the
+		// synonym, too. The FacetConceptManager should detect this and remove the
 		// synonym that equals the preferred name.
 		List<ImportConcept> termList = new ArrayList<>();
 		termList.add(new ImportConcept("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term", new ConceptCoordinates("TERM", "TEST_SOURCE", SRC)));
@@ -2054,10 +2054,10 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 
 	// @Test
 	// public void testAddWritingVariants() throws Exception {
-	// ImportTermAndFacet testTerms = getTestTerms(1);
+	// ImportConceptAndFacet testTerms = getTestTerms(1);
 	// // add a synonym for which equivalent writing variants should be removed
 	// testTerms.terms.get(0).synonyms = Arrays.asList("beclin 1");
-	// TermManager tm = new TermManager();
+	// ConceptManager tm = new ConceptManager();
 	// tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 	//
 	// Map<String, Object> variants = new HashMap<>();

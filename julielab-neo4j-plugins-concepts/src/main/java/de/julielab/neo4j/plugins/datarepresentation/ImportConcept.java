@@ -27,16 +27,39 @@ public class ImportConcept {
 		this(preferredName, coordinates);
 		this.synonyms = synonyms;
 	}
-	
-	public ImportConcept(String preferredName, List<String> synonyms, String description, ConceptCoordinates coordinates) {
+
+	public ImportConcept(String preferredName, List<String> synonyms, String description,
+			ConceptCoordinates coordinates) {
 		this(preferredName, synonyms, coordinates);
 		this.descriptions = Arrays.asList(description);
 	}
+	
+	public ImportConcept(String preferredName, List<String> synonyms, String description,
+			ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
+		this(preferredName, synonyms, Arrays.asList(description), coordinates, Arrays.asList(parentCoordinates));
+	}
 
-	public ImportConcept(String preferredName, List<String> synonyms, String description, ConceptCoordinates coordinates,
-			ConceptCoordinates parentCoordinates) {
-		this(preferredName, synonyms, description, coordinates);
+	public ImportConcept(String preferredName, List<String> synonyms, String description,
+			ConceptCoordinates coordinates, List<ConceptCoordinates> parentCoordinates) {
+		this(preferredName, synonyms, Arrays.asList(description), coordinates, parentCoordinates);
+	}
+
+	public ImportConcept(String preferredName, List<String> synonyms, List<String> descriptions,
+			ConceptCoordinates coordinates) {
+		this(preferredName, synonyms, coordinates);
+		this.descriptions = descriptions;
+	}
+
+	public ImportConcept(String preferredName, List<String> synonyms, List<String> descriptions,
+			ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
+		this(preferredName, synonyms, descriptions, coordinates);
 		this.parentCoordinates = Arrays.asList(parentCoordinates);
+	}
+
+	public ImportConcept(String preferredName, List<String> synonyms, List<String> descriptions,
+			ConceptCoordinates coordinates, List<ConceptCoordinates> parentCoordinates) {
+		this(preferredName, synonyms, descriptions, coordinates);
+		this.parentCoordinates = parentCoordinates;
 	}
 
 	public ImportConcept(String preferredName, ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
@@ -63,6 +86,13 @@ public class ImportConcept {
 		this.elementCoordinates = elementCoords;
 		this.copyProperties = copyProperties;
 		this.aggregate = true;
+	}
+
+	public ImportConcept(ConceptCoordinates conceptCoordinates) {
+		coordinates = conceptCoordinates;
+	}
+
+	public ImportConcept() {
 	}
 
 	@SerializedName(ConceptConstants.PROP_PREF_NAME)
@@ -159,4 +189,15 @@ public class ImportConcept {
 		}
 
 	}
+
+	public void addParent(ConceptCoordinates parentCoordinates) {
+		if (this.parentCoordinates == null)
+			this.parentCoordinates = new ArrayList<>();
+		this.parentCoordinates.add(parentCoordinates);
+	}
+	
+	public boolean hasParents() {
+		return parentCoordinates != null && !parentCoordinates.isEmpty();
+	}
+	
 }
