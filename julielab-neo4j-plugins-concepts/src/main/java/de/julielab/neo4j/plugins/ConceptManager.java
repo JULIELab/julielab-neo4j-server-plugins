@@ -409,7 +409,7 @@ public class ConceptManager extends ServerPlugin {
 			}
 			// Default-relationships (taxonomical).
 			{
-				if (jsonTerm.has(PARENT_COORDINATES)) {
+				if (jsonTerm.has(PARENT_COORDINATES) && jsonTerm.getJSONArray(PARENT_COORDINATES).length() > 0) {
 					JSONArray parentCoordinateArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
 					for (int j = 0; j < parentCoordinateArray.length(); j++) {
 						JSONObject parentCoordinates = parentCoordinateArray.getJSONObject(j);
