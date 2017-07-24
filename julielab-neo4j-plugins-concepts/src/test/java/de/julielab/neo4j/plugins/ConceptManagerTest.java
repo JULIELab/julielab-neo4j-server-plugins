@@ -578,6 +578,7 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		try (Transaction tx = graphDb.beginTx()) {
 			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.TermLabel.TERM, PROP_ID,
 					NodeIDPrefixConstants.TERM + 1);
+			assertNotNull(n1);
 			Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
 			assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
 		}
@@ -1843,7 +1844,7 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		// terms.
 		ImportConceptAndFacet testTerms = getTestTerms(4);
 		// add a fifth term that has the first term as a parent
-		testTerms.terms.add(new ImportConcept("someterm",  new ConceptCoordinates("somesrcid", "TEST_SOURCE", SRC), new ConceptCoordinates("TERM0", "TEST_SOURCE", SRC)));
+		testTerms.terms.add(new ImportConcept("someterm",  new ConceptCoordinates("somesrcid", "somesource", SRC), new ConceptCoordinates("TERM0", "TEST_DATA", SRC)));
 		testTerms.terms.get(testTerms.terms.size() - 1).coordinates.source = "somesource";
 		ConceptManager tm = new ConceptManager();
 		// first insert.

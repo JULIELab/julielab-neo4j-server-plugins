@@ -30,7 +30,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeMap;
 
@@ -143,15 +142,15 @@ public class ConceptManager extends ServerPlugin {
 		 */
 		public Set<String> createdRelationshipsCache = new HashSet<>();
 		/**
-		 * The source IDs of terms that already existed before they should have
-		 * been inserted again (duplicate detection). This is used to determine
+		 * The concept nodes that already existed before they should have been
+		 * inserted again (duplicate detection). This is used to determine
 		 * whether a check about already existing relationships between two
 		 * nodes is necessary. If at least one of two terms between which a
 		 * relationships should be created did not exist before, no check is
 		 * necessary: A term that did not exist could not have had any
 		 * relationships.
 		 */
-		public Set<Node> existingTerms = new HashSet<>();
+		public Set<Node> existingConcepts = new HashSet<>();
 		/**
 		 * The source IDs of terms that have been omitted from the data for -
 		 * hopefully - good reasons. The first (and perhaps only) use case were
@@ -169,7 +168,7 @@ public class ConceptManager extends ServerPlugin {
 		}
 
 		public void addExistingTerm(Node term) {
-			existingTerms.add(term);
+			existingConcepts.add(term);
 		}
 
 		private String getRelationshipIdentifier(Node source, Node target, RelationshipType type) {
@@ -179,7 +178,6 @@ public class ConceptManager extends ServerPlugin {
 		public boolean relationshipAlreadyWasCreated(Node source, Node target, RelationshipType type) {
 			return createdRelationshipsCache.contains(getRelationshipIdentifier(source, target, type));
 		}
-
 	}
 
 	public static enum TermLabel implements Label {
@@ -272,7 +270,8 @@ public class ConceptManager extends ServerPlugin {
 	 * The REST context path to this plugin. This is for convenience for usage
 	 * from external programs that make use of the plugin.
 	 */
-	public static final String TERM_MANAGER_ENDPOINT = "db/data/ext/" + ConceptManager.class.getSimpleName() + "/graphdb/";
+	public static final String TERM_MANAGER_ENDPOINT = "db/data/ext/" + ConceptManager.class.getSimpleName()
+			+ "/graphdb/";
 
 	private static final int TERM_INSERT_BATCH_SIZE = 10000;
 
@@ -371,8 +370,8 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	private void createRelationships(GraphDatabaseService graphDb, JSONArray jsonTerms, Node facet,
-			Map<String, Node> nodesBySrcId, ImportOptions importOptions, InsertionReport insertionReport)
-			throws JSONException {
+			Map<ConceptCoordinates, Node> nodesByCoordinates, ImportOptions importOptions,
+			InsertionReport insertionReport) throws JSONException {
 		log.info("Creating relationship between inserted terms.");
 		Index<Node> idIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
 		String facetId = null;
@@ -391,6 +390,8 @@ public class ConceptManager extends ServerPlugin {
 		for (int i = 0; i < jsonTerms.length(); i++) {
 			long time = System.currentTimeMillis();
 			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
+			// aggregates may be included into the taxonomy, but by default they
+			// are not
 			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE)
 					&& !JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY))
 				continue;
@@ -399,7 +400,7 @@ public class ConceptManager extends ServerPlugin {
 			String srcId = coordinates.getString(CoordinateConstants.SOURCE_ID);
 			// ...but it is not required to have a parent in its source.
 			// Then, it's a facet root.
-			Node term = nodesBySrcId.get(srcId);
+			Node term = nodesByCoordinates.get(new ConceptCoordinates(coordinates));
 			// Perhaps the term was omitted on purpose?
 			if (null == term && insertionReport.omittedTerms.contains(srcId))
 				continue;
@@ -412,33 +413,43 @@ public class ConceptManager extends ServerPlugin {
 				if (jsonTerm.has(PARENT_COORDINATES) && jsonTerm.getJSONArray(PARENT_COORDINATES).length() > 0) {
 					JSONArray parentCoordinateArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
 					for (int j = 0; j < parentCoordinateArray.length(); j++) {
-						JSONObject parentCoordinates = parentCoordinateArray.getJSONObject(j);
-						String parentSrcId = parentCoordinates.getString(CoordinateConstants.SOURCE_ID);
-						String parentSource = parentCoordinates.getString(CoordinateConstants.SOURCE);
+						ConceptCoordinates parentCoordinates = new ConceptCoordinates(
+								parentCoordinateArray.getJSONObject(j));
+
+						String parentOrigSrcId = parentCoordinates.originalId;
+						String parentOrigSource = parentCoordinates.originalSource;
+						String parentSrcId = parentCoordinates.sourceId;
+						String parentSource = parentCoordinates.source;
 						if (importOptions.cutParents.contains(parentSrcId)) {
-							createRelationShipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+							log.debug("Concept node " + coordinates
+									+ " has a parent that is marked to be cut away. Concept will be a facet root.");
+							createRelationshipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 							continue;
 						}
 
 						// The term has another term as parent. Connect
-						// them.
-						Node parent = nodesBySrcId.get(parentSrcId);
-						
-						// The parent was not in the imported data; check if it already exists in the database
+						// them. First check if the parent was included in the
+						// current import data
+						Node parent = nodesByCoordinates.get(parentCoordinates);
+
+						// The parent was not in the imported data; check if it
+						// already exists in the database
 						if (parent == null) {
 							log.debug("Searching for parent concept to create hierarchical relationships");
-							parent = lookupTerm(new ConceptCoordinates(parentCoordinates), idIndex);
+							parent = lookupTerm(parentCoordinates, idIndex);
 						}
 
 						if (null != parent) {
+							log.debug("Parent with " + parentCoordinates + " was found by source ID for concept "
+									+ coordinates + ".");
 							long creationTime = System.currentTimeMillis();
-							createRelationShipIfNotExists(parent, term, EdgeTypes.IS_BROADER_THAN, insertionReport);
+							createRelationshipIfNotExists(parent, term, EdgeTypes.IS_BROADER_THAN, insertionReport);
 							// Since a term may appear in multiple facets, we
 							// connect terms with a general taxonomic
 							// relation as well as a special relation only
 							// relevant to the
 							// particular structure‚ of the current facet.
-							createRelationShipIfNotExists(parent, term, relBroaderThanInFacet, insertionReport);
+							createRelationshipIfNotExists(parent, term, relBroaderThanInFacet, insertionReport);
 							relCreationTime += System.currentTimeMillis() - creationTime;
 						} else {
 							// If the parent is not found in nodesBySrcId it
@@ -472,24 +483,20 @@ public class ConceptManager extends ServerPlugin {
 								// parent's parent since it is not included in
 								// the data.
 								Node hollowParent = graphDb.createNode(TermLabel.TERM, TermLabel.HOLLOW);
+								if (!StringUtils.isBlank(parentOrigSrcId)) {
+									hollowParent.setProperty(PROP_ORG_ID, parentOrigSrcId);
+									hollowParent.setProperty(PROP_ORG_SRC, parentOrigSource);
+								}
 								addToArrayProperty(hollowParent, PROP_SRC_IDS, parentSrcId);
-								// Analogous to the parent handling in
-								// insertFacetTerms, we fall back to the terms
-								// source if no parent source is given for
-								// legacy reasons.
-								String source = parentSource != null ? parentSource
-										: JSON.getString(jsonTerm, PROP_SOURCES);
-								if (source == null)
-									source = UNKNOWN_TERM_SOURCE;
-								addToArrayProperty(hollowParent, PROP_SOURCES, source);
+								addToArrayProperty(hollowParent, PROP_SOURCES, parentSource);
 								idIndex.add(hollowParent, PROP_SRC_IDS, parentSrcId);
-								nodesBySrcId.put(parentSrcId, hollowParent);
+								nodesByCoordinates.put(parentCoordinates, hollowParent);
 								insertionReport.numTerms++;
-								createRelationShipIfNotExists(hollowParent, term, EdgeTypes.IS_BROADER_THAN,
+								createRelationshipIfNotExists(hollowParent, term, EdgeTypes.IS_BROADER_THAN,
 										insertionReport);
-								createRelationShipIfNotExists(hollowParent, term, relBroaderThanInFacet,
+								createRelationshipIfNotExists(hollowParent, term, relBroaderThanInFacet,
 										insertionReport);
-								createRelationShipIfNotExists(facet, hollowParent, EdgeTypes.HAS_ROOT_TERM,
+								createRelationshipIfNotExists(facet, hollowParent, EdgeTypes.HAS_ROOT_TERM,
 										insertionReport);
 							} else {
 								log.info(
@@ -498,7 +505,7 @@ public class ConceptManager extends ServerPlugin {
 								// Connect the term as a root, it's the best we
 								// can
 								// do.
-								createRelationShipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+								createRelationshipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 							}
 						}
 						if (null != parent && parent.hasLabel(TermLabel.AGGREGATE) && !parent.hasLabel(TermLabel.TERM))
@@ -516,7 +523,7 @@ public class ConceptManager extends ServerPlugin {
 							noFacet = FacetManager.getNoFacet(graphDb, (String) facet.getProperty(PROP_ID));
 						}
 
-						createRelationShipIfNotExists(noFacet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+						createRelationshipIfNotExists(noFacet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 					} else if (null != facet) {
 						// This term does not have a term parent. It is a facet
 						// root,
@@ -524,7 +531,7 @@ public class ConceptManager extends ServerPlugin {
 						log.debug("Installing term with source ID " + srcId + " (ID: " + term.getProperty(PROP_ID)
 								+ ") as root for facet " + facet.getProperty(NodeConstants.PROP_NAME) + "(ID: "
 								+ facet.getProperty(PROP_ID) + ")");
-						createRelationShipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+						createRelationshipIfNotExists(facet, term, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 					}
 					// else: nothing, because the term already existed, we are
 					// merely merging here.
@@ -544,8 +551,8 @@ public class ConceptManager extends ServerPlugin {
 						String targetOrgSource = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_ORG_SRC);
 						String targetSrcId = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_SRC_ID);
 						String targetSource = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_SRC);
-						Node target = lookupTerm(new ConceptCoordinates(targetSrcId, targetSource, targetOrgId, targetOrgSource,
-								JSON.getBoolean(jsonTerm, PROP_UNIQUE_SRC_ID, false)), idIndex);
+						Node target = lookupTerm(new ConceptCoordinates(targetSrcId, targetSource, targetOrgId,
+								targetOrgSource, JSON.getBoolean(jsonTerm, PROP_UNIQUE_SRC_ID, false)), idIndex);
 						if (null == target) {
 							log.debug("Creating hollow relationship target with orig Id/orig source (" + targetOrgId
 									+ "," + targetOrgSource + ") and source Id/source : (" + targetSrcId + ", "
@@ -633,7 +640,7 @@ public class ConceptManager extends ServerPlugin {
 	 * @param insertionReport
 	 * @return
 	 */
-	private Relationship createRelationShipIfNotExists(Node source, Node target, RelationshipType type,
+	private Relationship createRelationshipIfNotExists(Node source, Node target, RelationshipType type,
 			InsertionReport insertionReport) {
 		return createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
 	}
@@ -674,7 +681,8 @@ public class ConceptManager extends ServerPlugin {
 		Relationship createdRelationship = null;
 		if (insertionReport.relationshipAlreadyWasCreated(source, target, type)) {
 			relationShipExists = true;
-		} else if (insertionReport.existingTerms.contains(source) && insertionReport.existingTerms.contains(target)) {
+		} else if (insertionReport.existingConcepts.contains(source)
+				&& insertionReport.existingConcepts.contains(target)) {
 			// Both terms existing before the current processing call to
 			// insert_terms. Thus, we have to check whether
 			// the relation already exists and cannot just use
@@ -705,8 +713,8 @@ public class ConceptManager extends ServerPlugin {
 
 	@Name(CREATE_SCHEMA_INDEXES)
 	@Description("Creates uniqueness constraints (and thus, indexes), on the following label / property combinations: TERM / "
-			+ ConceptConstants.PROP_ID + "; TERM / " + ConceptConstants.PROP_ORG_ID + "; FACET / " + FacetConstants.PROP_ID
-			+ "; NO_FACET / " + FacetConstants.PROP_ID + "; ROOT / " + NodeConstants.PROP_NAME
+			+ ConceptConstants.PROP_ID + "; TERM / " + ConceptConstants.PROP_ORG_ID + "; FACET / "
+			+ FacetConstants.PROP_ID + "; NO_FACET / " + FacetConstants.PROP_ID + "; ROOT / " + NodeConstants.PROP_NAME
 			+ ". This should be done after the main initial import because node insertion with uniqueness switched on costs significant insertion performance.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void createSchemaIndexes(@Source GraphDatabaseService graphDb) {
@@ -911,16 +919,17 @@ public class ConceptManager extends ServerPlugin {
 	 * @param graphDb
 	 * @param termIndex
 	 * @param jsonTerm
-	 * @param nodesBySrcId
+	 * @param nodesByCoordinates
 	 * @param insertionReport
 	 * @param importOptions
 	 * @return
 	 * @throws JSONException
 	 */
 	private void insertAggregateTerm(GraphDatabaseService graphDb, Index<Node> termIndex, JSONObject jsonTerm,
-			Map<String, Node> nodesBySrcId, InsertionReport insertionReport, ImportOptions importOptions)
-			throws JSONException {
-		JSONObject aggCoordinates = jsonTerm.has(PROP_COORDINATES) ? jsonTerm.getJSONObject(PROP_COORDINATES) : new JSONObject();
+			Map<ConceptCoordinates, Node> nodesByCoordinates, InsertionReport insertionReport,
+			ImportOptions importOptions) throws JSONException {
+		JSONObject aggCoordinates = jsonTerm.has(PROP_COORDINATES) ? jsonTerm.getJSONObject(PROP_COORDINATES)
+				: new JSONObject();
 		String aggOrgId = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_ID);
 		String aggOrgSource = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_SOURCE);
 		String aggSrcId = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE_ID);
@@ -953,7 +962,6 @@ public class ConceptManager extends ServerPlugin {
 		if (includeAggreationInHierarchy)
 			aggregate.addLabel(TermLabel.TERM);
 		JSONArray elementCoords = jsonTerm.getJSONArray(ConceptConstants.ELEMENT_COORDINATES);
-		int numElementsFound = 0;
 		log.debug("    looking up aggregate elements");
 		for (int i = 0; i < elementCoords.length(); i++) {
 			JSONObject elementCoord = elementCoords.getJSONObject(i);
@@ -961,7 +969,7 @@ public class ConceptManager extends ServerPlugin {
 			String elementSource = elementCoord.getString(ConceptConstants.COORD_SOURCE);
 			if (null == elementSource)
 				elementSource = UNKNOWN_TERM_SOURCE;
-			Node element = nodesBySrcId.get(elementSrcId);
+			Node element = nodesByCoordinates.get(new ConceptCoordinates(elementSrcId, elementSource, false));
 			if (null != element) {
 				String[] srcIds = (String[]) element.getProperty(PROP_SRC_IDS);
 				String[] sources = element.hasProperty(PROP_SOURCES) ? (String[]) element.getProperty(PROP_SOURCES)
@@ -1013,7 +1021,6 @@ public class ConceptManager extends ServerPlugin {
 			}
 			if (element != null) {
 				aggregate.createRelationshipTo(element, EdgeTypes.HAS_ELEMENT);
-				++numElementsFound;
 			}
 		}
 
@@ -1021,14 +1028,13 @@ public class ConceptManager extends ServerPlugin {
 		if (null != aggSrcId) {
 			int idIndex = findFirstValueInArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId);
 			int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
-			if (!StringUtils.isBlank(aggSrcId)
-					&& ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
+			if (!StringUtils.isBlank(aggSrcId) && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
 				addToArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId, true);
 				addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
 			}
 			// if the aggregate has a source ID, add it to the respective
 			// map for later access during the relationship insertion phase
-			nodesBySrcId.put(aggSrcId, aggregate);
+			nodesByCoordinates.put(new ConceptCoordinates(aggCoordinates), aggregate);
 			termIndex.add(aggregate, PROP_SRC_IDS, aggSrcId);
 		}
 		if (null != aggOrgId)
@@ -1053,7 +1059,7 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	private void insertFacetTerm(GraphDatabaseService graphDb, String facetId, Index<Node> termIndex,
-			JSONObject jsonTerm, Map<String, Node> nodesBySrcId, InsertionReport insertionReport,
+			JSONObject jsonTerm, Map<ConceptCoordinates, Node> nodesByCoordinates, InsertionReport insertionReport,
 			ImportOptions importOptions) throws JSONException {
 		// Name is mandatory, thus we don't use the
 		// null-convenience method here.
@@ -1103,28 +1109,35 @@ public class ConceptManager extends ServerPlugin {
 			throw new IllegalArgumentException("Term " + jsonTerm
 					+ " is supposed to be merged with an existing database term but defines parents. This is currently not supported in merging mode.");
 
-		// Perhaps we already know this term? This can happen, when
-		// multiple
-		// sources contain terms from a common origin. E.g.
-		// BioPortal
-		// ontologies contain terms from MeSH and UniProt.
-		// Or some terms are organized to be in multiple facets.
-		// How do we identify terms? The tid is given automatically.
-
-		Node term = null;
-		term = lookupTerm(new ConceptCoordinates(coordinates), termIndex);
-		if (null == term) {
-			// If we still haven't found an existing term, we have to create a
-			// new one. First check whether we are
-			// perhaps in merge-only mode.
-			if (importOptions.merge)
-				return;
-		}
-		String termId = null;
-		if (null != term && !term.hasLabel(TermLabel.HOLLOW))
-			// If we found a term by now, get its ID.
-			termId = (String) term.getProperty(ConceptConstants.PROP_ID);
-		if (null == term || term.hasLabel(TermLabel.HOLLOW)) {
+		// The concept node does already exist by now, it has either been
+		// retrieved from the database or created HOLLOW by the concept
+		// insertion method calling this method
+		Node term = nodesByCoordinates.get(new ConceptCoordinates(coordinates));
+		if (term == null && !importOptions.merge)
+			throw new IllegalStateException("No concept node was found or created for import concept with coordinates "
+					+ coordinates + " and this is not a merging operation.");
+		else if (term == null)
+			// we are in merging mode, for nodes we don't know we just do
+			// nothing
+			return;
+		// term = lookupTerm(new ConceptCoordinates(coordinates), termIndex);
+		// if (null == term) {
+		// // If we still haven't found an existing term, we have to create a
+		// // new one. First check whether we are
+		// // perhaps in merge-only mode.
+		// if (importOptions.merge)
+		// return;
+		// }
+		// String termId = null;
+		// if (!term.hasLabel(TermLabel.HOLLOW)) {
+		// log.debug("Found existing concept with coordinates " + coordinates +
+		// " to merge property values into.");
+		// // If we found a term by now, get its ID.
+		// termId = (String) term.getProperty(ConceptConstants.PROP_ID);
+		// }
+		// else
+		if (term.hasLabel(TermLabel.HOLLOW)) {
+			log.debug("Got HOLLOW concept node with coordinates " + coordinates + " and will create full concept.");
 			// The term could already exist as a hollow node, e.g. because it
 			// was the
 			// target of a relationship of another
@@ -1133,44 +1146,44 @@ public class ConceptManager extends ServerPlugin {
 			// original Semedico term data there are
 			// terms specifying parents that don't exist within the data at
 			// all.
-			if (null == term) {
-				// New term, create it.
-				term = graphDb.createNode(TermLabel.TERM);
-				log.debug("Created new TERM node for original / source coordinates (" + orgId + "," + orgSource
-						+ ") / (" + srcId + "," + source + ")");
-				hasBeenNewlyCreated = true;
-				insertionReport.numTerms++;
-			} else {
-				// The term already existed, so it was hollow. But now it won't
-				// be no more.
-				term.removeLabel(TermLabel.HOLLOW);
-				// The hollow term had its source ID set by the parent source Id
-				// of its children. We remove it so the following algorithms can
-				// add it again without handling of already existing properties.
-				term.removeProperty(PROP_SRC_IDS);
-				term.removeProperty(PROP_SOURCES);
-				term.removeProperty(PROP_ORG_ID);
-				term.removeProperty(PROP_ORG_SRC);
-				insertionReport.addExistingTerm(term);
-				// The hollow term possibly was connected as a facet root due to
-				// the lack of a better alternative. Those
-				// relationships are now removed and later replaced by the
-				// actual relationships defined in the new data
-				// that is currently processed.
-				Iterable<Relationship> relationships = term.getRelationships(EdgeTypes.HAS_ROOT_TERM);
-				for (Relationship rel : relationships) {
-					Node startNode = rel.getStartNode();
-					if (startNode.hasLabel(FacetManager.FacetLabel.FACET))
-						rel.delete();
-				}
+			// if (null == term) {
+			// // New term, create it.
+			// term = graphDb.createNode(TermLabel.TERM);
+			// log.debug("Created new TERM node for original / source
+			// coordinates (" + orgId + "," + orgSource
+			// + ") / (" + srcId + "," + source + ")");
+			// hasBeenNewlyCreated = true;
+			// insertionReport.numTerms++;
+			// } else {
+			// The term already existed, so it was hollow. But now it won't
+			// be no more.
+			term.removeLabel(TermLabel.HOLLOW);
+			term.addLabel(TermLabel.TERM);
+			// The hollow term had its source ID set by the parent source Id
+			// of its children. We remove it so the following algorithms can
+			// add it again without handling of already existing properties.
+			// term.removeProperty(PROP_SRC_IDS);
+			// term.removeProperty(PROP_SOURCES);
+			// term.removeProperty(PROP_ORG_ID);
+			// term.removeProperty(PROP_ORG_SRC);
+			// insertionReport.addExistingTerm(term);
+			// The hollow term possibly was connected as a facet root due to
+			// the lack of a better alternative. Those
+			// relationships are now removed and later replaced by the
+			// actual relationships defined in the new data
+			// that is currently processed.
+			Iterable<Relationship> relationships = term.getRelationships(EdgeTypes.HAS_ROOT_TERM);
+			for (Relationship rel : relationships) {
+				Node startNode = rel.getStartNode();
+				if (startNode.hasLabel(FacetManager.FacetLabel.FACET))
+					rel.delete();
+				// }
 			}
-			termId = NodeIDPrefixConstants.TERM
+			String termId = NodeIDPrefixConstants.TERM
 					+ SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_TERM);
+			System.err.println("Setting " + termId + " to " + coordinates);
 			term.setProperty(PROP_ID, termId);
 			termIndex.putIfAbsent(term, PROP_ID, termId);
-		} else if (null != term) {
-			// The term existed before we inserted the current data.
-			insertionReport.addExistingTerm(term);
 		}
 
 		// Merge the new or an already existing term with what we
@@ -1188,13 +1201,13 @@ public class ConceptManager extends ServerPlugin {
 		// values, set those properties which are currently non
 		// existent. For array, merge the arrays.
 		PropertyUtilities.mergeJSONObjectIntoPropertyContainer(jsonTerm, term, ConceptConstants.PROP_GENERAL_LABELS,
-				PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, PROP_COORDINATES,
-				PARENT_COORDINATES, ConceptConstants.RELATIONSHIPS);
+				PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, PROP_COORDINATES, PARENT_COORDINATES,
+				ConceptConstants.RELATIONSHIPS);
 		// set the original ID and source
-		if (orgId != null) {
-			term.setProperty(PROP_ORG_ID, orgId);
-			term.setProperty(PROP_ORG_SRC, orgSource);
-		}
+		// if (orgId != null) {
+		// term.setProperty(PROP_ORG_ID, orgId);
+		// term.setProperty(PROP_ORG_SRC, orgSource);
+		// }
 		// There could be multiple sources containing a term. For
 		// now, we just note that facet (if these sources give the same original
 		// ID, otherwise we won't notice) but don't do anything about
@@ -1226,23 +1239,14 @@ public class ConceptManager extends ServerPlugin {
 		}
 
 		// If we have a merging operation, we don't have to care about indexes
-		if (!importOptions.merge) {
-			// it is actually possible that multiple terms share the same source
-			// ID because multiple sources - i.e. databases - might use the same
-			// ID scheme (e.g. NCBI Gene and NCBI Taxonomy).
-			// Please note that this change - made 10th Feb 2016 - breaks the
-			// inner logic in this method and in other methods that assume that
-			// source IDs are unique (all calls use getSingle() which will throw
-			// an exception on duplicates). So it might be that further fixes -
-			// i.e.
-			// taking into account the (original) source will be necessary
-			if (hasBeenNewlyCreated)
-				termIndex.add(term, PROP_SRC_IDS, srcId);
-			if (null != orgId)
-				termIndex.putIfAbsent(term, PROP_ORG_ID, orgId);
-			termIndex.putIfAbsent(term, ConceptConstants.PROP_ID, termId);
-			nodesBySrcId.put(srcId, term);
-		}
+		// if (!importOptions.merge) {
+		// if (hasBeenNewlyCreated)
+		// termIndex.add(term, PROP_SRC_IDS, srcId);
+		// if (null != orgId)
+		// termIndex.putIfAbsent(term, PROP_ORG_ID, orgId);
+		// termIndex.putIfAbsent(term, ConceptConstants.PROP_ID, termId);
+		// nodesBySrcId.put(srcId, term);
+		// }
 
 		if (srcIduniqueMarkerChanged) {
 			log.warn("Merging concept nodes with unique source ID " + srcId
@@ -1282,27 +1286,31 @@ public class ConceptManager extends ServerPlugin {
 		// lookup for relationship creation.
 		// NOTE that this currently can only connect to parents having the same
 		// source as the currently inserted concept.
-		log.debug("Looking up parents");
-		JSONArray parentCoordinateArray = JSON.getJSONArray(jsonTerm, PARENT_COORDINATES);
-		for (int i = 0; null != parentCoordinateArray && i < parentCoordinateArray.length(); i++) {
-			ConceptCoordinates parentCoordinates = new ConceptCoordinates(parentCoordinateArray.getJSONObject(i));
-			
-			Node parent = nodesBySrcId.get(parentCoordinates.sourceId);
-			if (null == parent) {
-				try {
-					parent = lookupTerm(parentCoordinates, termIndex);
-				} catch (NoSuchElementException e) {
-					throw new IllegalStateException("Error while looking up the parents of term source ID \"" + srcId
-							+ "\".\n Parent source ID is: " + parentCoordinates.sourceId, e);
-				}
-				if (null != parent) {
-					nodesBySrcId.put(parentCoordinates.sourceId, parent);
-					insertionReport.addExistingTerm(parent);
-				}
-			}
-		}
+		// log.debug("Looking up parents");
+		// JSONArray parentCoordinateArray = JSON.getJSONArray(jsonTerm,
+		// PARENT_COORDINATES);
+		// for (int i = 0; null != parentCoordinateArray && i <
+		// parentCoordinateArray.length(); i++) {
+		// ConceptCoordinates parentCoordinates = new
+		// ConceptCoordinates(parentCoordinateArray.getJSONObject(i));
+		//
+		// Node parent = nodesBySrcId.get(parentCoordinates.sourceId);
+		// if (null == parent) {
+		// try {
+		// parent = lookupTerm(parentCoordinates, termIndex);
+		// } catch (NoSuchElementException e) {
+		// throw new IllegalStateException("Error while looking up the parents
+		// of term source ID \"" + srcId
+		// + "\".\n Parent source ID is: " + parentCoordinates.sourceId, e);
+		// }
+		// if (null != parent) {
+		// nodesBySrcId.put(parentCoordinates.sourceId, parent);
+		// insertionReport.addExistingTerm(parent);
+		// }
+		// }
+		// }
 
-		if (StringUtils.isBlank(prefName) && !insertionReport.existingTerms.contains(term))
+		if (StringUtils.isBlank(prefName) && !insertionReport.existingConcepts.contains(term))
 			throw new IllegalArgumentException("Term has no property \"" + PROP_PREF_NAME + "\": " + jsonTerm);
 
 	}
@@ -1323,8 +1331,41 @@ public class ConceptManager extends ServerPlugin {
 		return false;
 	}
 
+	/**
+	 * A few things to realize:
+	 * <ul>
+	 * <li>Referenced concepts - parents, elements of aggregates, targets of
+	 * explicitly specified concept nodes - are not required to be included in
+	 * the same import data as the referencing concept. Then, the referee will
+	 * be realized as a HOLLOW node.</li>
+	 * <li>For non-aggregate concepts, we use the
+	 * {@link #createRelationShipIfNotExists(Node, Node, RelationshipType, InsertionReport, Direction, Object...)}
+	 * method that is sped up by knowing if the two input nodes for the
+	 * relationship did exist before the current import. Because if not, then
+	 * they cannot have had a relationship before. The method will make errors
+	 * if this information is wrong, causing missing relationships</li>
+	 * <li>Thus, all concept nodes that might be used in this method and that
+	 * existed before the current import, must be set so in the
+	 * <code>importOptions</code> parameter.</li>
+	 * <li>These concept nodes are:
+	 * <ul>
+	 * <li>The imported concept nodes themselves</li>
+	 * <li>Their parents</li>
+	 * </ul>
+	 * </li>
+	 * 
+	 * </ul>
+	 * 
+	 * @param graphDb
+	 * @param jsonTerms
+	 * @param facetId
+	 * @param nodesByCoordinates
+	 * @param importOptions
+	 * @return
+	 * @throws JSONException
+	 */
 	private InsertionReport insertFacetTerms(GraphDatabaseService graphDb, JSONArray jsonTerms, String facetId,
-			Map<String, Node> nodesBySrcId, ImportOptions importOptions) throws JSONException {
+			Map<ConceptCoordinates, Node> nodesByCoordinates, ImportOptions importOptions) throws JSONException {
 		long time = System.currentTimeMillis();
 		InsertionReport insertionReport = new InsertionReport();
 		// Idea: First create all nodes and just store which Node has which
@@ -1333,14 +1374,85 @@ public class ConceptManager extends ServerPlugin {
 		Index<Node> termIndex = null;
 		IndexManager indexManager = graphDb.index();
 		termIndex = indexManager.forNodes(INDEX_NAME);
+
+		// First, iterate through all concepts and check if their parents
+		// already exist, before any nodes are created (for more efficient
+		// relationship creation).
+		for (int i = 0; i < jsonTerms.length(); i++) {
+			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
+			// aggregates are not required to come with coordinates, so don't
+			// handle them here
+			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
+				continue;
+			if (jsonTerm.has(PARENT_COORDINATES) && jsonTerm.getJSONArray(PARENT_COORDINATES).length() > 0) {
+				JSONArray parentCoordinatesArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
+				for (int j = 0; j < parentCoordinatesArray.length(); j++) {
+					ConceptCoordinates parentCoordinates = new ConceptCoordinates(
+							parentCoordinatesArray.getJSONObject(j));
+					Node parentNode = lookupTerm(parentCoordinates, termIndex);
+					if (parentNode != null) {
+						insertionReport.addExistingTerm(parentNode);
+						nodesByCoordinates.put(parentCoordinates, parentNode);
+					}
+				}
+			}
+		}
+
+		// Second, iterate through all concepts to be imported and check if
+		// they already exist themselves or not. Not existing nodes will be
+		// created as
+		// HOLLOW nodes.
+		// The following methods can then just access the nodes by their source
+		// Id which ought to be unique for each import.
+		for (int i = 0; i < jsonTerms.length(); i++) {
+			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
+			// aggregates are not required to come with coordinates, so don't
+			// handle them here
+			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
+				continue;
+			ConceptCoordinates coordinates = new ConceptCoordinates(
+					jsonTerm.getJSONObject(ConceptConstants.PROP_COORDINATES));
+			Node conceptNode = lookupTerm(coordinates, termIndex);
+			if (conceptNode != null) {
+				insertionReport.addExistingTerm(conceptNode);
+			} else if (!importOptions.merge) {
+				// When merging, we don't create new concepts
+
+				// The concept coordinates are not yet known, create an
+				// empty
+				// concept node with its coordinates.
+				Node newConcept = graphDb.createNode(TermLabel.HOLLOW);
+				log.debug("Created new HOLLOW concept node for coordinates " + coordinates + "");
+				newConcept.setProperty(PROP_SRC_IDS, new String[] { coordinates.sourceId });
+				newConcept.setProperty(PROP_SOURCES, new String[] { coordinates.source });
+				newConcept.setProperty(PROP_UNIQUE_SRC_ID, new boolean[] { coordinates.uniqueSourceId });
+
+				++insertionReport.numTerms;
+
+				conceptNode = newConcept;
+			}
+			nodesByCoordinates.put(coordinates, conceptNode);
+
+			if (!StringUtils.isBlank(coordinates.originalId) && !conceptNode.hasProperty(PROP_ORG_ID)) {
+				conceptNode.setProperty(PROP_ORG_ID, coordinates.originalId);
+				conceptNode.setProperty(PROP_ORG_SRC, coordinates.originalSource);
+			}
+			if (!StringUtils.isBlank(coordinates.sourceId))
+				termIndex.putIfAbsent(conceptNode, PROP_SRC_IDS, coordinates.sourceId);
+			if (!StringUtils.isBlank(coordinates.originalId))
+				termIndex.putIfAbsent(conceptNode, PROP_ORG_ID, coordinates.originalId);
+		}
+		// Finished getting existing nodes and creating HOLLOW nodes
+
 		log.info("Starting to insert " + jsonTerms.length() + " terms.");
 		for (int i = 0; i < jsonTerms.length(); i++) {
 			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
 			boolean isAggregate = JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE);
 			if (isAggregate) {
-				insertAggregateTerm(graphDb, termIndex, jsonTerm, nodesBySrcId, insertionReport, importOptions);
+				insertAggregateTerm(graphDb, termIndex, jsonTerm, nodesByCoordinates, insertionReport, importOptions);
 			} else {
-				insertFacetTerm(graphDb, facetId, termIndex, jsonTerm, nodesBySrcId, insertionReport, importOptions);
+				insertFacetTerm(graphDb, facetId, termIndex, jsonTerm, nodesByCoordinates, insertionReport,
+						importOptions);
 			}
 		}
 		log.debug(jsonTerms.length() + " terms inserted.");
@@ -1426,19 +1538,26 @@ public class ConceptManager extends ServerPlugin {
 				// No existing ID is given, create a new facet.
 				facet = FacetManager.createFacet(graphDb, jsonFacet);
 			}
-			if (null != facet)
+			if (null != facet) {
 				facetId = (String) facet.getProperty(PROP_ID);
-			log.debug("Facet " + facetId + " was successfully created or determined by ID.");
+				log.debug("Facet " + facetId + " was successfully created or determined by ID.");
+			} else {
+				log.debug(
+						"No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
+				importOptions.merge = true;
+			}
 
 			if (null != jsonTerms) {
 				log.debug("Beginning to create term nodes and relationships.");
-				Map<String, Node> nodesBySrcId = new HashMap<>(jsonTerms.length());
-				insertionReport = insertFacetTerms(graphDb, jsonTerms, facetId, nodesBySrcId, importOptions);
+				Map<ConceptCoordinates, Node> nodesByCoordinates = new HashMap<>(jsonTerms.length());
+				insertionReport = insertFacetTerms(graphDb, jsonTerms, facetId, nodesByCoordinates, importOptions);
 				// If the nodesBySrcId map is empty we either have no terms or
 				// at least no terms with a source ID. Then,
 				// relationship creation is currently not supported.
-				if (!nodesBySrcId.isEmpty())
-					createRelationships(graphDb, jsonTerms, facet, nodesBySrcId, importOptions, insertionReport);
+				if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
+					createRelationships(graphDb, jsonTerms, facet, nodesByCoordinates, importOptions, insertionReport);
+				else
+					log.info("This is a property merging import, no relationships are created.");
 				time = System.currentTimeMillis() - time;
 				report.put(RET_KEY_NUM_CREATED_TERMS, insertionReport.numTerms);
 				report.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
@@ -1470,8 +1589,7 @@ public class ConceptManager extends ServerPlugin {
 	 * @param termIndex
 	 * @return
 	 */
-	private Node lookupTerm(ConceptCoordinates coordinates,
-			Index<Node> termIndex) {
+	private Node lookupTerm(ConceptCoordinates coordinates, Index<Node> termIndex) {
 		String orgId = coordinates.originalId;
 		String orgSource = coordinates.originalSource;
 		String srcId = coordinates.sourceId;
@@ -1746,8 +1864,7 @@ public class ConceptManager extends ServerPlugin {
 	@PluginTarget(GraphDatabaseService.class)
 	public String updateChildrenInformation(@Source GraphDatabaseService graphDb) {
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> termIt = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(TermLabel.TERM)
-					.iterator();
+			ResourceIterator<Node> termIt = graphDb.findNodes(TermLabel.TERM);
 			while (termIt.hasNext()) {
 				Node term = termIt.next();
 				Iterator<Relationship> relIt = term.getRelationships(Direction.OUTGOING).iterator();
