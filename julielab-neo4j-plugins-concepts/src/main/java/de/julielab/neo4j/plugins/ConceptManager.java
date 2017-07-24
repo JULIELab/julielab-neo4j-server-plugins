@@ -1084,7 +1084,6 @@ public class ConceptManager extends ServerPlugin {
 		String orgSource = JSON.getString(coordinates, CoordinateConstants.ORIGINAL_SOURCE);
 		boolean uniqueSourceId = JSON.getBoolean(coordinates, CoordinateConstants.UNIQUE_SOURCE_ID, false);
 
-		boolean hasBeenNewlyCreated = false;
 		boolean srcIduniqueMarkerChanged = false;
 
 		if (StringUtils.isBlank(srcId) && !StringUtils.isBlank(orgId)
@@ -1181,7 +1180,6 @@ public class ConceptManager extends ServerPlugin {
 			}
 			String termId = NodeIDPrefixConstants.TERM
 					+ SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_TERM);
-			System.err.println("Setting " + termId + " to " + coordinates);
 			term.setProperty(PROP_ID, termId);
 			termIndex.putIfAbsent(term, PROP_ID, termId);
 		}
@@ -1397,7 +1395,10 @@ public class ConceptManager extends ServerPlugin {
 				}
 			}
 		}
+		// Finished finding parents
 
+		// When merging, we remove those import concepts that are not known in the database from the input data
+		List<Integer> importConceptsToRemove = new ArrayList<>();
 		// Second, iterate through all concepts to be imported and check if
 		// they already exist themselves or not. Not existing nodes will be
 		// created as
@@ -1430,6 +1431,10 @@ public class ConceptManager extends ServerPlugin {
 				++insertionReport.numTerms;
 
 				conceptNode = newConcept;
+			} else {
+				// We are in merging mode and requested concept is not in the database; mark it for removal from the input data and continue
+				importConceptsToRemove.add(i);
+				continue;
 			}
 			nodesByCoordinates.put(coordinates, conceptNode);
 
@@ -1443,6 +1448,11 @@ public class ConceptManager extends ServerPlugin {
 				termIndex.putIfAbsent(conceptNode, PROP_ORG_ID, coordinates.originalId);
 		}
 		// Finished getting existing nodes and creating HOLLOW nodes
+		
+		log.info("removing " + importConceptsToRemove.size() + " input concepts that should be omitted because we are merging and don't have them in the database");
+		for(int index = importConceptsToRemove.size() - 1; index >= 0; --index)
+			jsonTerms.remove(importConceptsToRemove.get(index));
+		importConceptsToRemove = null;
 
 		log.info("Starting to insert " + jsonTerms.length() + " terms.");
 		for (int i = 0; i < jsonTerms.length(); i++) {
@@ -1493,8 +1503,12 @@ public class ConceptManager extends ServerPlugin {
 		JSONArray jsonTerms = null;
 		JSONObject importOptionsJson = null;
 		jsonFacet = !StringUtils.isEmpty(facetJson) ? new JSONObject(facetJson) : null;
-		if (null != termsJson)
+		if (null != termsJson) {
 			jsonTerms = new JSONArray(termsJson);
+			log.info("Got " + jsonTerms.length() + " input concepts for import.");
+		} else {
+			log.info("Got 0 input concepts for import.");
+		}
 		ImportOptions importOptions;
 		if (null != importOptionsJsonString) {
 			importOptionsJson = new JSONObject(importOptionsJsonString);
@@ -1502,6 +1516,7 @@ public class ConceptManager extends ServerPlugin {
 		} else {
 			importOptions = new ImportOptions();
 		}
+		
 
 		Map<String, Object> report = new HashMap<>();
 		InsertionReport insertionReport = new InsertionReport();

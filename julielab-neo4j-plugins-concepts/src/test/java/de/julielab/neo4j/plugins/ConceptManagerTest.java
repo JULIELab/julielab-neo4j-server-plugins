@@ -80,11 +80,11 @@ import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.AddToNonFacetGroupCommand;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetTermRelationship;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
 import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.datarepresentation.PushTermsToSetCommand;
 import de.julielab.neo4j.plugins.datarepresentation.TermCoordinates;
@@ -245,8 +245,8 @@ public class ConceptManagerTest {
 	 * @throws SecurityException
 	 */
 	@Test
-	public void testImportConceptsWithFacetDefinition() throws JSONException, SecurityException, IllegalArgumentException,
-			NoSuchFieldException, IllegalAccessException {
+	public void testImportConceptsWithFacetDefinition() throws JSONException, SecurityException,
+			IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
 		testTermImportWithOrWithoutFacetDefinition(true);
 	}
 
@@ -354,12 +354,15 @@ public class ConceptManagerTest {
 			// this
 			// test, there is only one parent (in general, there might be
 			// more!).
-			assertEquals(term1, term2.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
-					.getStartNode());
-			assertEquals(term1, term3.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
-					.getStartNode());
-			assertEquals(term2, term4.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
-					.getStartNode());
+			assertEquals(term1,
+					term2.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
+							.getStartNode());
+			assertEquals(term1,
+					term3.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
+							.getStartNode());
+			assertEquals(term2,
+					term4.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
+							.getStartNode());
 
 			// Besides the default taxonomic relationships, there should be
 			// specific relationships only valid for the
@@ -393,7 +396,8 @@ public class ConceptManagerTest {
 		ImportFacet facetMap = FacetManagerTest.getTestFacetMap(1);
 
 		List<ImportConcept> termList = new ArrayList<>();
-		termList.add(new ImportConcept("prefname1", "desc of term1", new ConceptCoordinates("TERM1", "TEST_SOURCE", SRC)));
+		termList.add(
+				new ImportConcept("prefname1", "desc of term1", new ConceptCoordinates("TERM1", "TEST_SOURCE", SRC)));
 
 		// -------- SEND TERM WITH FACET DEFINITION ------
 		Gson gson = new Gson();
@@ -453,7 +457,8 @@ public class ConceptManagerTest {
 			Node facetGroupNode = NodeUtilities.getSingleOtherNode(noFacetGroupsNode,
 					FacetManager.EdgeTypes.HAS_FACET_GROUP);
 			Node facetNode = NodeUtilities.getSingleOtherNode(facetGroupNode, FacetManager.EdgeTypes.HAS_FACET);
-			Iterator<Relationship> rootIt = facetNode.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM).iterator();
+			Iterator<Relationship> rootIt = facetNode.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM)
+					.iterator();
 			int rootCount = 0;
 			while (rootIt.hasNext()) {
 				@SuppressWarnings("unused")
@@ -464,7 +469,6 @@ public class ConceptManagerTest {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Test
 	public void testMergeTermProperties() throws JSONException {
 		// We will insert the same term (identified by the same original ID)
@@ -475,7 +479,8 @@ public class ConceptManagerTest {
 
 		// ------------ INSERT 1 ---------------
 
-ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
+		ImportConcept concept = new ImportConcept("prefname1",
+				new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
@@ -487,21 +492,24 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 2 ---------------
-		concept = new ImportConcept("prefname1", "description1", new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
+		concept = new ImportConcept("prefname1", "description1",
+				new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		termsAndFacetJson = gson.toJson(termsAndFacet);
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 3 ---------------
-		concept = new ImportConcept("prefname2", Arrays.asList("syn1"), new ConceptCoordinates("TERM2", "TEST_SOURCE", "ORGID", "orgSrc1"));
+		concept = new ImportConcept("prefname2", Arrays.asList("syn1"),
+				new ConceptCoordinates("TERM2", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		termsAndFacetJson = gson.toJson(termsAndFacet);
 		ftm.insertFacetTerms(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 4 ---------------
-		concept = new ImportConcept("prefname3", Arrays.asList("syn2"), "description2",  new ConceptCoordinates("TERM3", "TEST_SOURCE", "ORGID", "orgSrc1"));
+		concept = new ImportConcept("prefname3", Arrays.asList("syn2"), "description2",
+				new ConceptCoordinates("TERM3", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		termsAndFacetJson = gson.toJson(termsAndFacet);
@@ -532,6 +540,48 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 			assertTrue(srcIdList.contains("TERM3"));
 
 			tx.success();
+		}
+	}
+
+	@Test
+	public void testMergeTermLabels() throws JSONException {
+		// Check if we can insert a concept and then insert the term again but
+		// with an additional label so that the new labels gets added to the
+		// existing concept
+		ImportConceptAndFacet testTerms = getTestTerms(1);
+		ConceptManager cm = new ConceptManager();
+		cm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
+
+		testTerms = getTestTerms(1);
+		testTerms.importOptions = new ImportOptions();
+		testTerms.importOptions.merge = true;
+		testTerms.terms.get(0).addGeneralLabel("ANOTHER_LABEL");
+		// just to make am more thorough test, we change the source coordinates (but NOT the original coordinates)
+		testTerms.terms.get(0).coordinates.sourceId ="somesrcid";
+		testTerms.terms.get(0).coordinates.source ="somesrc";
+		cm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
+
+		try (Transaction tx = graphDb.beginTx()) {
+			// Check that there is only one concept node
+			ResourceIterator<Node> conceptNodes = graphDb.findNodes(TermLabel.TERM);
+			int counter = 0;
+			while (conceptNodes.hasNext()) {
+				@SuppressWarnings("unused")
+				Node n = (Node) conceptNodes.next();
+				++counter;
+			}
+			assertEquals(1, counter);
+			// end check only one concept node
+
+			// now check that there also is a node with ANOTHER_LABEL
+			conceptNodes = graphDb.findNodes(DynamicLabel.label("ANOTHER_LABEL"));
+			counter = 0;
+			while (conceptNodes.hasNext()) {
+				@SuppressWarnings("unused")
+				Node n = (Node) conceptNodes.next();
+				++counter;
+			}
+			assertEquals(1, counter);
 		}
 	}
 
@@ -822,10 +872,12 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 	@Test
 	public void testOrganizeSynonyms() throws JSONException {
 		// In this test, we have a term that specifies its preferred term as a
-		// synonym, too. The FacetConceptManager should detect this and remove the
+		// synonym, too. The FacetConceptManager should detect this and remove
+		// the
 		// synonym that equals the preferred name.
 		List<ImportConcept> termList = new ArrayList<>();
-		termList.add(new ImportConcept("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term", new ConceptCoordinates("TERM", "TEST_SOURCE", SRC)));
+		termList.add(new ImportConcept("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term",
+				new ConceptCoordinates("TERM", "TEST_SOURCE", SRC)));
 		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
 		termsAndFacet.put("facet", FacetManagerTest.getImportFacet());
 		termsAndFacet.put("terms", termList);
@@ -1338,7 +1390,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		// become the facet root, the former hollow term shouldn't be
 		// hollow anymore.
 		terms.clear();
-		terms.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2", new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC),
+		terms.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2",
+				new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC),
 				new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
 		terms.add(new ImportConcept("prefname3", new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
 		// We need to replace the facet definition by the ID of the already
@@ -1390,9 +1443,11 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		// same data, there is only one node
 		// created.
 		terms.clear();
-		terms.add(new ImportConcept("prefname2",Lists.newArrayList("syn2"), "desc2", new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC)
-				, new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
-		terms.add(new ImportConcept("prefname5", Lists.newArrayList("syn2"),"desc2", new ConceptCoordinates("parentid8", "TEST_SOURCE", SRC),
+		terms.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2",
+				new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC),
+				new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
+		terms.add(new ImportConcept("prefname5", Lists.newArrayList("syn2"), "desc2",
+				new ConceptCoordinates("parentid8", "TEST_SOURCE", SRC),
 				new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
 		termAndFacet.facet = new ImportFacet("fid0");
 
@@ -1423,7 +1478,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		List<ImportConcept> terms = testTerms.terms;
 		// Here, we just give any parent so that the non-facet-group-command
 		// does not trigger.
-		List<ConceptCoordinates> parentSrcIds = Lists.newArrayList(new ConceptCoordinates("nonExistingParent", "TEST_DATA", SRC));
+		List<ConceptCoordinates> parentSrcIds = Lists
+				.newArrayList(new ConceptCoordinates("nonExistingParent", "TEST_DATA", SRC));
 		terms.get(0).parentCoordinates = parentSrcIds;
 		terms.get(1).parentCoordinates = parentSrcIds;
 		options.cutParents = Arrays.asList("nonExistingParent");
@@ -1445,7 +1501,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 			Node noFacetGroup = it.next().getEndNode();
 			assertFalse("There is a second no-facet group.", it.hasNext());
 			Node noFacet = NodeUtilities.getSingleOtherNode(noFacetGroup, FacetManager.EdgeTypes.HAS_FACET);
-			Iterator<Relationship> termRelIt = noFacet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM).iterator();
+			Iterator<Relationship> termRelIt = noFacet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM)
+					.iterator();
 			assertTrue("There is no no-facet term.", termRelIt.hasNext());
 			int i = 0;
 			while (termRelIt.hasNext()) {
@@ -1462,7 +1519,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 			// the facet, although hollow terms are allowed.
 			Node facet = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, FacetManager.FacetLabel.FACET, PROP_ID,
 					"fid0");
-			Iterator<Relationship> facetTerms = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM).iterator();
+			Iterator<Relationship> facetTerms = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM)
+					.iterator();
 			while (facetTerms.hasNext()) {
 				Node facetTerm = facetTerms.next().getEndNode();
 				String termName = (String) facetTerm.getProperty(PROP_PREF_NAME);
@@ -1590,8 +1648,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		// as a root term for the new facet.
 		terms = new ArrayList<>();
 		terms.add(new ImportConcept("name1", coord1));
-		terms.add(new ImportConcept("name6", coord6,coord1));
-		terms.add(new ImportConcept("name5",coord5, coord6));
+		terms.add(new ImportConcept("name6", coord6, coord1));
+		terms.add(new ImportConcept("name5", coord5, coord6));
 		for (ImportConcept term : terms)
 			term.coordinates.source = "TEST_SOURCE";
 		importFacet = FacetManagerTest.getImportFacet();
@@ -1844,7 +1902,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		// terms.
 		ImportConceptAndFacet testTerms = getTestTerms(4);
 		// add a fifth term that has the first term as a parent
-		testTerms.terms.add(new ImportConcept("someterm",  new ConceptCoordinates("somesrcid", "somesource", SRC), new ConceptCoordinates("TERM0", "TEST_DATA", SRC)));
+		testTerms.terms.add(new ImportConcept("someterm", new ConceptCoordinates("somesrcid", "somesource", SRC),
+				new ConceptCoordinates("TERM0", "TEST_DATA", SRC)));
 		testTerms.terms.get(testTerms.terms.size() - 1).coordinates.source = "somesource";
 		ConceptManager tm = new ConceptManager();
 		// first insert.
@@ -1865,7 +1924,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		// re-insert the additional term from above but with a description and a
 		// synonym, without a parent; we should
 		// not need it since the term is already known.
-		ImportConcept term = new ImportConcept("somesrcid", Arrays.asList("newsynonym2"), "newdesc2", new ConceptCoordinates("somesrcid", "somesource", SRC));
+		ImportConcept term = new ImportConcept("somesrcid", Arrays.asList("newsynonym2"), "newdesc2",
+				new ConceptCoordinates("somesrcid", "somesource", SRC));
 		testTerms.terms.add(term);
 		// second insert, duplicate terms should now be merged.
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
@@ -1916,7 +1976,7 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		term.put(PROP_PREF_NAME, "testPrefName");
 		term.put("someIntegerProperty", 42);
 		term.put("someIntegerArrayProperty", new Integer[] { 23, 98 });
-		
+
 		Map<String, String> coordinates = new HashMap<>();
 		coordinates.put(CoordinateConstants.SOURCE_ID, "testSrcId");
 		coordinates.put(CoordinateConstants.SOURCE, "TEST_SOURCE");
@@ -1931,8 +1991,8 @@ ImportConcept concept = new ImportConcept("prefname1", new ConceptCoordinates("T
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(termsMap));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Node termNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.TermLabel.TERM, PROP_ID,
-					NodeIDPrefixConstants.TERM + 0);
+			Node termNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.TermLabel.TERM,
+					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			assertEquals(42, termNode.getProperty("someIntegerProperty"));
 			// the order should have been maintained
 			assertArrayEquals(new int[] { 23, 98 }, (int[]) termNode.getProperty("someIntegerArrayProperty"));
