@@ -1333,7 +1333,7 @@ public class ConceptManagerTest {
 		// a "hollow" parent node.
 		// In a second step, we will add the former hollow term explicitly
 		// together with another parent. We should see
-		// how there are then now hollow terms left and the new
+		// how there are then no hollow terms left and the new
 		// "grandparent" will become the root.
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		List<ImportConcept> terms = new ArrayList<>();
@@ -1349,6 +1349,7 @@ public class ConceptManagerTest {
 				JsonSerializer.toJson(termAndFacet));
 		Map<String, Object> reportMap = report.getUnderlyingMap();
 		assertEquals("Number of inserted terms", 2, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_TERMS));
+		// we expect relations for the root term, broader than und broader than fid0
 		assertEquals("Number of inserted relationships", 3, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_RELS));
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -1691,7 +1692,7 @@ public class ConceptManagerTest {
 	public void testUpdateChildrenInformation() throws Exception {
 		// In this test we check whether the array property of in which facet a
 		// term has children is computed correctly.
-		// For this, we do two term imports to create two facets. We will have
+		// For this, we do two concept imports to create two facets. We will have
 		// four terms where the latter three are
 		// children of the first.
 		// Thus, this first term should have children in both facets.
@@ -1934,11 +1935,10 @@ public class ConceptManagerTest {
 		try (Transaction tx = graphDb.beginTx()) {
 			// See that we really only have a single facet, we havn't added a
 			// second one.
-			ResourceIterable<Node> facets = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(FacetManager.FacetLabel.FACET);
+			ResourceIterator<Node> facets = graphDb.findNodes(FacetManager.FacetLabel.FACET);
 			int facetCounter = 0;
 			for (@SuppressWarnings("unused")
-			Node facet : facets) {
+			Node facet : (Iterable<Node>)() -> facets) {
 				facetCounter++;
 			}
 			assertEquals(1, facetCounter);

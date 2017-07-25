@@ -6,7 +6,7 @@ import org.neo4j.shell.util.json.JSONObject;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.constants.semedico.CoordinateConstants;
 
-public class ConceptCoordinates {
+public class ConceptCoordinates implements Cloneable {
 
 	public String sourceId;
 	public String source;
@@ -16,7 +16,7 @@ public class ConceptCoordinates {
 
 	public ConceptCoordinates() {
 	}
-	
+
 	public ConceptCoordinates(String sourceId, String source, String originalId, String originalSource,
 			boolean uniqueSourceId) {
 		super();
@@ -30,7 +30,7 @@ public class ConceptCoordinates {
 	public ConceptCoordinates(String sourceId, String source, String originalId, String originalSource) {
 		this(sourceId, source, originalId, originalSource, false);
 	}
-	
+
 	public ConceptCoordinates(String sourceId, String source, boolean uniqueSourceId) {
 		this(sourceId, source, null, null, uniqueSourceId);
 	}
@@ -51,7 +51,7 @@ public class ConceptCoordinates {
 	public ConceptCoordinates(JSONObject jsonObject) throws JSONException {
 		this(jsonObject, true);
 	}
-	
+
 	public ConceptCoordinates(JSONObject jsonObject, boolean checkConsistency) throws JSONException {
 		sourceId = JSON.getString(jsonObject, CoordinateConstants.SOURCE_ID);
 		source = JSON.getString(jsonObject, CoordinateConstants.SOURCE);
@@ -69,6 +69,26 @@ public class ConceptCoordinates {
 						"Coordinates JSON specifies originalId / original source of (" + originalId + ", "
 								+ originalSource + ") but when one is not null, the other must be given, too.");
 		}
+	}
+
+
+
+	public ConceptCoordinates(ConceptCoordinates coordinates) {
+		this.originalId = coordinates.originalId;
+		this.originalSource = coordinates.originalSource;
+		this.sourceId = coordinates.sourceId;
+		this.source = coordinates.source;
+		this.uniqueSourceId = coordinates.uniqueSourceId;
+	}
+
+	@Override
+	public String toString() {
+		return "org(" + originalId + ", " + originalSource + ") / src(" + sourceId + ", " + source + ")";
+	}
+
+	@Override
+	public ConceptCoordinates clone() {
+		return new ConceptCoordinates(this);
 	}
 
 	@Override
@@ -116,10 +136,6 @@ public class ConceptCoordinates {
 			return false;
 		return true;
 	}
-	
-	@Override
-	public String toString() {
-		return "org(" + originalId + ", " + originalSource + ") / src(" + sourceId + ", " + source + ")";
-	}
+
 
 }

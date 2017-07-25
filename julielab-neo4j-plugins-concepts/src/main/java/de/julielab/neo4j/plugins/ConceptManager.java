@@ -80,6 +80,8 @@ import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesSet;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
@@ -160,6 +162,12 @@ public class ConceptManager extends ServerPlugin {
 		 * case so we know there is not an error.
 		 */
 		public Set<String> omittedTerms = new HashSet<>();
+		/**
+		 * The coordinates of all concepts that are being imported. This
+		 * information is used by the relationship creation method to know if a
+		 * parent is included in the imported data or not.
+		 */
+		public CoordinatesSet importedCoordinates = new CoordinatesSet();
 		public int numRelationships = 0;
 		public int numTerms = 0;
 
@@ -177,6 +185,10 @@ public class ConceptManager extends ServerPlugin {
 
 		public boolean relationshipAlreadyWasCreated(Node source, Node target, RelationshipType type) {
 			return createdRelationshipsCache.contains(getRelationshipIdentifier(source, target, type));
+		}
+
+		public void addImportedCoordinates(ConceptCoordinates coordinates) {
+			importedCoordinates.add(coordinates);
 		}
 	}
 
@@ -370,7 +382,7 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	private void createRelationships(GraphDatabaseService graphDb, JSONArray jsonTerms, Node facet,
-			Map<ConceptCoordinates, Node> nodesByCoordinates, ImportOptions importOptions,
+			CoordinatesMap nodesByCoordinates, ImportOptions importOptions,
 			InsertionReport insertionReport) throws JSONException {
 		log.info("Creating relationship between inserted terms.");
 		Index<Node> idIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
@@ -416,10 +428,7 @@ public class ConceptManager extends ServerPlugin {
 						ConceptCoordinates parentCoordinates = new ConceptCoordinates(
 								parentCoordinateArray.getJSONObject(j));
 
-//						String parentOrigSrcId = parentCoordinates.originalId;
-//						String parentOrigSource = parentCoordinates.originalSource;
 						String parentSrcId = parentCoordinates.sourceId;
-//						String parentSource = parentCoordinates.source;
 						if (importOptions.cutParents.contains(parentSrcId)) {
 							log.debug("Concept node " + coordinates
 									+ " has a parent that is marked to be cut away. Concept will be a facet root.");
@@ -431,15 +440,21 @@ public class ConceptManager extends ServerPlugin {
 						// them. First check if the parent was included in the
 						// current import data
 						Node parent = nodesByCoordinates.get(parentCoordinates);
+						if (null == parent)
+							throw new IllegalStateException(
+									"The parent node should have been created in insertTerms before, but it is null.");
 
 						// The parent was not in the imported data; check if it
 						// already exists in the database
-						if (parent == null) {
-							log.debug("Searching for parent concept to create hierarchical relationships");
-							parent = lookupTerm(parentCoordinates, idIndex);
-						}
+						// if (parent == null) {
+						// log.debug("Searching for parent concept to create
+						// hierarchical relationships");
+						// parent = lookupTerm(parentCoordinates, idIndex);
+						// }
 
-						if (null != parent) {
+						// if (null != parent) {
+						if (insertionReport.importedCoordinates.contains(parentCoordinates)
+								|| insertionReport.existingConcepts.contains(parent)) {
 							log.debug("Parent with " + parentCoordinates + " was found by source ID for concept "
 									+ coordinates + ".");
 							long creationTime = System.currentTimeMillis();
@@ -483,32 +498,16 @@ public class ConceptManager extends ServerPlugin {
 								// parent's parent since it is not included in
 								// the data.
 								// Node hollowParent =
-								// graphDb.createNode(TermLabel.TERM,
-								// TermLabel.HOLLOW);
-								Node hollowParent = registerNewHollowConceptNode(graphDb, parentCoordinates, idIndex, TermLabel.TERM);
-								// if (!StringUtils.isBlank(parentOrigSrcId)) {
-								// hollowParent.setProperty(PROP_ORG_ID,
-								// parentOrigSrcId);
-								// hollowParent.setProperty(PROP_ORG_SRC,
-								// parentOrigSource);
-								// }
-								// addToArrayProperty(hollowParent,
-								// PROP_SRC_IDS, parentSrcId);
-								// addToArrayProperty(hollowParent,
-								// PROP_SOURCES, parentSource);
-								// addToArrayProperty(hollowParent,
-								// PROP_UNIQUE_SRC_ID,
-								// parentCoordinates.uniqueSourceId);
-								// idIndex.add(hollowParent, PROP_SRC_IDS,
-								// parentSrcId);
-								nodesByCoordinates.put(parentCoordinates, hollowParent);
-								insertionReport.numTerms++;
-								createRelationshipIfNotExists(hollowParent, term, EdgeTypes.IS_BROADER_THAN,
-										insertionReport);
-								createRelationshipIfNotExists(hollowParent, term, relBroaderThanInFacet,
-										insertionReport);
-								createRelationshipIfNotExists(facet, hollowParent, EdgeTypes.HAS_ROOT_TERM,
-										insertionReport);
+								// registerNewHollowConceptNode(graphDb,
+								// parentCoordinates, idIndex,
+								// TermLabel.TERM);
+								parent.addLabel(TermLabel.TERM);
+								// nodesByCoordinates.put(parentCoordinates,
+								// hollowParent);
+								// insertionReport.numTerms++;
+								createRelationshipIfNotExists(parent, term, EdgeTypes.IS_BROADER_THAN, insertionReport);
+								createRelationshipIfNotExists(parent, term, relBroaderThanInFacet, insertionReport);
+								createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 							} else {
 								log.info(
 										"Creating hollow parents is switched off. Hence the term will be added as root term for its facet (\""
@@ -937,7 +936,7 @@ public class ConceptManager extends ServerPlugin {
 	 * @throws JSONException
 	 */
 	private void insertAggregateTerm(GraphDatabaseService graphDb, Index<Node> termIndex, JSONObject jsonTerm,
-			Map<ConceptCoordinates, Node> nodesByCoordinates, InsertionReport insertionReport,
+			CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
 			ImportOptions importOptions) throws JSONException {
 		JSONObject aggCoordinates = jsonTerm.has(PROP_COORDINATES) ? jsonTerm.getJSONObject(PROP_COORDINATES)
 				: new JSONObject();
@@ -1070,7 +1069,7 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	private void insertFacetTerm(GraphDatabaseService graphDb, String facetId, Index<Node> termIndex,
-			JSONObject jsonTerm, Map<ConceptCoordinates, Node> nodesByCoordinates, InsertionReport insertionReport,
+			JSONObject jsonTerm, CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
 			ImportOptions importOptions) throws JSONException {
 		// Name is mandatory, thus we don't use the
 		// null-convenience method here.
@@ -1078,22 +1077,23 @@ public class ConceptManager extends ServerPlugin {
 		JSONArray synonyms = JSON.getJSONArray(jsonTerm, PROP_SYNONYMS);
 		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_GENERAL_LABELS);
 
-		JSONObject coordinates = jsonTerm.getJSONObject(PROP_COORDINATES);
+		JSONObject coordinatesJson = jsonTerm.getJSONObject(PROP_COORDINATES);
+		ConceptCoordinates coordinates = new ConceptCoordinates(coordinatesJson);
 
-		if (!jsonTerm.has(PROP_COORDINATES) || coordinates.length() == 0)
+		if (!jsonTerm.has(PROP_COORDINATES) || coordinatesJson.length() == 0)
 			throw new IllegalArgumentException(
 					"The concept " + jsonTerm.toString(2) + " does not specify coordinates.");
 
 		// Source ID is mandatory if we have a real term import and not just a
 		// merging operation.
-		String srcId = importOptions.merge ? JSON.getString(coordinates, CoordinateConstants.SOURCE_ID)
-				: coordinates.getString(CoordinateConstants.SOURCE_ID);
+		String srcId = importOptions.merge ? JSON.getString(coordinatesJson, CoordinateConstants.SOURCE_ID)
+				: coordinatesJson.getString(CoordinateConstants.SOURCE_ID);
 		// The other properties may have values or not, make it
 		// null-proof.
-		String orgId = JSON.getString(coordinates, CoordinateConstants.ORIGINAL_ID);
-		String source = JSON.getString(coordinates, CoordinateConstants.SOURCE);
-		String orgSource = JSON.getString(coordinates, CoordinateConstants.ORIGINAL_SOURCE);
-		boolean uniqueSourceId = JSON.getBoolean(coordinates, CoordinateConstants.UNIQUE_SOURCE_ID, false);
+		String orgId = JSON.getString(coordinatesJson, CoordinateConstants.ORIGINAL_ID);
+		String source = JSON.getString(coordinatesJson, CoordinateConstants.SOURCE);
+		String orgSource = JSON.getString(coordinatesJson, CoordinateConstants.ORIGINAL_SOURCE);
+		boolean uniqueSourceId = JSON.getBoolean(coordinatesJson, CoordinateConstants.UNIQUE_SOURCE_ID, false);
 
 		boolean srcIduniqueMarkerChanged = false;
 
@@ -1122,10 +1122,10 @@ public class ConceptManager extends ServerPlugin {
 		// The concept node does already exist by now, it has either been
 		// retrieved from the database or created HOLLOW by the concept
 		// insertion method calling this method
-		Node term = nodesByCoordinates.get(new ConceptCoordinates(coordinates));
+		Node term = nodesByCoordinates.get(coordinates);
 		if (term == null && !importOptions.merge)
 			throw new IllegalStateException("No concept node was found or created for import concept with coordinates "
-					+ coordinates + " and this is not a merging operation.");
+					+ coordinatesJson + " and this is not a merging operation.");
 		else if (term == null)
 			// we are in merging mode, for nodes we don't know we just do
 			// nothing
@@ -1147,7 +1147,7 @@ public class ConceptManager extends ServerPlugin {
 		// }
 		// else
 		if (term.hasLabel(TermLabel.HOLLOW)) {
-			log.debug("Got HOLLOW concept node with coordinates " + coordinates + " and will create full concept.");
+			log.debug("Got HOLLOW concept node with coordinates " + coordinatesJson + " and will create full concept.");
 			// The term could already exist as a hollow node, e.g. because it
 			// was the
 			// target of a relationship of another
@@ -1209,6 +1209,11 @@ public class ConceptManager extends ServerPlugin {
 		// Currently, just do the following: For non-array property
 		// values, set those properties which are currently non
 		// existent. For array, merge the arrays.
+		if (!StringUtils.isBlank(coordinates.originalId) && !term.hasProperty(PROP_ORG_ID)) {
+			term.setProperty(PROP_ORG_ID, coordinates.originalId);
+			term.setProperty(PROP_ORG_SRC, coordinates.originalSource);
+		}
+
 		PropertyUtilities.mergeJSONObjectIntoPropertyContainer(jsonTerm, term, ConceptConstants.PROP_GENERAL_LABELS,
 				PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, PROP_COORDINATES, PARENT_COORDINATES,
 				ConceptConstants.RELATIONSHIPS);
@@ -1374,7 +1379,7 @@ public class ConceptManager extends ServerPlugin {
 	 * @throws JSONException
 	 */
 	private InsertionReport insertFacetTerms(GraphDatabaseService graphDb, JSONArray jsonTerms, String facetId,
-			Map<ConceptCoordinates, Node> nodesByCoordinates, ImportOptions importOptions) throws JSONException {
+			CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws JSONException {
 		long time = System.currentTimeMillis();
 		InsertionReport insertionReport = new InsertionReport();
 		// Idea: First create all nodes and just store which Node has which
@@ -1384,24 +1389,35 @@ public class ConceptManager extends ServerPlugin {
 		IndexManager indexManager = graphDb.index();
 		termIndex = indexManager.forNodes(INDEX_NAME);
 
+		// this MUST be a TreeSort or at least some collection using the
+		// Comparable interface because ConceptCoordinates are rather
+		// complicated regarding equality
+		CoordinatesSet toBeCreated = new CoordinatesSet();
 		// First, iterate through all concepts and check if their parents
 		// already exist, before any nodes are created (for more efficient
 		// relationship creation).
-		for (int i = 0; i < jsonTerms.length(); i++) {
-			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
-			// aggregates are not required to come with coordinates, so don't
-			// handle them here
-			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
-				continue;
-			if (jsonTerm.has(PARENT_COORDINATES) && jsonTerm.getJSONArray(PARENT_COORDINATES).length() > 0) {
-				JSONArray parentCoordinatesArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
-				for (int j = 0; j < parentCoordinatesArray.length(); j++) {
-					ConceptCoordinates parentCoordinates = new ConceptCoordinates(
-							parentCoordinatesArray.getJSONObject(j));
-					Node parentNode = lookupTerm(parentCoordinates, termIndex);
-					if (parentNode != null) {
-						insertionReport.addExistingTerm(parentNode);
-						nodesByCoordinates.put(parentCoordinates, parentNode);
+
+		// When merging, we don't care about parents.
+		if (!importOptions.merge) {
+			for (int i = 0; i < jsonTerms.length(); i++) {
+				JSONObject jsonTerm = jsonTerms.getJSONObject(i);
+				// aggregates are not required to come with coordinates, so
+				// don't
+				// handle them here
+				if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
+					continue;
+				if (jsonTerm.has(PARENT_COORDINATES) && jsonTerm.getJSONArray(PARENT_COORDINATES).length() > 0) {
+					JSONArray parentCoordinatesArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
+					for (int j = 0; j < parentCoordinatesArray.length(); j++) {
+						ConceptCoordinates parentCoordinates = new ConceptCoordinates(
+								parentCoordinatesArray.getJSONObject(j));
+						Node parentNode = lookupTerm(parentCoordinates, termIndex);
+						if (parentNode != null) {
+							insertionReport.addExistingTerm(parentNode);
+							nodesByCoordinates.put(parentCoordinates, parentNode);
+						} else {
+							toBeCreated.add(parentCoordinates);
+						}
 					}
 				}
 			}
@@ -1419,30 +1435,34 @@ public class ConceptManager extends ServerPlugin {
 		// Id which ought to be unique for each import.
 		for (int i = 0; i < jsonTerms.length(); i++) {
 			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
+			ConceptCoordinates coordinates = null;
+			if (jsonTerm.has(ConceptConstants.PROP_COORDINATES)) {
+				coordinates = new ConceptCoordinates(jsonTerm.getJSONObject(ConceptConstants.PROP_COORDINATES));
+				insertionReport.addImportedCoordinates(coordinates);
+			}
 			// aggregates are not required to come with coordinates, so don't
 			// handle them here
 			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
 				continue;
-			ConceptCoordinates coordinates = new ConceptCoordinates(
-					jsonTerm.getJSONObject(ConceptConstants.PROP_COORDINATES));
-			// many nodes will actually already have been created as parents
+			// many nodes will actually already have been seen as parents
 			// above
-			if (nodesByCoordinates.containsKey(coordinates))
+			if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
 				continue;
 			Node conceptNode = lookupTerm(coordinates, termIndex);
 			if (conceptNode != null) {
 				insertionReport.addExistingTerm(conceptNode);
+				nodesByCoordinates.put(coordinates, conceptNode);
 			} else if (!importOptions.merge) {
 				// When merging, we don't create new concepts
 
 				// The concept coordinates are not yet known, create an
 				// empty
 				// concept node with its coordinates.
-				Node newConcept = registerNewHollowConceptNode(graphDb, coordinates, termIndex);
+				// Node newConcept = registerNewHollowConceptNode(graphDb,
+				// coordinates, termIndex);
+				toBeCreated.add(coordinates);
 
-				++insertionReport.numTerms;
-
-				conceptNode = newConcept;
+				// conceptNode = newConcept;
 			} else {
 				// We are in merging mode and requested concept is not in the
 				// database; mark it for removal from the input data and
@@ -1450,12 +1470,13 @@ public class ConceptManager extends ServerPlugin {
 				importConceptsToRemove.add(i);
 				continue;
 			}
-			nodesByCoordinates.put(coordinates, conceptNode);
 
-			if (!StringUtils.isBlank(coordinates.originalId) && !conceptNode.hasProperty(PROP_ORG_ID)) {
-				conceptNode.setProperty(PROP_ORG_ID, coordinates.originalId);
-				conceptNode.setProperty(PROP_ORG_SRC, coordinates.originalSource);
-			}
+			// if (!StringUtils.isBlank(coordinates.originalId) &&
+			// !conceptNode.hasProperty(PROP_ORG_ID)) {
+			// conceptNode.setProperty(PROP_ORG_ID, coordinates.originalId);
+			// conceptNode.setProperty(PROP_ORG_SRC,
+			// coordinates.originalSource);
+			// }
 			// if (!StringUtils.isBlank(coordinates.sourceId))
 			// termIndex.putIfAbsent(conceptNode, PROP_SRC_IDS,
 			// coordinates.sourceId);
@@ -1464,6 +1485,13 @@ public class ConceptManager extends ServerPlugin {
 			// coordinates.originalId);
 		}
 		// Finished getting existing nodes and creating HOLLOW nodes
+
+		for (ConceptCoordinates coordinates : toBeCreated) {
+			Node conceptNode = registerNewHollowConceptNode(graphDb, coordinates, termIndex);
+			++insertionReport.numTerms;
+
+			nodesByCoordinates.put(coordinates, conceptNode);
+		}
 
 		log.info("removing " + importConceptsToRemove.size()
 				+ " input concepts that should be omitted because we are merging and don't have them in the database");
@@ -1613,7 +1641,7 @@ public class ConceptManager extends ServerPlugin {
 
 			if (null != jsonTerms) {
 				log.debug("Beginning to create term nodes and relationships.");
-				Map<ConceptCoordinates, Node> nodesByCoordinates = new HashMap<>(jsonTerms.length());
+				CoordinatesMap nodesByCoordinates = new CoordinatesMap();
 				insertionReport = insertFacetTerms(graphDb, jsonTerms, facetId, nodesByCoordinates, importOptions);
 				// If the nodesBySrcId map is empty we either have no terms or
 				// at least no terms with a source ID. Then,
