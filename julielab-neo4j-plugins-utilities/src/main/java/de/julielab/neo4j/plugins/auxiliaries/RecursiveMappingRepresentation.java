@@ -14,6 +14,7 @@ import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.server.rest.repr.RepresentationType;
 import org.neo4j.server.rest.repr.ValueRepresentation;
 
+import com.google.common.primitives.Booleans;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -39,7 +40,8 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 	}
 
 	/**
-	 * Returns the underlying Java map object. This instance is always a <tt>Map&lt;String,?&gt;</tt>.
+	 * Returns the underlying Java map object. This instance is always a
+	 * <tt>Map&lt;String,?&gt;</tt>.
 	 * 
 	 * @return The underlying Java map object.
 	 */
@@ -75,6 +77,9 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 			} else if (componentType.equals(double.class)) {
 				double[] array = (double[]) value;
 				serializer.putList(key, getIterableRepresentation(Doubles.asList(array)));
+			} else if (componentType.equals(boolean.class)) {
+				boolean[] array = (boolean[]) value;
+				serializer.putList(key, getIterableRepresentation(Booleans.asList(array)));
 			} else {
 				Object[] array = (Object[]) value;
 				serializer.putList(key, getIterableRepresentation(Arrays.asList(array)));
@@ -91,7 +96,8 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 			MappingRepresentation nodeMap = new NodeRepresentation((Node) value);
 			serializer.putMapping(key, nodeMap);
 		} else {
-			throw new IllegalArgumentException("Encountered " + valueClass + ". This class is currently not supported.");
+			throw new IllegalArgumentException(
+					"Encountered " + valueClass + ". This class is currently not supported.");
 		}
 	}
 
@@ -116,7 +122,8 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 		} else if (Node.class.isAssignableFrom(valueClass)) {
 			rep = new NodeRepresentation((Node) value);
 		} else {
-			throw new IllegalArgumentException("Encountered " + valueClass + ". This class is currently not supported.");
+			throw new IllegalArgumentException(
+					"Encountered " + valueClass + ". This class is currently not supported.");
 		}
 		return rep;
 	}
@@ -187,7 +194,8 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 		else if (valueClass.equals(byte.class) || valueClass.equals(Byte.class))
 			rep = ValueRepresentation.number((Byte) value);
 		else
-			throw new IllegalArgumentException("Encountered " + valueClass + ". This class is currently not supported.");
+			throw new IllegalArgumentException(
+					"Encountered " + valueClass + ". This class is currently not supported.");
 
 		return rep;
 	}

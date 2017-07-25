@@ -416,10 +416,10 @@ public class ConceptManager extends ServerPlugin {
 						ConceptCoordinates parentCoordinates = new ConceptCoordinates(
 								parentCoordinateArray.getJSONObject(j));
 
-						String parentOrigSrcId = parentCoordinates.originalId;
-						String parentOrigSource = parentCoordinates.originalSource;
+//						String parentOrigSrcId = parentCoordinates.originalId;
+//						String parentOrigSource = parentCoordinates.originalSource;
 						String parentSrcId = parentCoordinates.sourceId;
-						String parentSource = parentCoordinates.source;
+//						String parentSource = parentCoordinates.source;
 						if (importOptions.cutParents.contains(parentSrcId)) {
 							log.debug("Concept node " + coordinates
 									+ " has a parent that is marked to be cut away. Concept will be a facet root.");
@@ -482,14 +482,25 @@ public class ConceptManager extends ServerPlugin {
 								// get to know the
 								// parent's parent since it is not included in
 								// the data.
-								Node hollowParent = graphDb.createNode(TermLabel.TERM, TermLabel.HOLLOW);
-								if (!StringUtils.isBlank(parentOrigSrcId)) {
-									hollowParent.setProperty(PROP_ORG_ID, parentOrigSrcId);
-									hollowParent.setProperty(PROP_ORG_SRC, parentOrigSource);
-								}
-								addToArrayProperty(hollowParent, PROP_SRC_IDS, parentSrcId);
-								addToArrayProperty(hollowParent, PROP_SOURCES, parentSource);
-								idIndex.add(hollowParent, PROP_SRC_IDS, parentSrcId);
+								// Node hollowParent =
+								// graphDb.createNode(TermLabel.TERM,
+								// TermLabel.HOLLOW);
+								Node hollowParent = registerNewHollowConceptNode(graphDb, parentCoordinates, idIndex, TermLabel.TERM);
+								// if (!StringUtils.isBlank(parentOrigSrcId)) {
+								// hollowParent.setProperty(PROP_ORG_ID,
+								// parentOrigSrcId);
+								// hollowParent.setProperty(PROP_ORG_SRC,
+								// parentOrigSource);
+								// }
+								// addToArrayProperty(hollowParent,
+								// PROP_SRC_IDS, parentSrcId);
+								// addToArrayProperty(hollowParent,
+								// PROP_SOURCES, parentSource);
+								// addToArrayProperty(hollowParent,
+								// PROP_UNIQUE_SRC_ID,
+								// parentCoordinates.uniqueSourceId);
+								// idIndex.add(hollowParent, PROP_SRC_IDS,
+								// parentSrcId);
 								nodesByCoordinates.put(parentCoordinates, hollowParent);
 								insertionReport.numTerms++;
 								createRelationshipIfNotExists(hollowParent, term, EdgeTypes.IS_BROADER_THAN,
@@ -1397,7 +1408,8 @@ public class ConceptManager extends ServerPlugin {
 		}
 		// Finished finding parents
 
-		// When merging, we remove those import concepts that are not known in the database from the input data
+		// When merging, we remove those import concepts that are not known in
+		// the database from the input data
 		List<Integer> importConceptsToRemove = new ArrayList<>();
 		// Second, iterate through all concepts to be imported and check if
 		// they already exist themselves or not. Not existing nodes will be
@@ -1413,6 +1425,10 @@ public class ConceptManager extends ServerPlugin {
 				continue;
 			ConceptCoordinates coordinates = new ConceptCoordinates(
 					jsonTerm.getJSONObject(ConceptConstants.PROP_COORDINATES));
+			// many nodes will actually already have been created as parents
+			// above
+			if (nodesByCoordinates.containsKey(coordinates))
+				continue;
 			Node conceptNode = lookupTerm(coordinates, termIndex);
 			if (conceptNode != null) {
 				insertionReport.addExistingTerm(conceptNode);
@@ -1422,17 +1438,15 @@ public class ConceptManager extends ServerPlugin {
 				// The concept coordinates are not yet known, create an
 				// empty
 				// concept node with its coordinates.
-				Node newConcept = graphDb.createNode(TermLabel.HOLLOW);
-				log.debug("Created new HOLLOW concept node for coordinates " + coordinates + "");
-				newConcept.setProperty(PROP_SRC_IDS, new String[] { coordinates.sourceId });
-				newConcept.setProperty(PROP_SOURCES, new String[] { coordinates.source });
-				newConcept.setProperty(PROP_UNIQUE_SRC_ID, new boolean[] { coordinates.uniqueSourceId });
+				Node newConcept = registerNewHollowConceptNode(graphDb, coordinates, termIndex);
 
 				++insertionReport.numTerms;
 
 				conceptNode = newConcept;
 			} else {
-				// We are in merging mode and requested concept is not in the database; mark it for removal from the input data and continue
+				// We are in merging mode and requested concept is not in the
+				// database; mark it for removal from the input data and
+				// continue
 				importConceptsToRemove.add(i);
 				continue;
 			}
@@ -1442,15 +1456,18 @@ public class ConceptManager extends ServerPlugin {
 				conceptNode.setProperty(PROP_ORG_ID, coordinates.originalId);
 				conceptNode.setProperty(PROP_ORG_SRC, coordinates.originalSource);
 			}
-			if (!StringUtils.isBlank(coordinates.sourceId))
-				termIndex.putIfAbsent(conceptNode, PROP_SRC_IDS, coordinates.sourceId);
-			if (!StringUtils.isBlank(coordinates.originalId))
-				termIndex.putIfAbsent(conceptNode, PROP_ORG_ID, coordinates.originalId);
+			// if (!StringUtils.isBlank(coordinates.sourceId))
+			// termIndex.putIfAbsent(conceptNode, PROP_SRC_IDS,
+			// coordinates.sourceId);
+			// if (!StringUtils.isBlank(coordinates.originalId))
+			// termIndex.putIfAbsent(conceptNode, PROP_ORG_ID,
+			// coordinates.originalId);
 		}
 		// Finished getting existing nodes and creating HOLLOW nodes
-		
-		log.info("removing " + importConceptsToRemove.size() + " input concepts that should be omitted because we are merging and don't have them in the database");
-		for(int index = importConceptsToRemove.size() - 1; index >= 0; --index)
+
+		log.info("removing " + importConceptsToRemove.size()
+				+ " input concepts that should be omitted because we are merging and don't have them in the database");
+		for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
 			jsonTerms.remove(importConceptsToRemove.get(index));
 		importConceptsToRemove = null;
 
@@ -1470,6 +1487,39 @@ public class ConceptManager extends ServerPlugin {
 		log.info(insertionReport.numTerms + " new terms - but not yet relationships - have been inserted. This took "
 				+ time + " ms (" + (time / 1000) + " s)");
 		return insertionReport;
+	}
+
+	/**
+	 * Creates a node with the {@link TermLabel#HOLLOW} label, sets the given
+	 * coordinates and adds the node to the index.
+	 * 
+	 * @param graphDb
+	 * @param coordinates
+	 * @param termIndex
+	 * @return
+	 */
+	private Node registerNewHollowConceptNode(GraphDatabaseService graphDb, ConceptCoordinates coordinates,
+			Index<Node> termIndex, Label... additionalLabels) {
+		Node node = graphDb.createNode(TermLabel.HOLLOW);
+		for (int i = 0; i < additionalLabels.length; i++) {
+			Label label = additionalLabels[i];
+			node.addLabel(label);
+		}
+		log.debug("Created new HOLLOW concept node for coordinates " + coordinates + "");
+		if (!StringUtils.isBlank(coordinates.originalId)) {
+			node.setProperty(PROP_ORG_ID, coordinates.originalId);
+			node.setProperty(PROP_ORG_SRC, coordinates.originalSource);
+		}
+		node.setProperty(PROP_SRC_IDS, new String[] { coordinates.sourceId });
+		node.setProperty(PROP_SOURCES, new String[] { coordinates.source });
+		node.setProperty(PROP_UNIQUE_SRC_ID, new boolean[] { coordinates.uniqueSourceId });
+
+		if (!StringUtils.isBlank(coordinates.sourceId))
+			termIndex.putIfAbsent(node, PROP_SRC_IDS, coordinates.sourceId);
+		if (!StringUtils.isBlank(coordinates.originalId))
+			termIndex.putIfAbsent(node, PROP_ORG_ID, coordinates.originalId);
+
+		return node;
 	}
 
 	public Representation insertFacetTerms(GraphDatabaseService graphDb, String termsAndFacetJson)
@@ -1516,7 +1566,6 @@ public class ConceptManager extends ServerPlugin {
 		} else {
 			importOptions = new ImportOptions();
 		}
-		
 
 		Map<String, Object> report = new HashMap<>();
 		InsertionReport insertionReport = new InsertionReport();
