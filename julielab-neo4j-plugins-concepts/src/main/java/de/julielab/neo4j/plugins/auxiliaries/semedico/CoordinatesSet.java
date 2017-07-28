@@ -17,7 +17,8 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 		ConceptCoordinates c2 = get(c);
 
 		if (c2 != null) {
-			// we already know the coordinates, or at least compatible ones; add new information if we got some
+			// we already know the coordinates, or at least compatible ones; add
+			// new information if we got some
 			if (c2.originalId == null && c.originalId != null) {
 				c2.originalId = c.originalId;
 				c2.originalSource = c.originalSource;
@@ -39,7 +40,7 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	}
 
 	public ConceptCoordinates get(ConceptCoordinates coordinates) {
-		ConceptCoordinates c = coordsByOriginalId.get(coordinates.originalId);
+		ConceptCoordinates c = coordinates.originalId != null ? coordsByOriginalId.get(coordinates.originalId) : null;
 		if (c != null && c.originalSource.equals(coordinates.originalSource))
 			return c;
 		// still here, so the original ID wasn't a match
@@ -54,7 +55,7 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	public boolean contains(ConceptCoordinates coordinates) {
 		return contains(coordinates, false);
 	}
-	
+
 	public boolean contains(ConceptCoordinates coordinates, boolean merge) {
 		boolean contains = get(coordinates) != null;
 		if (contains && merge)
