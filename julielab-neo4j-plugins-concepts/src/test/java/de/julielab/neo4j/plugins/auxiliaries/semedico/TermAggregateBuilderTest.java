@@ -313,7 +313,7 @@ public class TermAggregateBuilderTest {
 		ImportConcept t5 = cs.apply("t5", "t5");
 		t5.parentCoordinates = Arrays.asList(coords.apply("t4"));
 		ImportConcept t6 = cs.apply("t6", "t6");
-		t6.parentCoordinates = Arrays.asList(coords.apply("t"));
+		t6.parentCoordinates = Arrays.asList(coords.apply("t5"));
 		ArrayList<ImportConcept> terms1 = Lists.newArrayList(t1, t2, t3, t4, t5, t6);
 		ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 

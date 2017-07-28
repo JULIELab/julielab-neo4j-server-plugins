@@ -13,11 +13,13 @@ public class ImportOptions {
 	 */
 	public List<String> cutParents;
 	/**
-	 * When set to <tt>true</tt>, node parents that cannot be found will be
-	 * created as nodes with the "hollow" label. Otherwise, the node defining
-	 * the parent is added as a root term to its facet.
+	 * When set to <tt>true</tt>, parents that are not included in the insertion
+	 * data will be dropped and the concept specifying the missing parent will
+	 * be made a facet root. Otherwise, node parents that cannot be found will
+	 * be created as nodes with the "hollow" label and be added as a facet root
+	 * until the missing parent is imported.
 	 */
-	public boolean createHollowParents;
+	public boolean doNotCreateHollowParents;
 	/**
 	 * When set to <tt>true</tt>, aggregate elements that cannot be found will
 	 * be created as nodes with the "hollow" label when explicitly importing
@@ -33,14 +35,14 @@ public class ImportOptions {
 	 * will be changed.
 	 */
 	public boolean merge;
-	
+
 	public ImportOptions() {
-		createHollowParents = false;
+		doNotCreateHollowParents = false;
 		cutParents = Collections.emptyList();
 	}
 
-	public ImportOptions(boolean createHollowParents) {
+	public ImportOptions(boolean doNotCreateHollowParents) {
 		this();
-		this.createHollowParents = createHollowParents;
+		this.doNotCreateHollowParents = doNotCreateHollowParents;
 	}
 }

@@ -1343,13 +1343,13 @@ public class ConceptManagerTest {
 		ImportConceptAndFacet termAndFacet = new ImportConceptAndFacet(terms, importFacet);
 		// Allow hollow parents:
 		termAndFacet.importOptions = new ImportOptions();
-		termAndFacet.importOptions.createHollowParents = true;
+		termAndFacet.importOptions.doNotCreateHollowParents = false;
 		ConceptManager ftm = new ConceptManager();
 		RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) ftm.insertFacetTerms(graphDb,
 				JsonSerializer.toJson(termAndFacet));
 		Map<String, Object> reportMap = report.getUnderlyingMap();
 		assertEquals("Number of inserted terms", 2, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_TERMS));
-		// we expect relations for the root term, broader than und broader than fid0
+		// we expect relations for the root term, broader than and broader than fid0
 		assertEquals("Number of inserted relationships", 3, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_RELS));
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -1487,7 +1487,7 @@ public class ConceptManagerTest {
 		// We activate this so we can test parent cutting appropriately. If it
 		// would be off, the child terms of
 		// non-existing parents get to be the facet roots no matter what.
-		options.createHollowParents = true;
+		options.doNotCreateHollowParents = true;
 
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));

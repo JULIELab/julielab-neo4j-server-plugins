@@ -484,11 +484,11 @@ public class ConceptManager extends ServerPlugin {
 							// other cases where they aren't? Then perhaps we
 							// need an option to allow "source-less" lookup
 							// explicitly.
-							log.info("Concept with source ID \"" + srcId + "\" referenced the term with source ID \""
+							log.debug("Concept with source ID \"" + srcId + "\" referenced the term with source ID \""
 									+ parentSrcId + "\" as its parent. However, that parent node does not exist.");
 
-							if (importOptions.createHollowParents) {
-								log.info(
+							if (!importOptions.doNotCreateHollowParents) {
+								log.debug(
 										"Creating hollow parents is switched on. The parent will be created with the label \""
 												+ TermLabel.HOLLOW + "\" and be connected to the facet root.");
 								// We create the parent as a "hollow" term and
@@ -509,7 +509,7 @@ public class ConceptManager extends ServerPlugin {
 								createRelationshipIfNotExists(parent, term, relBroaderThanInFacet, insertionReport);
 								createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_TERM, insertionReport);
 							} else {
-								log.info(
+								log.warn(
 										"Creating hollow parents is switched off. Hence the term will be added as root term for its facet (\""
 												+ facet.getProperty(FacetConstants.PROP_NAME) + "\").");
 								// Connect the term as a root, it's the best we
