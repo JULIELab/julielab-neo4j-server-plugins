@@ -40,6 +40,8 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	}
 
 	public ConceptCoordinates get(ConceptCoordinates coordinates) {
+		if (coordinates == null)
+			throw new IllegalArgumentException("The passed concept coordinates were null.");
 		ConceptCoordinates c = coordinates.originalId != null ? coordsByOriginalId.get(coordinates.originalId) : null;
 		if (c != null && c.originalSource.equals(coordinates.originalSource))
 			return c;

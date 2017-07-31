@@ -382,8 +382,8 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	private void createRelationships(GraphDatabaseService graphDb, JSONArray jsonTerms, Node facet,
-			CoordinatesMap nodesByCoordinates, ImportOptions importOptions,
-			InsertionReport insertionReport) throws JSONException {
+			CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport)
+			throws JSONException {
 		log.info("Creating relationship between inserted terms.");
 		Index<Node> idIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
 		String facetId = null;
@@ -441,8 +441,9 @@ public class ConceptManager extends ServerPlugin {
 						// current import data
 						Node parent = nodesByCoordinates.get(parentCoordinates);
 						if (null == parent)
-							throw new IllegalStateException(
-									"The parent node should have been created in insertTerms before, but it is null.");
+							throw new IllegalStateException("The parent node of concept " + coordinates
+									+ " should have been created in the insertTerms method before, but it is null. The parent coordinates are "
+									+ parentCoordinates);
 
 						// The parent was not in the imported data; check if it
 						// already exists in the database
@@ -936,8 +937,8 @@ public class ConceptManager extends ServerPlugin {
 	 * @throws JSONException
 	 */
 	private void insertAggregateTerm(GraphDatabaseService graphDb, Index<Node> termIndex, JSONObject jsonTerm,
-			CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
-			ImportOptions importOptions) throws JSONException {
+			CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
+			throws JSONException {
 		JSONObject aggCoordinates = jsonTerm.has(PROP_COORDINATES) ? jsonTerm.getJSONObject(PROP_COORDINATES)
 				: new JSONObject();
 		String aggOrgId = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_ID);
@@ -1401,11 +1402,6 @@ public class ConceptManager extends ServerPlugin {
 		if (!importOptions.merge) {
 			for (int i = 0; i < jsonTerms.length(); i++) {
 				JSONObject jsonTerm = jsonTerms.getJSONObject(i);
-				// aggregates are not required to come with coordinates, so
-				// don't
-				// handle them here
-				if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
-					continue;
 				if (jsonTerm.has(PARENT_COORDINATES) && jsonTerm.getJSONArray(PARENT_COORDINATES).length() > 0) {
 					JSONArray parentCoordinatesArray = jsonTerm.getJSONArray(PARENT_COORDINATES);
 					for (int j = 0; j < parentCoordinatesArray.length(); j++) {
@@ -1439,11 +1435,15 @@ public class ConceptManager extends ServerPlugin {
 			if (jsonTerm.has(ConceptConstants.PROP_COORDINATES)) {
 				coordinates = new ConceptCoordinates(jsonTerm.getJSONObject(ConceptConstants.PROP_COORDINATES));
 				insertionReport.addImportedCoordinates(coordinates);
+			} else if (!JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE)) {
+				throw new IllegalArgumentException("Concept " + jsonTerm + " does not define concept coordinates.");
+			} else {
+				continue;
 			}
 			// aggregates are not required to come with coordinates, so don't
 			// handle them here
-			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
-				continue;
+//			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
+//				continue;
 			// many nodes will actually already have been seen as parents
 			// above
 			if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))

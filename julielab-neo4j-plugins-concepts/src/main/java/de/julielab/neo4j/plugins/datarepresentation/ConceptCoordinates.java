@@ -61,11 +61,11 @@ public class ConceptCoordinates implements Cloneable {
 
 		if (checkConsistency) {
 			if (sourceId == null && source == null && originalId == null && originalSource == null)
-				throw new IllegalArgumentException(
+				throw new CoordinatesInvalidException(
 						"The passed concept coordinates JSON object did not specify any IDs or sources");
 
 			if (originalId == null ^ originalSource == null)
-				throw new IllegalArgumentException(
+				throw new CoordinatesInvalidException(
 						"Coordinates JSON specifies originalId / original source of (" + originalId + ", "
 								+ originalSource + ") but when one is not null, the other must be given, too.");
 		}
