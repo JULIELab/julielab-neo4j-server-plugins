@@ -2231,7 +2231,9 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	@Name(ADD_TERM_VARIANTS)
-	@Description("Returns root terms for the facets with specified IDs. Can also be restricted to particular roots which is useful for facets that have a lot of roots.")
+	@Description("Allows to add writing variants and acronyms to concepts in the database. For each type of data (variants and acronyms) there is a parameter of its own."
+			+ " It is allowed to omit a parameter value. The expected format is"
+			+ " {'tid1': {'docID1': {'variant1': count1, 'variant2': count2, ...}, 'docID2': {...}}, 'tid2':...} for both variants and acronyms.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void addWritingVariants(@Source GraphDatabaseService graphDb,
 			@Description("A JSON object mapping term IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_TERM_VARIANTS, optional = true) String termVariants,
@@ -2243,12 +2245,33 @@ public class ConceptManager extends ServerPlugin {
 			addConceptVariant(graphDb, termAcronyms, "acronyms");
 	}
 
+	/**
+	 * Expected format:
+	 * <pre>
+	 * {"tid1": {
+	 *         "docID1": {
+	 *             "variant1": count1,
+	 *             "variant2": count2,
+	 *             ...
+	 *         },
+	 *         "docID2": {
+	 *             ...
+	 *          }
+	 *     },
+	 * "tid2": {
+	 *     ...
+	 *     }
+	 * }
+	 * </pre>
+	 * 
+	 * @param graphDb
+	 * @param termVariants
+	 * @param type
+	 */
 	private void addConceptVariant(GraphDatabaseService graphDb, String termVariants, String type) {
-		System.out.println(termVariants);
 		Label variantsAggregationLabel;
 		Label variantNodeLabel;
-		// Neo4j doesn't allow null values so this will be our replacement
-		final String nullElement = "<null>";
+
 		EdgeTypes variantRelationshipType;
 		if (type.equals("writingVariants")) {
 			variantsAggregationLabel = MorphoLabel.WRITING_VARIANTS;
@@ -2311,24 +2334,6 @@ public class ConceptManager extends ServerPlugin {
 						log.warn("Term with ID " + termId + " was not found, cannot add writing variants / acronyms.");
 						continue;
 					}
-
-					// String prefName = (String)
-					// term.getProperty(PROP_PREF_NAME);
-					// String[] synonyms = null;
-					// if (term.hasProperty(PROP_SYNONYMS))
-					// synonyms = (String[]) term.getProperty(PROP_SYNONYMS);
-					//
-					// // Subtract the preferred name and the synonyms from the
-					// // variant set
-					// variantCounts.remove(prefName);
-					// if (null != synonyms)
-					// for (int j = 0; j < synonyms.length; j++)
-					// variantCounts.remove(synonyms[j]);
-					//
-					// if (variantCounts.isEmpty())
-					// // the new variants were synonyms or the preferred name,
-					// // skip the rest
-					// continue;
 
 					// If we are this far, we actually got new variants.
 					// Get or create a new node representing the variants for
@@ -2408,34 +2413,6 @@ public class ConceptManager extends ServerPlugin {
 							}
 						}
 					}
-
-					// Map<String, Object> existingVariants =
-					// variantsNode.getAllProperties();
-					// // add the updates for variants already existing. Doing
-					// this
-					// // first stabilizes the set of variants: due to the
-					// // normalization step in the TreeMap, the exact variant
-					// // could vary if we just use the writing variant from the
-					// // input map.
-					// for (String variant : existingVariants.keySet()) {
-					// Integer oldCount = (Integer)
-					// existingVariants.get(variant);
-					// Integer count = variantCounts.get(variant);
-					// if (null == count)
-					// continue;
-					// if (null == oldCount)
-					// oldCount = 0;
-					// Integer newCount = oldCount + count;
-					// variantsNode.setProperty(variant, newCount);
-					// // remove this variant from the map so we end up only
-					// // with new variants eventually
-					// variantCounts.remove(variant);
-					// }
-					// // add the completely new variants
-					// for (String variant : variantCounts.keySet()) {
-					// Integer count = variantCounts.get(variant);
-					// variantsNode.setProperty(variant, count);
-					// }
 				}
 				jsonReader.endObject();
 				jsonReader.close();
