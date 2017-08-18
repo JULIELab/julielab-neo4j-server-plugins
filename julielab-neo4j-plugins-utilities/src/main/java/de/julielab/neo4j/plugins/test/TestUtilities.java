@@ -2,6 +2,7 @@ package de.julielab.neo4j.plugins.test;
 
 import static org.junit.Assert.assertFalse;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Iterator;
 import java.util.List;
@@ -17,14 +18,11 @@ import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.Representation;
-import org.neo4j.tooling.GlobalGraphOperations;
-
-import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 
 public class TestUtilities {
 
-	public static final String GRAPH_DB_DIR = "src/test/resources/graph.db";
-	public static final String GRAPH_DB_DIR_2 = "src/test/resources/test";
+	public static final File GRAPH_DB_DIR = new File("src/test/resources/graph.db");
+	public static final File GRAPH_DB_DIR_2 = new File("src/test/resources/test");
 
 	private static final Random random = new Random();
 	private static final String[] symbols = new String[36];
@@ -42,7 +40,7 @@ public class TestUtilities {
 
 	public static void deleteEverythingInDB(GraphDatabaseService graphDb) {
 		try (Transaction tx = graphDb.beginTx()) {
-			Iterable<Node> nodes = GlobalGraphOperations.at(graphDb).getAllNodes();
+			Iterable<Node> nodes = graphDb.getAllNodes();
 			for (Node n : nodes) {
 				for (Relationship r : n.getRelationships())
 					r.delete();
@@ -54,7 +52,7 @@ public class TestUtilities {
 		// executionEngine.execute("MATCH (n) OPTIONAL MATCH n-[r]-() DELETE n, r");
 		// executionEngine.execute("MATCH n DELETE n");
 		try (Transaction tx = graphDb.beginTx()) {
-			Iterator<Node> nodeIt = GlobalGraphOperations.at(graphDb).getAllNodes().iterator();
+			Iterator<Node> nodeIt = graphDb.getAllNodes().iterator();
 			// But there should be no nodes.
 			assertFalse(nodeIt.hasNext());
 

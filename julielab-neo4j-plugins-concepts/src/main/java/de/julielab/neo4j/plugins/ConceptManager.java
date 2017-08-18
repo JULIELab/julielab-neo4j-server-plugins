@@ -34,10 +34,8 @@ import java.util.Set;
 import java.util.TreeMap;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.lucene.queryParser.QueryParser;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
-import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -64,11 +62,11 @@ import org.neo4j.server.plugins.PluginTarget;
 import org.neo4j.server.plugins.ServerPlugin;
 import org.neo4j.server.plugins.Source;
 import org.neo4j.server.rest.repr.MappingRepresentation;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
-import org.neo4j.tooling.GlobalGraphOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +77,6 @@ import com.google.gson.stream.JsonReader;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesSet;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
@@ -304,9 +301,9 @@ public class ConceptManager extends ServerPlugin {
 		for (int i = 0; i < allowedMappingTypesJson.length(); i++) {
 			allowedMappingTypes.add(allowedMappingTypesJson.getString(i));
 		}
-		Label aggregatedTermsLabel = DynamicLabel.label(aggregatedTermsLabelString);
+		Label aggregatedTermsLabel = Label.label(aggregatedTermsLabelString);
 		Label allowedTermLabel = StringUtils.isBlank(allowedTermLabelString) ? null
-				: DynamicLabel.label(allowedTermLabelString);
+				: Label.label(allowedTermLabelString);
 		log.info("Creating mapping aggregates for terms with label " + allowedTermLabel + " and mapping types "
 				+ allowedMappingTypesJson);
 		TermAggregateBuilder.buildAggregatesForMappings(graphDb, allowedMappingTypes, allowedTermLabel,
@@ -321,7 +318,7 @@ public class ConceptManager extends ServerPlugin {
 					+ " can be aggregate terms (with the label AGGREGATE) or just plain terms"
 					+ " (with the label TERM) that are not an element of an aggregate.") @Parameter(name = KEY_AGGREGATED_LABEL) String aggregatedTermsLabelString)
 			throws JSONException {
-		Label aggregatedTermsLabel = DynamicLabel.label(aggregatedTermsLabelString);
+		Label aggregatedTermsLabel = Label.label(aggregatedTermsLabelString);
 		TermAggregateBuilder.deleteAggregates(graphDb, aggregatedTermsLabel);
 	}
 
@@ -389,9 +386,9 @@ public class ConceptManager extends ServerPlugin {
 		String facetId = null;
 		if (null != facet)
 			facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
-		DynamicRelationshipType relBroaderThanInFacet = null;
+		RelationshipType relBroaderThanInFacet = null;
 		if (null != facet)
-			relBroaderThanInFacet = DynamicRelationshipType
+			relBroaderThanInFacet = RelationshipType
 					.withName(EdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
 		AddToNonFacetGroupCommand noFacetCmd = importOptions.noFacetCmd;
 		Node noFacet = null;
@@ -749,7 +746,7 @@ public class ConceptManager extends ServerPlugin {
 			throws JSONException {
 		Label label = TermLabel.TERM;
 		if (!StringUtils.isBlank(labelString))
-			label = DynamicLabel.label(labelString);
+			label = Label.label(labelString);
 		JSONArray termIds = new JSONArray(termIdArray);
 		try (Transaction tx = graphDb.beginTx()) {
 			Map<String, Object> childrenByTermId = new HashMap<>();
@@ -794,7 +791,7 @@ public class ConceptManager extends ServerPlugin {
 	@PluginTarget(GraphDatabaseService.class)
 	public long getNumTerms(@Source GraphDatabaseService graphDb) {
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(TermLabel.TERM);
+			ResourceIterable<Node> terms = () -> graphDb.findNodes(TermLabel.TERM);
 			long count = 0;
 			for (@SuppressWarnings("unused")
 			Node term : terms) {
@@ -837,7 +834,7 @@ public class ConceptManager extends ServerPlugin {
 
 		};
 		RelationshipType relType = StringUtils.isBlank(facetId) ? ConceptManager.EdgeTypes.IS_BROADER_THAN
-				: DynamicRelationshipType.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
+				: RelationshipType.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
 		TraversalDescription td = graphDb.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
 				.relationships(relType, Direction.INCOMING).evaluator(rootTermEvaluator);
 
@@ -1058,7 +1055,7 @@ public class ConceptManager extends ServerPlugin {
 
 		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_GENERAL_LABELS);
 		for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
-			aggregate.addLabel(DynamicLabel.label(generalLabels.getString(i)));
+			aggregate.addLabel(Label.label(generalLabels.getString(i)));
 		}
 
 		String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
@@ -1250,7 +1247,7 @@ public class ConceptManager extends ServerPlugin {
 		addToArrayProperty(term, PROP_FACETS, facetId);
 
 		for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
-			term.addLabel(DynamicLabel.label(generalLabels.getString(i)));
+			term.addLabel(Label.label(generalLabels.getString(i)));
 		}
 
 		// If we have a merging operation, we don't have to care about indexes
@@ -1812,11 +1809,11 @@ public class ConceptManager extends ServerPlugin {
 	public Representation popTermsFromSet(@Source GraphDatabaseService graphDb,
 			@Description("TODO") @Parameter(name = KEY_LABEL) String labelString,
 			@Description("TODO") @Parameter(name = KEY_AMOUNT) int amount) {
-		Label label = DynamicLabel.label(labelString);
+		Label label = Label.label(labelString);
 		List<Node> poppedTerms = new ArrayList<>(amount);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> nodesWithLabel = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
+			ResourceIterable<Node> nodesWithLabel = () -> graphDb.findNodes(label);
 			{
 				Node term = null;
 				int popCount = 0;
@@ -1847,13 +1844,13 @@ public class ConceptManager extends ServerPlugin {
 			@Description("The amount of terms to push into the set. If equal or less than zero or omitted, all terms will be pushed.") @Parameter(name = KEY_AMOUNT, optional = true) Integer amount) {
 		Gson gson = new Gson();
 		PushTermsToSetCommand cmd = gson.fromJson(termPushCommandString, PushTermsToSetCommand.class);
-		Label setLabel = DynamicLabel.label(cmd.setName);
+		Label setLabel = Label.label(cmd.setName);
 		Set<String> facetsWithSpecifiedGeneralLabel = new HashSet<>();
 		TermSelectionDefinition eligibleTermDefinition = cmd.eligibleTermDefinition;
 		TermSelectionDefinition excludeDefinition = cmd.excludeTermDefinition;
 		Label facetLabel = null;
 		if (null != eligibleTermDefinition && null != eligibleTermDefinition.facetLabel)
-			facetLabel = DynamicLabel.label(eligibleTermDefinition.facetLabel);
+			facetLabel = Label.label(eligibleTermDefinition.facetLabel);
 		String facetPropertyKey = null != eligibleTermDefinition ? eligibleTermDefinition.facetPropertyKey : "*";
 		String facetPropertyValue = null != eligibleTermDefinition ? eligibleTermDefinition.facetPropertyValue : "*";
 
@@ -1880,9 +1877,8 @@ public class ConceptManager extends ServerPlugin {
 		try (Transaction tx = graphDb.beginTx()) {
 			Label eligibleTermLabel = TermLabel.TERM;
 			if (null != eligibleTermDefinition && !StringUtils.isBlank(eligibleTermDefinition.termLabel))
-				eligibleTermLabel = DynamicLabel.label(eligibleTermDefinition.termLabel);
-			ResourceIterable<Node> allTerms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(eligibleTermLabel);
-			ResourceIterator<Node> termIt = allTerms.iterator();
+				eligibleTermLabel = Label.label(eligibleTermDefinition.termLabel);
+			ResourceIterator<Node> termIt = graphDb.findNodes(eligibleTermLabel);
 			while (termIt.hasNext() && numberOfTermsAdded < numberOfTermsToAdd) {
 
 				// Since Neo4j 2.0.0M6 it is not really possible to do this in a
@@ -1898,7 +1894,7 @@ public class ConceptManager extends ServerPlugin {
 						String termPropertyKey = excludeDefinition.termPropertyKey;
 						String termPropertyValue = excludeDefinition.termPropertyValue;
 						Label termLabel = excludeDefinition.termLabel == null ? null
-								: DynamicLabel.label(excludeDefinition.termLabel);
+								: Label.label(excludeDefinition.termLabel);
 						if (term.hasProperty(termPropertyKey)) {
 							Object property = term.getProperty(termPropertyKey);
 							if (property.getClass().isArray()) {
@@ -1987,9 +1983,9 @@ public class ConceptManager extends ServerPlugin {
 	@Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void includeTerms(@Source GraphDatabaseService graphDb) throws JSONException {
-		Label includeLabel = DynamicLabel.label("INCLUDE");
+		Label includeLabel = Label.label("INCLUDE");
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(includeLabel);
+			ResourceIterable<Node> terms = () -> graphDb.findNodes(includeLabel);
 			for (Node term : terms)
 				term.removeLabel(includeLabel);
 			tx.success();
@@ -2008,7 +2004,7 @@ public class ConceptManager extends ServerPlugin {
 			tx.success();
 		}
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(TermLabel.TERM);
+			ResourceIterable<Node> terms = () -> graphDb.findNodes(TermLabel.TERM);
 			for (Node term : terms) {
 				if (!term.hasProperty(PROP_FACETS)) {
 					log.info("Doesnt have facets: " + PropertyUtilities.getNodePropertiesAsString(term));
@@ -2031,11 +2027,11 @@ public class ConceptManager extends ServerPlugin {
 	@Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void excludeTerms(@Source GraphDatabaseService graphDb) throws JSONException {
-		Label includeLabel = DynamicLabel.label("INCLUDE");
-		Label excludeLabel = DynamicLabel.label("EXCLUDE");
-		Label mappingAggregateLabel = DynamicLabel.label("MAPPING_AGGREGATE");
+		Label includeLabel = Label.label("INCLUDE");
+		Label excludeLabel = Label.label("EXCLUDE");
+		Label mappingAggregateLabel = Label.label("MAPPING_AGGREGATE");
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(TermLabel.TERM);
+			ResourceIterable<Node> terms = () -> graphDb.findNodes(TermLabel.TERM);
 			for (Node term : terms) {
 				if (!term.hasLabel(includeLabel)) {
 					term.addLabel(excludeLabel);
@@ -2049,7 +2045,7 @@ public class ConceptManager extends ServerPlugin {
 			tx.success();
 		}
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(TermLabel.AGGREGATE);
+			ResourceIterable<Node> terms = () -> graphDb.findNodes(TermLabel.AGGREGATE);
 			for (Node a : terms) {
 				a.removeLabel(TermLabel.AGGREGATE);
 				a.removeLabel(mappingAggregateLabel);

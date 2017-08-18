@@ -39,6 +39,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.server.rest.repr.ListRepresentation;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
@@ -47,7 +48,6 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
 import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetGroupConstants;

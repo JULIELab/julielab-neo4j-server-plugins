@@ -27,6 +27,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.tooling.GlobalGraphOperations;
 
 import com.google.common.collect.Lists;
@@ -36,7 +37,6 @@ import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.FacetManagerTest;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder.CopyAggregatePropertiesStatistics;
 import de.julielab.neo4j.plugins.constants.semedico.AggregateConstants;
 import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;

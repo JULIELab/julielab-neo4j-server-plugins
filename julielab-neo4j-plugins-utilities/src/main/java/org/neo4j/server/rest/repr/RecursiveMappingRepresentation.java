@@ -1,4 +1,4 @@
-package de.julielab.neo4j.plugins.auxiliaries;
+package org.neo4j.server.rest.repr;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,6 +19,15 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
+import de.julielab.neo4j.plugins.auxiliaries.NodeRepresentation;
+
+/**
+ * Custom convenience representation type. Must reside in this very package in
+ * order to use package private methods of the {@link MappingSerializer}.
+ * 
+ * @author faessler
+ *
+ */
 public class RecursiveMappingRepresentation extends MappingRepresentation {
 
 	private Map<String, Object> map;

@@ -39,6 +39,7 @@ import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.index.lucene.unsafe.batchinsert.LuceneBatchInserterIndexProvider;
 import org.neo4j.server.rest.repr.ListRepresentation;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.server.rest.repr.ValueRepresentation;
 import org.neo4j.shell.util.json.JSONException;
@@ -53,8 +54,6 @@ import scala.collection.mutable.HashSet;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
-import de.julielab.neo4j.plugins.auxiliaries.RecursiveMappingRepresentation;
 
 // Ignore as long as the AhoCorasick plugin is not updated to Neo4j 2.0.0M6
 //@Ignore
