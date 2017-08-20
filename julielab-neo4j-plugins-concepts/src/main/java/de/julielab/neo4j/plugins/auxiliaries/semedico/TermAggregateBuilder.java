@@ -2,8 +2,8 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayProperty;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.setNonNullNodeProperty;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.INDEX_NAME;
+import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,7 +22,6 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.tooling.GlobalGraphOperations;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
@@ -35,10 +34,10 @@ import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.constants.semedico.AggregateConstants;
-import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
-import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 import de.julielab.neo4j.plugins.constants.semedico.ConceptRelationConstants;
+import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 
 public class TermAggregateBuilder {
 
@@ -60,8 +59,7 @@ public class TermAggregateBuilder {
 			Index<Node> termIndex = graphDb.index().forNodes(INDEX_NAME);
 			// At first, delete all equal-name aggregates since they will be
 			// built again afterwards.
-			ResourceIterable<Node> aggregates = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
+			ResourceIterable<Node> aggregates = () -> graphDb.findNodes(ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
 			for (Node aggregate : aggregates) {
 				for (Relationship rel : aggregate.getRelationships())
 					rel.delete();
@@ -69,8 +67,7 @@ public class TermAggregateBuilder {
 			}
 
 			// Get all terms and sort them by name and synonyms
-			ResourceIterable<Node> termIterable = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.TERM);
+			ResourceIterable<Node> termIterable = () -> graphDb.findNodes(ConceptManager.TermLabel.TERM);
 			List<Node> terms = new ArrayList<Node>();
 			for (Node term : termIterable) {
 				terms.add(term);
@@ -112,7 +109,7 @@ public class TermAggregateBuilder {
 
 	public static void deleteAggregates(GraphDatabaseService graphDb, Label aggregateLabel) {
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> aggregates = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(aggregateLabel);
+			ResourceIterable<Node> aggregates = () -> graphDb.findNodes(aggregateLabel);
 			for (Node aggregate : aggregates) {
 				if (!aggregate.hasLabel(TermLabel.AGGREGATE)) {
 					// For terms that are not really aggregates, we just remove
@@ -166,7 +163,7 @@ public class TermAggregateBuilder {
 			// Iterate through terms, look for mappings and generate mapping
 			// aggregates
 			Label label = null == allowedTermLabel ? ConceptManager.TermLabel.TERM : allowedTermLabel;
-			ResourceIterable<Node> termIterable = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
+			ResourceIterable<Node> termIterable = () -> graphDb.findNodes(label);
 			for (Node term : termIterable) {
 				// Determine recursively other nodes with which a new aggregate
 				// should be created.

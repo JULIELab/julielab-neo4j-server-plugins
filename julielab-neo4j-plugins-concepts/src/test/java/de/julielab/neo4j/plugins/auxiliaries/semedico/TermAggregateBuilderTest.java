@@ -20,7 +20,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -28,7 +27,6 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
-import org.neo4j.tooling.GlobalGraphOperations;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -177,12 +175,11 @@ public class TermAggregateBuilderTest {
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet2), JsonSerializer.toJson(terms2), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
-		Label aggregatedTermsLabel = DynamicLabel.label("EQUAL_AGG");
+		Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 		TermAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> mappingAggregates = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(aggregatedTermsLabel);
+			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
 			int count = 0;
 			for (Node aggregate : mappingAggregates) {
 				if (!aggregate.hasLabel(TermLabel.AGGREGATE))
@@ -230,8 +227,7 @@ public class TermAggregateBuilderTest {
 		try (Transaction tx = graphDb.beginTx()) {
 			TermAggregateBuilder.deleteAggregates(graphDb, aggregatedTermsLabel);
 
-			ResourceIterable<Node> mappingAggregates = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(aggregatedTermsLabel);
+			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
 			int count = 0;
 			for (@SuppressWarnings("unused")
 			Node aggregate : mappingAggregates) {
@@ -269,12 +265,12 @@ public class TermAggregateBuilderTest {
 		ConceptManager tm = new ConceptManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
-		Label aggLabel = DynamicLabel.label("EQUAL_AGG");
+		Label aggLabel = Label.label("EQUAL_AGG");
 		TermAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> mappingAggregates = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(aggLabel);
+			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggLabel);
 			int count = 0;
 			for (Node aggregate : mappingAggregates) {
 				count++;
@@ -327,12 +323,12 @@ public class TermAggregateBuilderTest {
 		// The label by which we will identify all nodes representing an
 		// aggregated unit, i.e. an actual aggregate node
 		// or a term without any mappings that is its own aggregate.
-		Label aggLabel = DynamicLabel.label("EQUAL_AGG");
+		Label aggLabel = Label.label("EQUAL_AGG");
 		TermAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> mappingAggregates = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(aggLabel);
+			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggLabel);
 			// Count of the aggregation terms, i.e. the representation terms
 			// that have formerly existing terms as their
 			// elements.
@@ -362,7 +358,7 @@ public class TermAggregateBuilderTest {
 			}
 			assertEquals(2, aggCount);
 
-			ResourceIterable<Node> aggregatedTerms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(aggLabel);
+			ResourceIterable<Node> aggregatedTerms = () -> graphDb.findNodes(aggLabel);
 			// Count of all terms that represent the result of the aggegation,
 			// i.e. aggregate terms as well as original
 			// terms that are no element of an aggregate term and as such "are

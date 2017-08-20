@@ -1,9 +1,9 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_FACETS;
 import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_PREF_NAME;
 import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SYNONYMS;
+import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -22,8 +22,6 @@ import javax.xml.bind.DatatypeConverter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
-import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -45,7 +43,6 @@ import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.tooling.GlobalGraphOperations;
 
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
@@ -53,10 +50,9 @@ import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
-import de.julielab.neo4j.plugins.constants.NodeConstants;
+import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
 import de.julielab.neo4j.plugins.constants.semedico.MorphoConstants;
-import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
 
 public class Export extends ServerPlugin {
 
@@ -113,7 +109,7 @@ public class Export extends ServerPlugin {
 				int numWritten = 0;
 				for (int i = 0; i < labelsArray.length(); i++) {
 					String labelString = labelsArray.getString(i);
-					Label label = DynamicLabel.label(labelString);
+					Label label = Label.label(labelString);
 					for (ResourceIterator<Node> terms = graphDb.findNodes(label); terms.hasNext();) {
 						Node term = terms.next();
 						String termId = (String) term.getProperty(ConceptConstants.PROP_ID);
@@ -176,7 +172,7 @@ public class Export extends ServerPlugin {
 		}
 		Label termLabel = null;
 		if (!StringUtils.isBlank(termLabelString))
-			termLabel = DynamicLabel.label(termLabelString);
+			termLabel = Label.label(termLabelString);
 
 		Map<Node, Set<String>> cache = new HashMap<>(cacheSize);
 
@@ -196,15 +192,15 @@ public class Export extends ServerPlugin {
 				if (labels.length() > 1 || !labels.getString(0).equals(FacetManager.FacetLabel.FACET.name())) {
 					for (int i = 0; i < labels.length(); i++) {
 						String labelString = labels.getString(i);
-						Label label = DynamicLabel.label(labelString);
-						ResourceIterable<Node> facets = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
+						Label label = Label.label(labelString);
+						ResourceIterable<Node> facets = () -> graphDb.findNodes(label);
 						for (Node facet : facets) {
 							if (!facet.hasLabel(FacetManager.FacetLabel.FACET))
 								throw new IllegalArgumentException("Label node " + facet + " with the label " + label
 										+ " is no facet since it does not have the " + FacetManager.FacetLabel.FACET
 										+ " label.");
 							String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
-							DynamicRelationshipType reltype = DynamicRelationshipType
+							RelationshipType reltype = RelationshipType
 									.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN + "_" + facetId);
 							relationshipTypeList.add(reltype);
 						}
@@ -215,9 +211,9 @@ public class Export extends ServerPlugin {
 
 				for (int i = 0; i < labels.length(); i++) {
 					String labelString = labels.getString(i);
-					Label label = DynamicLabel.label(labelString);
+					Label label = Label.label(labelString);
 					log.info("Now creating hypernyms for facets with label " + label);
-					ResourceIterable<Node> facets = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
+					ResourceIterable<Node> facets = () -> graphDb.findNodes(label);
 					Set<Node> visitedNodes = new HashSet<>();
 					for (Node facet : facets) {
 						Iterable<Relationship> rels = facet.getRelationships(Direction.OUTGOING,
@@ -307,7 +303,7 @@ public class Export extends ServerPlugin {
 					+ " NOTE that it is expected that array-valued properties are or of the same size. "
 					+ "The concatenation will be done for the same index in all value-arrays, i.e. not all combinations are built. For aggregates that not have a requested properties, their elements will be used instead.") @Parameter(name = PARAM_ID_PROPERTY, optional = true) String[] nodeCategories)
 			throws IOException {
-		Label label = StringUtils.isBlank(labelString) ? ConceptManager.TermLabel.TERM : DynamicLabel.label(labelString);
+		Label label = StringUtils.isBlank(labelString) ? ConceptManager.TermLabel.TERM : Label.label(labelString);
 		List<String> propertiesToWrite = new ArrayList<>();
 		if (nodeCategories == null || nodeCategories.length == 0) {
 			propertiesToWrite.add(PROP_ID);
@@ -324,10 +320,10 @@ public class Export extends ServerPlugin {
 				exclusionLabels = new Label[exclusionLabelsJson.length()];
 				for (int i = 0; i < exclusionLabelsJson.length(); i++) {
 					String string = exclusionLabelsJson.getString(i);
-					exclusionLabels[i] = DynamicLabel.label(string);
+					exclusionLabels[i] = Label.label(string);
 				}
 			} catch (JSONException e) {
-				Label exclusionLabel = DynamicLabel.label(exclusionLabelString);
+				Label exclusionLabel = Label.label(exclusionLabelString);
 				exclusionLabels = new Label[] { exclusionLabel };
 			}
 		}
@@ -454,11 +450,11 @@ public class Export extends ServerPlugin {
 			@Description("The term label to create the ID map for. Defaults to TERM.") @Parameter(name = PARAM_LABEL, optional = true) String labelString)
 			throws IOException {
 		log.info("Exporting lingpipe dictionary data.");
-		Label label = !StringUtils.isBlank(labelString) ? DynamicLabel.label(labelString) : ConceptManager.TermLabel.TERM;
+		Label label = !StringUtils.isBlank(labelString) ? Label.label(labelString) : ConceptManager.TermLabel.TERM;
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
 		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 			try (Transaction tx = graphDb.beginTx()) {
-				ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
+				ResourceIterable<Node> terms = () -> graphDb.findNodes(label);
 				int count = 0;
 				for (Node term : terms) {
 					count++;
@@ -514,7 +510,7 @@ public class Export extends ServerPlugin {
 				Map<String, String> ele2Agg = new HashMap<>();
 				Set<String> visitedAggregates = new HashSet<>();
 				for (int i = 0; i < aggLabelsArray.length(); ++i) {
-					Label label = DynamicLabel.label(aggLabelsArray.getString(i));
+					Label label = Label.label(aggLabelsArray.getString(i));
 					ResourceIterator<Node> aggregates = graphDb.findNodes(label);
 					TraversalDescription td = PredefinedTraversals.getNonAggregateAggregateElements(graphDb);
 					while (aggregates.hasNext()) {

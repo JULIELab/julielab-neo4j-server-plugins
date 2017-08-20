@@ -38,7 +38,6 @@ import org.junit.Test;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
@@ -55,7 +54,6 @@ import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
-import org.neo4j.tooling.GlobalGraphOperations;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -218,7 +216,7 @@ public class ConceptManagerTest {
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> terms = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(TermLabel.TERM);
+			ResourceIterable<Node> terms = () -> graphDb.findNodes(TermLabel.TERM);
 			int counter = 0;
 			Set<String> idSet = Sets.newHashSet("src1", "src2");
 			for (Node term : terms) {
@@ -574,7 +572,7 @@ public class ConceptManagerTest {
 			// end check only one concept node
 
 			// now check that there also is a node with ANOTHER_LABEL
-			conceptNodes = graphDb.findNodes(DynamicLabel.label("ANOTHER_LABEL"));
+			conceptNodes = graphDb.findNodes(Label.label("ANOTHER_LABEL"));
 			counter = 0;
 			while (conceptNodes.hasNext()) {
 				@SuppressWarnings("unused")
@@ -697,8 +695,7 @@ public class ConceptManagerTest {
 		ftm.insertFacetTerms(graphDb, termsAndFacetBytes);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> it = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(DynamicLabel.label(setName)).iterator();
+			ResourceIterator<Node> it = graphDb.findNodes(Label.label(setName));
 			assertFalse("No nodes with the label", it.hasNext());
 
 			// Now push the terms into the "pending for suggestion" set.
@@ -710,7 +707,7 @@ public class ConceptManagerTest {
 			ftm.pushTermsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
 
 			// And check whether they have been successfully added to the set.
-			it = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(DynamicLabel.label(setName)).iterator();
+			it = graphDb.findNodes(Label.label(setName));
 			assertTrue("There should be nodes with the label now", it.hasNext());
 			int termCount = 0;
 			while (it.hasNext()) {
@@ -763,8 +760,7 @@ public class ConceptManagerTest {
 
 		// And check whether they have been successfully added to the set.
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> it = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(DynamicLabel.label(setName)).iterator();
+			ResourceIterator<Node> it = graphDb.findNodes(Label.label(setName));
 			assertFalse("There should be no nodes with the label", it.hasNext());
 			tx.success();
 		}
@@ -788,7 +784,7 @@ public class ConceptManagerTest {
 		ftm.pushTermsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
 
 		// And check whether they have been successfully added to the set.
-		int termCount = countNodesWithLabel(DynamicLabel.label(setName));
+		int termCount = countNodesWithLabel(Label.label(setName));
 		assertEquals("All terms have been returned", numTerms, termCount);
 
 		// Do the same as above but set empty values for the
@@ -800,7 +796,7 @@ public class ConceptManagerTest {
 		ftm.pushTermsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
 
 		// And check whether they have been successfully added to the set.
-		termCount = countNodesWithLabel(DynamicLabel.label(setName));
+		termCount = countNodesWithLabel(Label.label(setName));
 		assertEquals("All terms have been returned", numTerms, termCount);
 	}
 
@@ -821,13 +817,13 @@ public class ConceptManagerTest {
 		ftm.pushTermsToSet(graphDb, JsonSerializer.toJson(cmd), 42);
 
 		// And check that only the specified number of terms is returned.
-		int termCount = countNodesWithLabel(DynamicLabel.label(setName));
+		int termCount = countNodesWithLabel(Label.label(setName));
 		assertEquals("All terms have been returned", 42, termCount);
 	}
 
 	private int countNodesWithLabel(Label label) {
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> it = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label).iterator();
+			ResourceIterator<Node> it = graphDb.findNodes(label);
 			int nodeCount = 0;
 			while (it.hasNext()) {
 				it.next();
@@ -856,7 +852,7 @@ public class ConceptManagerTest {
 		// First, import terms using the respective test method.
 		testPushAllTermsToSetMatchingFacet();
 
-		int nodesWithLabel = countNodesWithLabel(DynamicLabel.label(setName));
+		int nodesWithLabel = countNodesWithLabel(Label.label(setName));
 
 		ConceptManager ftm = new ConceptManager();
 		RecursiveMappingRepresentation poppedTerms = (RecursiveMappingRepresentation) ftm.popTermsFromSet(graphDb,
@@ -866,7 +862,7 @@ public class ConceptManagerTest {
 		assertEquals("Number of popped terms", numPoppedTerms, termList.size());
 
 		assertEquals("The returned terms should no longer have the label", nodesWithLabel - numPoppedTerms,
-				countNodesWithLabel(DynamicLabel.label(setName)));
+				countNodesWithLabel(Label.label(setName)));
 	}
 
 	@Test
@@ -945,8 +941,7 @@ public class ConceptManagerTest {
 		// Insert the first half of terms.
 		ftt.insertFacetTerms(graphDb, gson.toJson(firstTerms));
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> nodesIt = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.TERM).iterator();
+			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.TermLabel.TERM);
 			int nodeCount = 0;
 			while (nodesIt.hasNext()) {
 				Node node = nodesIt.next();
@@ -965,8 +960,7 @@ public class ConceptManagerTest {
 		// hollow and all should have an ID, a facet and a description.
 		ftt.insertFacetTerms(graphDb, gson.toJson(secondTerms));
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> nodesIt = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.TERM).iterator();
+			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.TermLabel.TERM);
 			while (nodesIt.hasNext()) {
 				Node node = nodesIt.next();
 				System.out.println(NodeUtilities.getNodePropertiesAsString(node));
@@ -1080,8 +1074,7 @@ public class ConceptManagerTest {
 		assertEquals("Number of aggregate terms", 1, countNodesWithLabel(ConceptManager.TermLabel.AGGREGATE));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> aggregateIt = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.AGGREGATE).iterator();
+			ResourceIterator<Node> aggregateIt = graphDb.findNodes(ConceptManager.TermLabel.AGGREGATE);
 			assertTrue("There is at least one aggregate term", aggregateIt.hasNext());
 			Node aggregate = aggregateIt.next();
 			assertFalse("There is no second aggregate term", aggregateIt.hasNext());
@@ -1178,7 +1171,7 @@ public class ConceptManagerTest {
 		ftm.insertFacetTerms(graphDb, gson.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			int aggregateCount = countNodesWithLabel(DynamicLabel.label("MY_COOL_AGGREGATE_LABEL"));
+			int aggregateCount = countNodesWithLabel(Label.label("MY_COOL_AGGREGATE_LABEL"));
 			assertEquals(1, aggregateCount);
 		}
 	}
@@ -1222,8 +1215,7 @@ public class ConceptManagerTest {
 		// Check whether the correct terms have been bound together.
 		try (Transaction tx = graphDb.beginTx()) {
 			TermNameAndSynonymComparator nameAndSynonymComparator = new TermNameAndSynonymComparator();
-			ResourceIterable<Node> generalAggregates = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.AGGREGATE);
+			ResourceIterable<Node> generalAggregates = () -> graphDb.findNodes(ConceptManager.TermLabel.AGGREGATE);
 			for (Node aggregate : generalAggregates) {
 				Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
 				// Count relationships and store elements for comparison whether
@@ -1353,8 +1345,7 @@ public class ConceptManagerTest {
 		assertEquals("Number of inserted relationships", 3, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_RELS));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Iterable<Node> allNodes = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.TERM);
+			Iterable<Node> allNodes = () -> graphDb.findNodes(ConceptManager.TermLabel.TERM);
 			int numNodes = 0;
 			int numHollow = 0;
 			int numRoots = 0;
@@ -1403,8 +1394,7 @@ public class ConceptManagerTest {
 		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Iterable<Node> allNodes = GlobalGraphOperations.at(graphDb)
-					.getAllNodesWithLabel(ConceptManager.TermLabel.TERM);
+			Iterable<Node> allNodes = () -> graphDb.findNodes(ConceptManager.TermLabel.TERM);
 			int numNodes = 0;
 			int numHollow = 0;
 			int numRoots = 0;
@@ -1945,7 +1935,7 @@ public class ConceptManagerTest {
 
 			// Now test that the merged-in properties - and labels - are
 			// actually there.
-			Node mergedTerm = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, DynamicLabel.label("newlabel1"),
+			Node mergedTerm = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, Label.label("newlabel1"),
 					PROP_ID, "tid0");
 			// have we found the term? Then it got its new label.
 			assertNotNull(mergedTerm);
