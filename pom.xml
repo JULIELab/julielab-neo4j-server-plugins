@@ -98,7 +98,7 @@
 	</properties>
 	<packaging>pom</packaging>
 	<modules>
-		<module>julielab-neo4j-plugins-aho-corasick</module>
+		
 		<module>julielab-neo4j-plugins-concepts</module>
 		<module>julielab-neo4j-plugins-utilities</module>
 	</modules>
