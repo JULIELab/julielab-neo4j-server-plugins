@@ -289,7 +289,7 @@ public class ConceptManager extends ServerPlugin {
 	@Name(BUILD_AGGREGATES_BY_MAPPINGS)
 	@Description("Creates term aggregates with respect to 'IS_MAPPED_TO' relationships.")
 	@PluginTarget(GraphDatabaseService.class)
-	public void buildAggregatesByMappigs(@Source GraphDatabaseService graphDb,
+	public void buildAggregatesByMappings(@Source GraphDatabaseService graphDb,
 			@Description("The allowed types for IS_MAPPED_TO relationships to be included in aggregation building.") @Parameter(name = KEY_ALLOWED_MAPPING_TYPES) String allowedMappingTypesArray,
 			@Description("Label for terms that have been processed by the aggregation algorithm. Such terms"
 					+ " can be aggregate terms (with the label AGGREGATE) or just plain terms"
