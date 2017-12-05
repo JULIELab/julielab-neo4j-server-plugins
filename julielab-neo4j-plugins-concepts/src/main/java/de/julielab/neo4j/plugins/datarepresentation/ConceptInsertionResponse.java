@@ -4,7 +4,7 @@ import de.julielab.neo4j.plugins.ConceptManager;
 
 /**
  * A convenience class to parse the HTTP response from the
- * {@link ConceptManager#INSERT_TERMS} plugin endpoint in another application. This
+ * {@link ConceptManager#INSERT_CONCEPTS} plugin endpoint in another application. This
  * class is not actually used in the plugin code.
  * 
  * @author faessler

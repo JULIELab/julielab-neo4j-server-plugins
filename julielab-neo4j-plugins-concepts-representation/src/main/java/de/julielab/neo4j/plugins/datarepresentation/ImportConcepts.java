@@ -4,7 +4,7 @@ import java.util.List;
 
 public class ImportConcepts {
 	public ImportConcepts(List<ImportConcept> termList, ImportFacet facet) {
-		this.terms = termList;
+		this.concepts = termList;
 		this.facet = facet;
 	}
 
@@ -18,6 +18,6 @@ public class ImportConcepts {
 	}
 
 	public ImportFacet facet;
-	public List<ImportConcept> terms;
+	public List<ImportConcept> concepts;
 	public ImportOptions importOptions;
 }

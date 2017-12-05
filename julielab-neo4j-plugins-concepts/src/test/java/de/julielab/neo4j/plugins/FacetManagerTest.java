@@ -339,10 +339,10 @@ public class FacetManagerTest {
 						NodeIDPrefixConstants.FACET + "3"));
 
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet0));
-		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet1));
-		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet2));
-		ftm.insertFacetTerms(graphDb, JsonSerializer.toJson(termAndFacet3));
+		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet0));
+		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet1));
+		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet2));
+		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet3));
 
 		// Get the facets and check that everything is alright.
 		RecursiveMappingRepresentation facetRep = (RecursiveMappingRepresentation) fm.getFacets(
@@ -386,7 +386,7 @@ public class FacetManagerTest {
 
 		ImportConcepts terms = ConceptManagerTest.getTestTerms(amount);
 		ConceptManager termManager = new ConceptManager();
-		termManager.insertFacetTerms(graphDb, JsonSerializer.toJson(terms));
+		termManager.insertConcepts(graphDb, JsonSerializer.toJson(terms));
 		FacetManager facetManager = new FacetManager();
 
 		assertEquals(amount, facetManager.getFacetSize(graphDb, facet));

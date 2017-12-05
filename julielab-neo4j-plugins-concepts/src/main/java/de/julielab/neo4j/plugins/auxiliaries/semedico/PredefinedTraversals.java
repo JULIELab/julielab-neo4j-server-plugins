@@ -100,7 +100,7 @@ public class PredefinedTraversals {
 	public static TraversalDescription getNonAggregateAggregateElements(GraphDatabaseService graphDb) {
 		TraversalDescription td = graphDb.traversalDescription().depthFirst()
 				.relationships(ConceptManager.EdgeTypes.HAS_ELEMENT)
-				.evaluator(new NodeLabelEvaluator(ConceptManager.TermLabel.AGGREGATE, true));
+				.evaluator(new NodeLabelEvaluator(ConceptManager.ConceptLabel.AGGREGATE, true));
 		return td;
 	}
 

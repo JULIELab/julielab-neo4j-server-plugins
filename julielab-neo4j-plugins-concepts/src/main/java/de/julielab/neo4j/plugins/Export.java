@@ -45,7 +45,7 @@ import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
-import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
+import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -247,7 +247,7 @@ public class Export extends ServerPlugin {
 			Node directHypernym = rel.getStartNode();
 			boolean isHollow = false;
 			for (Label l : directHypernym.getLabels())
-				if (l.equals(TermLabel.HOLLOW))
+				if (l.equals(ConceptLabel.HOLLOW))
 					isHollow = true;
 			if (isHollow)
 				continue;
@@ -269,7 +269,7 @@ public class Export extends ServerPlugin {
 		visitedNodes.add(n);
 		boolean isHollow = false;
 		for (Label l : n.getLabels())
-			if (l.equals(TermLabel.HOLLOW))
+			if (l.equals(ConceptLabel.HOLLOW))
 				isHollow = true;
 		if (isHollow)
 			return;
@@ -303,7 +303,7 @@ public class Export extends ServerPlugin {
 					+ " NOTE that it is expected that array-valued properties are or of the same size. "
 					+ "The concatenation will be done for the same index in all value-arrays, i.e. not all combinations are built. For aggregates that not have a requested properties, their elements will be used instead.") @Parameter(name = PARAM_ID_PROPERTY, optional = true) String[] nodeCategories)
 			throws IOException {
-		Label label = StringUtils.isBlank(labelString) ? ConceptManager.TermLabel.TERM : Label.label(labelString);
+		Label label = StringUtils.isBlank(labelString) ? ConceptManager.ConceptLabel.CONCEPT : Label.label(labelString);
 		List<String> propertiesToWrite = new ArrayList<>();
 		if (nodeCategories == null || nodeCategories.length == 0) {
 			propertiesToWrite.add(PROP_ID);
@@ -355,7 +355,7 @@ public class Export extends ServerPlugin {
 						// array since the others should have the same length.
 						String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(term, idProperty);
 
-						if (null == value && term.hasLabel(TermLabel.AGGREGATE))
+						if (null == value && term.hasLabel(ConceptLabel.AGGREGATE))
 							// perhaps we have an aggregate term, then we can
 							// try and retrieve the value from its elements
 							value = ConceptManager.getPropertyValueOfElements(term, idProperty);
@@ -372,7 +372,7 @@ public class Export extends ServerPlugin {
 							for (int j = 0; j < propertiesToWrite.size(); ++j) {
 								String property = propertiesToWrite.get(j);
 								value = NodeUtilities.getNodePropertyAsStringArrayValue(term, property);
-								if (null == value && term.hasLabel(TermLabel.AGGREGATE))
+								if (null == value && term.hasLabel(ConceptLabel.AGGREGATE))
 									// perhaps we have an aggregate term, then
 									// we can try and retrieve the value from
 									// its elements
@@ -450,7 +450,7 @@ public class Export extends ServerPlugin {
 			@Description("The term label to create the ID map for. Defaults to TERM.") @Parameter(name = PARAM_LABEL, optional = true) String labelString)
 			throws IOException {
 		log.info("Exporting lingpipe dictionary data.");
-		Label label = !StringUtils.isBlank(labelString) ? Label.label(labelString) : ConceptManager.TermLabel.TERM;
+		Label label = !StringUtils.isBlank(labelString) ? Label.label(labelString) : ConceptManager.ConceptLabel.CONCEPT;
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
 		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 			try (Transaction tx = graphDb.beginTx()) {
@@ -521,7 +521,7 @@ public class Export extends ServerPlugin {
 						Traverser traverse = td.traverse(aggregate);
 						for (Path elementPath : traverse) {
 							for (Node n : elementPath.nodes()) {
-								if (n.hasLabel(ConceptManager.TermLabel.AGGREGATE))
+								if (n.hasLabel(ConceptManager.ConceptLabel.AGGREGATE))
 									visitedAggregates.add((String) n.getProperty(ConceptConstants.PROP_ID));
 							}
 							Node element = elementPath.endNode();

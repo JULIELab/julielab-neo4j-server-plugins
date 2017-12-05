@@ -45,7 +45,7 @@ import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
 
-import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
+import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -171,7 +171,7 @@ public class FacetManager extends ServerPlugin {
 							Node rootTerm = rootIt.next().getEndNode();
 							boolean isHollow = false;
 							for (Label label : rootTerm.getLabels()) {
-								if (label.equals(TermLabel.HOLLOW)) {
+								if (label.equals(ConceptLabel.HOLLOW)) {
 									isHollow = true;
 									break;
 								}

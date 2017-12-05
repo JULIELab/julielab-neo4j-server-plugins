@@ -32,10 +32,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 import de.julielab.neo4j.plugins.ConceptManager;
-import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
+import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.FacetManagerTest;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.TermAggregateBuilder.CopyAggregatePropertiesStatistics;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder.CopyAggregatePropertiesStatistics;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
@@ -47,7 +47,7 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
-public class TermAggregateBuilderTest {
+public class ConceptAggregateBuilderTest {
 	private static GraphDatabaseService graphDb;
 	/**
 	 * Takes a source ID <code>srcId</code> and creates a coordinate for
@@ -102,7 +102,7 @@ public class TermAggregateBuilderTest {
 
 			// Copy the element properties to the aggregate.
 			CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
-			TermAggregateBuilder.copyAggregateProperties(aggregate, new String[] { "name", "geschmack", "synonyms" },
+			ConceptAggregateBuilder.copyAggregateProperties(aggregate, new String[] { "name", "geschmack", "synonyms" },
 					copyStats);
 
 			// Check whether everything is as expected.
@@ -172,17 +172,17 @@ public class TermAggregateBuilderTest {
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t12", "t21", "EQUAL"));
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet2), JsonSerializer.toJson(terms2), null);
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet2), JsonSerializer.toJson(terms2), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
 		Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
-		TermAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
+		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
 			int count = 0;
 			for (Node aggregate : mappingAggregates) {
-				if (!aggregate.hasLabel(TermLabel.AGGREGATE))
+				if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
 					continue;
 				count++;
 
@@ -206,7 +206,7 @@ public class TermAggregateBuilderTest {
 		// elements via the respective FacetManager
 		// method
 		try (Transaction tx = graphDb.beginTx()) {
-			RecursiveMappingRepresentation responseMap = (RecursiveMappingRepresentation) tm.getChildrenOfTerms(graphDb,
+			RecursiveMappingRepresentation responseMap = (RecursiveMappingRepresentation) tm.getChildrenOfConcepts(graphDb,
 					"[\"" + NodeIDPrefixConstants.AGGREGATE_TERM + 0 + "\"]", aggregatedTermsLabel.name());
 			Map<String, Object> map = (Map<String, Object>) responseMap.getUnderlyingMap()
 					.get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
@@ -225,7 +225,7 @@ public class TermAggregateBuilderTest {
 
 		// Now test whether the removal of aggregates is working as well
 		try (Transaction tx = graphDb.beginTx()) {
-			TermAggregateBuilder.deleteAggregates(graphDb, aggregatedTermsLabel);
+			ConceptAggregateBuilder.deleteAggregates(graphDb, aggregatedTermsLabel);
 
 			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
 			int count = 0;
@@ -263,10 +263,10 @@ public class TermAggregateBuilderTest {
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
 		Label aggLabel = Label.label("EQUAL_AGG");
-		TermAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -318,13 +318,13 @@ public class TermAggregateBuilderTest {
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
 		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
 		// The label by which we will identify all nodes representing an
 		// aggregated unit, i.e. an actual aggregate node
 		// or a term without any mappings that is its own aggregate.
 		Label aggLabel = Label.label("EQUAL_AGG");
-		TermAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -334,7 +334,7 @@ public class TermAggregateBuilderTest {
 			// elements.
 			int aggCount = 0;
 			for (Node aggregate : mappingAggregates) {
-				if (!aggregate.hasLabel(TermLabel.AGGREGATE))
+				if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
 					continue;
 				aggCount++;
 

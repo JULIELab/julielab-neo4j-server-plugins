@@ -52,32 +52,32 @@ public class ExportTest {
 	public void createIdMappingOneFacetSourceIds() throws Exception {
 		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
 		testTerms.facet.name = "facet1";
-		for (ImportConcept term : testTerms.terms) { 
+		for (ImportConcept term : testTerms.concepts) { 
 			term.generalLabels = Lists.newArrayList("TESTLABEL");
 			// clear the original ID and source of the test terms for this test
 			term.coordinates.originalId = null;
 			term.coordinates.originalSource = null;
 		}
-		testTerms.terms.get(0).coordinates.originalId = "orgId1";
-		testTerms.terms.get(0).coordinates.originalSource = "src1";
-		testTerms.terms.get(1).coordinates.originalId = "orgId2";
-		testTerms.terms.get(1).coordinates.originalSource = "src2";
-		testTerms.terms.get(2).coordinates.originalId = "orgId3";
-		testTerms.terms.get(2).coordinates.originalSource = "src3";
+		testTerms.concepts.get(0).coordinates.originalId = "orgId1";
+		testTerms.concepts.get(0).coordinates.originalSource = "src1";
+		testTerms.concepts.get(1).coordinates.originalId = "orgId2";
+		testTerms.concepts.get(1).coordinates.originalSource = "src2";
+		testTerms.concepts.get(2).coordinates.originalId = "orgId3";
+		testTerms.concepts.get(2).coordinates.originalSource = "src3";
 		// We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
 		ImportConcept term = new ImportConcept("Added Last PrefName", new ConceptCoordinates("addedLastSourceId", "TEST_SOURCE", "orgId2", "src2"));
-		testTerms.terms.add(term);
+		testTerms.concepts.add(term);
 		ConceptManager tm = new ConceptManager();
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
 		// Get some more terms; those will be in another label and should be ignored here.
 		testTerms = ConceptManagerTest.getTestTerms(15);
 		testTerms.facet.name = "facet2";
-		for (ImportConcept t : testTerms.terms) {
+		for (ImportConcept t : testTerms.concepts) {
 			t.coordinates.originalId = null;
 			t.coordinates.originalSource = null;
 		}
 
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
 
 		// Assure we have two facets.
 		try (Transaction tx = graphDb.beginTx()){
@@ -110,7 +110,7 @@ public class ExportTest {
 		fileContent = IOUtils.toString(gzis, "UTF-8");
 
 		// We have inserted 15 terms
-		long numTerms = tm.getNumTerms(graphDb);
+		long numTerms = tm.getNumConcepts(graphDb);
 		assertEquals(15, numTerms);
 		int countMatches = StringUtils.countMatches(fileContent, "\n");
 		// All terms have a source ID, in the test case one term has two source IDs, thus we should have 11 mapping
@@ -126,7 +126,7 @@ public class ExportTest {
 		fileContent = IOUtils.toString(gzis, "UTF-8");
 
 		// We have inserted 15 terms
-		numTerms = tm.getNumTerms(graphDb);
+		numTerms = tm.getNumConcepts(graphDb);
 		assertEquals(15, numTerms);
 		countMatches = StringUtils.countMatches(fileContent, "\n");
 		// only three terms have an original ID. No term can have more than one original ID.
@@ -136,24 +136,24 @@ public class ExportTest {
 	@Test
 	public void createIdMappingOneFacetOriginalId() throws Exception {
 		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
-		for (ImportConcept term : testTerms.terms) {
+		for (ImportConcept term : testTerms.concepts) {
 			term.generalLabels = Lists.newArrayList("TESTLABEL");
 			term.coordinates.originalId = null;
 			term.coordinates.originalSource = null;
 		}
-		testTerms.terms.get(0).coordinates.originalId = "orgId1";
-		testTerms.terms.get(0).coordinates.originalSource = "src1";
-		testTerms.terms.get(1).coordinates.originalId = "orgId2";
-		testTerms.terms.get(1).coordinates.originalSource = "src2";
-		testTerms.terms.get(2).coordinates.originalId = "orgId3";
-		testTerms.terms.get(2).coordinates.originalSource = "src3";
+		testTerms.concepts.get(0).coordinates.originalId = "orgId1";
+		testTerms.concepts.get(0).coordinates.originalSource = "src1";
+		testTerms.concepts.get(1).coordinates.originalId = "orgId2";
+		testTerms.concepts.get(1).coordinates.originalSource = "src2";
+		testTerms.concepts.get(2).coordinates.originalId = "orgId3";
+		testTerms.concepts.get(2).coordinates.originalSource = "src3";
 		// We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
 		ImportConcept term = new ImportConcept("Added Last PrefName", new ConceptCoordinates("addedLastSourceId", "TEST_SOURCE", "orgId2", "src2"));
 		term.coordinates.originalId = "orgId2";
 		term.coordinates.originalSource = "src2";
-		testTerms.terms.add(term);
+		testTerms.concepts.add(term);
 		ConceptManager tm = new ConceptManager();
-		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
 
 		Method method = Export.class.getDeclaredMethod("createIdMapping", GraphDatabaseService.class, String.class,
 				JSONArray.class);
@@ -174,7 +174,7 @@ public class ExportTest {
 		fileContent = IOUtils.toString(gzis, "UTF-8");
 
 		// We have inserted 10 terms
-		long numTerms = tm.getNumTerms(graphDb);
+		long numTerms = tm.getNumConcepts(graphDb);
 		assertEquals(10, numTerms);
 		int countMatches = StringUtils.countMatches(fileContent, "\n");
 		// only three terms have an original ID. No term can have more than one original ID.
