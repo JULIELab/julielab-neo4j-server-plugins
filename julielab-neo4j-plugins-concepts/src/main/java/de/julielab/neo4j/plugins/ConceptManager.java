@@ -1053,7 +1053,7 @@ public class ConceptManager extends ServerPlugin {
 		if (null != copyProperties && copyProperties.length() > 0)
 			aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, JSON.json2JavaArray(copyProperties));
 
-		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_GENERAL_LABELS);
+		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_LABELS);
 		for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
 			aggregate.addLabel(Label.label(generalLabels.getString(i)));
 		}
@@ -1073,7 +1073,7 @@ public class ConceptManager extends ServerPlugin {
 		// null-convenience method here.
 		String prefName = JSON.getString(jsonTerm, PROP_PREF_NAME);
 		JSONArray synonyms = JSON.getJSONArray(jsonTerm, PROP_SYNONYMS);
-		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_GENERAL_LABELS);
+		JSONArray generalLabels = JSON.getJSONArray(jsonTerm, ConceptConstants.PROP_LABELS);
 
 		JSONObject coordinatesJson = jsonTerm.getJSONObject(PROP_COORDINATES);
 		ConceptCoordinates coordinates = new ConceptCoordinates(coordinatesJson);
@@ -1212,7 +1212,7 @@ public class ConceptManager extends ServerPlugin {
 			term.setProperty(PROP_ORG_SRC, coordinates.originalSource);
 		}
 
-		PropertyUtilities.mergeJSONObjectIntoPropertyContainer(jsonTerm, term, ConceptConstants.PROP_GENERAL_LABELS,
+		PropertyUtilities.mergeJSONObjectIntoPropertyContainer(jsonTerm, term, ConceptConstants.PROP_LABELS,
 				PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, PROP_COORDINATES, PARENT_COORDINATES,
 				ConceptConstants.RELATIONSHIPS);
 		// set the original ID and source
@@ -1437,10 +1437,6 @@ public class ConceptManager extends ServerPlugin {
 			} else {
 				continue;
 			}
-			// aggregates are not required to come with coordinates, so don't
-			// handle them here
-//			if (JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE))
-//				continue;
 			// many nodes will actually already have been seen as parents
 			// above
 			if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
@@ -1468,18 +1464,6 @@ public class ConceptManager extends ServerPlugin {
 				continue;
 			}
 
-			// if (!StringUtils.isBlank(coordinates.originalId) &&
-			// !conceptNode.hasProperty(PROP_ORG_ID)) {
-			// conceptNode.setProperty(PROP_ORG_ID, coordinates.originalId);
-			// conceptNode.setProperty(PROP_ORG_SRC,
-			// coordinates.originalSource);
-			// }
-			// if (!StringUtils.isBlank(coordinates.sourceId))
-			// termIndex.putIfAbsent(conceptNode, PROP_SRC_IDS,
-			// coordinates.sourceId);
-			// if (!StringUtils.isBlank(coordinates.originalId))
-			// termIndex.putIfAbsent(conceptNode, PROP_ORG_ID,
-			// coordinates.originalId);
 		}
 		// Finished getting existing nodes and creating HOLLOW nodes
 
@@ -1568,9 +1552,6 @@ public class ConceptManager extends ServerPlugin {
 			throws JSONException {
 		log.info(INSERT_TERMS + " was called");
 		long time = System.currentTimeMillis();
-		// Data incoming, create indexes if not present.
-		// No, don't. The unique constraint slows things painfully down.
-		// createSchemaIndexes(graphDb);
 
 		Gson gson = new Gson();
 		log.debug("Parsing input.");

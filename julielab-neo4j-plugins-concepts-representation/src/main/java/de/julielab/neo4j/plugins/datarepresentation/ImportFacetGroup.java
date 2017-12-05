@@ -21,7 +21,7 @@ public class ImportFacetGroup {
 	public String name;
 	@SerializedName(FacetGroupConstants.PROP_POSITION)
 	public int position;
-	@SerializedName(FacetGroupConstants.PROP_GENERAL_LABELS)
+	@SerializedName(FacetGroupConstants.PROP_LABELS)
 	public List<String> generalLabels;
 	@SerializedName(FacetGroupConstants.PROP_TYPE)
 	public String type;

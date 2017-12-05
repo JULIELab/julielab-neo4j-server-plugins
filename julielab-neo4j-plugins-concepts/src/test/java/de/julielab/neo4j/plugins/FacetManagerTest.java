@@ -1,12 +1,6 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_FIELD_PREFIX;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_CSS_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_FILTER_FIELD_NAMES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_POSITION;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SEARCH_FIELD_NAMES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_NAME;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.SRC_TYPE_HIERARCHICAL;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
@@ -21,6 +15,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -43,6 +38,8 @@ import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
@@ -51,7 +48,7 @@ import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
@@ -63,6 +60,8 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConsta
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class FacetManagerTest {
+	
+	
 	private static GraphDatabaseService graphDb;
 
 	@BeforeClass
@@ -84,7 +83,7 @@ public class FacetManagerTest {
 		Map<String, Object> facetGroupMap1 = new HashMap<String, Object>();
 		facetGroupMap1.put(FacetGroupConstants.PROP_NAME, "Test Facet Group");
 		facetGroupMap1.put(FacetGroupConstants.PROP_POSITION, 1);
-		facetGroupMap1.put(FacetGroupConstants.PROP_GENERAL_LABELS,
+		facetGroupMap1.put(FacetGroupConstants.PROP_LABELS,
 				Lists.newArrayList("showForBTerms"));
 		// facetGroupMap1.put(FacetGroupConstants.PROP_SHOW_FOR_SEARCH, false);
 		String facetGroupJsonString1 = gson.toJson(facetGroupMap1);
@@ -93,7 +92,7 @@ public class FacetManagerTest {
 		Map<String, Object> facetGroupMap2 = new HashMap<String, Object>();
 		facetGroupMap2.put(FacetGroupConstants.PROP_NAME, "Test Facet Group 2");
 		facetGroupMap2.put(FacetGroupConstants.PROP_POSITION, 2);
-		facetGroupMap2.put(FacetGroupConstants.PROP_GENERAL_LABELS,
+		facetGroupMap2.put(FacetGroupConstants.PROP_LABELS,
 				Lists.newArrayList("showForSearch"));
 		String facetGroupJsonString2 = gson.toJson(facetGroupMap2);
 		JSONObject jsonFacetGroup2 = new JSONObject(facetGroupJsonString2);
@@ -176,15 +175,15 @@ public class FacetManagerTest {
 		Map<String, Object> facetGroupMap = new HashMap<String, Object>();
 		facetGroupMap.put(FacetGroupConstants.PROP_NAME, "facetGroup1");
 		facetGroupMap.put(FacetGroupConstants.PROP_POSITION, 1);
-		facetGroupMap.put(FacetGroupConstants.PROP_GENERAL_LABELS,
+		facetGroupMap.put(FacetGroupConstants.PROP_LABELS,
 				Lists.newArrayList("showForSearch"));
 
 		Map<String, Object> facetMap = new HashMap<String, Object>();
 		facetMap.put(PROP_NAME, "testfacet1");
-		facetMap.put(PROP_CSS_ID, "cssid1");
+		facetMap.put("cssId", "cssid1");
 		facetMap.put(PROP_SOURCE_TYPE, SRC_TYPE_HIERARCHICAL);
-		facetMap.put(PROP_SEARCH_FIELD_NAMES, new String[] { "sf1", "sf2" });
-		facetMap.put(PROP_POSITION, 1);
+		facetMap.put("searchFieldNames", new String[] { "sf1", "sf2" });
+		facetMap.put("position", 1);
 		facetMap.put(FACET_GROUP, facetGroupMap);
 
 		Gson gson = new Gson();
@@ -195,52 +194,20 @@ public class FacetManagerTest {
 		assertNotNull(facet);
 	}
 
-	// @Test
-	// public void testCreateFacetWithGeneralProperties() throws Exception {
-	// Map<String, Object> facetGroupMap = new HashMap<String, Object>();
-	// facetGroupMap.put(FacetGroupConstants.PROP_NAME, "facetGroup1");
-	// facetGroupMap.put(FacetGroupConstants.PROP_POSITION, 1);
-	// facetGroupMap.put(FacetGroupConstants.PROP_GENERAL_LABELS,
-	// Lists.newArrayList("showForSearch"));
-	//
-	// Map<String, Object> facetMap = new HashMap<String, Object>();
-	// facetMap.put(PROP_NAME, "testfacet1");
-	// facetMap.put(PROP_CSS_ID, "cssid1");
-	// facetMap.put(PROP_SOURCE_TYPE, SRC_TYPE_HIERARCHICAL);
-	// facetMap.put(PROP_SEARCH_FIELD_NAMES, new String[] { "sf1", "sf2" });
-	// facetMap.put(PROP_POSITION, 1);
-	// facetMap.put(FACET_GROUP, facetGroupMap);
-	// facetMap.put(FacetConstants.PROP_PROPERTIES,
-	// "{\"key1\":\"value1\",\"key2\":\"value2\"}");
-	//
-	// Gson gson = new Gson();
-	// String jsonFacetString = gson.toJson(facetMap);
-	// JSONObject jsonFacet = new JSONObject(jsonFacetString);
-	//
-	// Node facet = FacetManager.createFacet(graphDb, jsonFacet);
-	// try (Transaction tx = graphDb.beginTx()) {
-	// assertNotNull(facet);
-	// assertEquals("value1", facet.getProperty("key1"));
-	// assertEquals("value2", facet.getProperty("key2"));
-	// tx.success();
-	// }
-	// }
-
 	@Test
 	public void testCreateFacetWithSourceName() throws JSONException {
 		ImportFacet facetMap = getImportFacet();
-		facetMap.sourceName = "facetTermsAuthors";
-		// facetMap.put(PROP_SOURCE_NAME, "facetTermsAuthors");
 
 		Gson gson = new Gson();
 		String jsonFacetString = gson.toJson(facetMap);
 		JSONObject jsonFacet = new JSONObject(jsonFacetString);
+		jsonFacet.put("sourceName", "facetTermsAuthors");
 
 		Node facet = FacetManager.createFacet(graphDb, jsonFacet);
 		try (Transaction tx = graphDb.beginTx()) {
 			assertNotNull(facet);
 			assertEquals("Facet source name", "facetTermsAuthors",
-					facet.getProperty(PROP_SOURCE_NAME));
+					facet.getProperty("sourceName"));
 			tx.success();
 		}
 	}
@@ -248,7 +215,7 @@ public class FacetManagerTest {
 	@Test
 	public void testCreateFacet() throws JSONException {
 		ImportFacet facetMap = getTestFacetMap(1);
-		facetMap.uniqueLabels = Lists.newArrayList("uniqueLabel1", "uniqueLabel2");
+		facetMap.labels = Lists.newArrayList("uniqueLabel1", "uniqueLabel2");
 		Gson gson = new Gson();
 		String jsonFacetString = gson.toJson(facetMap);
 		JSONObject jsonFacet = new JSONObject(jsonFacetString);
@@ -257,19 +224,6 @@ public class FacetManagerTest {
 		Node facet = FacetManager.createFacet(graphDb, jsonFacet);
 		try (Transaction tx = graphDb.beginTx()) {
 			assertEquals("testfacet1", facet.getProperty(PROP_NAME));
-			assertEquals("cssid1", facet.getProperty(PROP_CSS_ID));
-			assertEquals(0, facet.getProperty(PROP_POSITION));
-			assertEquals(FACET_FIELD_PREFIX + NodeIDPrefixConstants.FACET + "0",
-					facet.getProperty(PROP_SOURCE_NAME));
-			List<String> searchFields = Lists.newArrayList((String[]) facet
-					.getProperty(PROP_SEARCH_FIELD_NAMES));
-			assertTrue(searchFields.contains("sf11"));
-			assertTrue(searchFields.contains("sf21"));
-			List<String> filterFields = Lists.newArrayList((String[]) facet
-					.getProperty(PROP_FILTER_FIELD_NAMES));
-			assertTrue(filterFields.contains("ff11"));
-			assertTrue(filterFields.contains("ff21"));
-			assertTrue(facet.hasLabel(DynamicLabel.label("hidden")));
 			assertTrue(facet.hasLabel(DynamicLabel.label("uniqueLabel1")));
 			assertTrue(facet.hasLabel(DynamicLabel.label("uniqueLabel2")));
 
@@ -371,16 +325,16 @@ public class FacetManagerTest {
 		// FacetManager#getFacets. I.e. the last facet should
 		// not be returned since we don't add terms for it.
 
-		ImportConceptAndFacet termAndFacet0 = new ImportConceptAndFacet(
+		ImportConcepts termAndFacet0 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "0"));
-		ImportConceptAndFacet termAndFacet1 = new ImportConceptAndFacet(
+		ImportConcepts termAndFacet1 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM1", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "1"));
-		ImportConceptAndFacet termAndFacet2 = new ImportConceptAndFacet(
+		ImportConcepts termAndFacet2 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM2", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "2"));
-		ImportConceptAndFacet termAndFacet3 = new ImportConceptAndFacet(
+		ImportConcepts termAndFacet3 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM3", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "3"));
 
@@ -430,7 +384,7 @@ public class FacetManagerTest {
 		int amount = 10;
 		String facet = "fid0";
 
-		ImportConceptAndFacet terms = ConceptManagerTest.getTestTerms(amount);
+		ImportConcepts terms = ConceptManagerTest.getTestTerms(amount);
 		ConceptManager termManager = new ConceptManager();
 		termManager.insertFacetTerms(graphDb, JsonSerializer.toJson(terms));
 		FacetManager facetManager = new FacetManager();
@@ -446,33 +400,9 @@ public class FacetManagerTest {
 
 		ImportFacetGroup facetGroup = new ImportFacetGroup("facetGroup1", 1,
 				Lists.newArrayList("showForSearch"));
-		ImportFacet testFacet = new ImportFacet("testfacet" + n, "cssid" + n,
-				SRC_TYPE_HIERARCHICAL, Lists.newArrayList("sf1" + n, "sf2" + n),
-				Lists.newArrayList("ff1" + n, "ff2" + n), n - 1, Lists.newArrayList("hidden"),
-				facetGroup);
+		ImportFacet testFacet = new ImportFacet(facetGroup, "testfacet" + n, "testfacet" + n, "testfacet" + n, 
+				SRC_TYPE_HIERARCHICAL, Arrays.asList("hidden"), false);
 		return testFacet;
-
-		// Map<String, Object> facetGroupMap = new HashMap<String, Object>();
-		// facetGroupMap.put(FacetGroupConstants.PROP_NAME, "facetGroup1");
-		// facetGroupMap.put(FacetGroupConstants.PROP_POSITION, 1);
-		// facetGroupMap.put(FacetGroupConstants.PROP_GENERAL_LABELS,
-		// Lists.newArrayList("showForSearch"));
-		// // facetGroupMap.put(FacetGroupConstants.PROP_SHOW_FOR_BTERMS,
-		// false);
-		// // facetGroupMap.put(FacetGroupConstants.PROP_SHOW_FOR_SEARCH, true);
-		//
-		// Map<String, Object> facetMap = new HashMap<String, Object>();
-		// facetMap.put(PROP_NAME, "testfacet" + n);
-		// facetMap.put(PROP_CSS_ID, "cssid" + n);
-		// facetMap.put(PROP_SOURCE_TYPE, SRC_TYPE_HIERARCHICAL);
-		// facetMap.put(PROP_SEARCH_FIELD_NAMES, new String[] { "sf1" + n, "sf2"
-		// + n });
-		// facetMap.put(PROP_FILTER_FIELD_NAMES, new String[] { "ff1" + n, "ff2"
-		// + n });
-		// facetMap.put(PROP_POSITION, n - 1);
-		// facetMap.put(PROP_GENERAL_LABELS, new String[] { "hidden" });
-		// facetMap.put(FACET_GROUP, facetGroupMap);
-		// return facetMap;
 	}
 
 	@AfterClass

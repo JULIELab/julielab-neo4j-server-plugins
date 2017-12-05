@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
@@ -50,7 +50,7 @@ public class ExportTest {
 
 	@Test
 	public void createIdMappingOneFacetSourceIds() throws Exception {
-		ImportConceptAndFacet testTerms = ConceptManagerTest.getTestTerms(10);
+		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
 		testTerms.facet.name = "facet1";
 		for (ImportConcept term : testTerms.terms) { 
 			term.generalLabels = Lists.newArrayList("TESTLABEL");
@@ -135,7 +135,7 @@ public class ExportTest {
 
 	@Test
 	public void createIdMappingOneFacetOriginalId() throws Exception {
-		ImportConceptAndFacet testTerms = ConceptManagerTest.getTestTerms(10);
+		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
 		for (ImportConcept term : testTerms.terms) {
 			term.generalLabels = Lists.newArrayList("TESTLABEL");
 			term.coordinates.originalId = null;

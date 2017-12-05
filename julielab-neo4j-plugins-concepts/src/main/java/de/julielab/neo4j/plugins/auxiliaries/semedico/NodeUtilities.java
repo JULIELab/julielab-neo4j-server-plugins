@@ -119,7 +119,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 			boolean addConceptPrefToSynonyms = !firstNodePrefName.equals(conceptPrefName);
 			
 			// ----- merging of general properties
-			PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_GENERAL_LABELS,
+			PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_LABELS,
 					PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, PROP_COORDINATES, PARENT_COORDINATES);
 			
 			// ----- merging of source IDs and sources

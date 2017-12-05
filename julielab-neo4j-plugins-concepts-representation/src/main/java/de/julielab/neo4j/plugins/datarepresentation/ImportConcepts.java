@@ -2,17 +2,17 @@ package de.julielab.neo4j.plugins.datarepresentation;
 
 import java.util.List;
 
-public class ImportConceptAndFacet {
-	public ImportConceptAndFacet(List<ImportConcept> termList, ImportFacet facet) {
+public class ImportConcepts {
+	public ImportConcepts(List<ImportConcept> termList, ImportFacet facet) {
 		this.terms = termList;
 		this.facet = facet;
 	}
 
-	public ImportConceptAndFacet(ImportFacet facet) {
+	public ImportConcepts(ImportFacet facet) {
 		this.facet = facet;
 	}
 
-	public ImportConceptAndFacet(List<ImportConcept> termList, ImportFacet importFacet, ImportOptions importOptions) {
+	public ImportConcepts(List<ImportConcept> termList, ImportFacet importFacet, ImportOptions importOptions) {
 		this(termList, importFacet);
 		this.importOptions = importOptions;
 	}

@@ -36,6 +36,8 @@ public class FacetConstants extends NodeConstants {
 	 */
 	public static final String PROP_SOURCE_TYPE = "sourceType";
 
+	public static final String NAME_FACET_GROUPS = "facetGroups";
+	
 	public static final String NAME_NO_FACET_GROUPS = "noFacet-Groups";
 
 	/**
@@ -69,5 +71,13 @@ public class FacetConstants extends NodeConstants {
 	 * An optional short name for display at places that lack more space.
 	 */
 	public static final String PROP_SHORT_NAME = "shortName";
-
+	
+	/**
+	 * The number of roots a facet has. This is precomputed to speed up decisions within Semedico depending on the
+	 * number of roots of a facet. The information is used to decide whether to load all facet roots for faceting or
+	 * just to switch the facet to flat counts because there are too many roots (e.g. Genes and Proteins have 450k
+	 * roots).
+	 */
+	public static final String PROP_NUM_ROOT_TERMS = "numRoots";
+	
 }

@@ -2,7 +2,11 @@ package de.julielab.neo4j.plugins.datarepresentation;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+
+import java.util.ArrayList;
+import java.util.Collection;
 
 import com.google.gson.annotations.SerializedName;
 
@@ -24,23 +28,20 @@ public class ImportFacet {
 	 * @param sourceType
 	 *            The type of the facet contents (hierarchical concepts, flat
 	 *            concepts or arbitrary strings)
-	 * @param facetProperties
-	 *            A string-encoded JSON object providing arbitrary properties to be
-	 *            added to the facet node in Neo4j.
 	 * @param noFacet
 	 *            Whether or not this facet should go to the default facet group or
 	 *            into the separate "no-facet" section of the database. Used for
 	 *            concepts that should stay hidden most of the time but are used
 	 *            nontheless.
 	 */
-	public ImportFacet(ImportFacetGroup facetGroup, String customId, String name, String shortName, String sourceType,
-			String facetProperties, boolean noFacet) {
+	public ImportFacet(ImportFacetGroup facetGroup, String customId, String name, String shortName, String sourceType, Collection<String> labels,
+			 boolean noFacet) {
 		this.facetGroup = facetGroup;
 		this.name = name;
 		this.customId = customId;
 		this.shortName = shortName;
 		this.sourceType = sourceType;
-		this.facetProperties = facetProperties;
+		this.labels = labels;
 		this.noFacet = noFacet;
 	}
 
@@ -100,11 +101,18 @@ public class ImportFacet {
 	 */
 	@SerializedName(FacetConstants.NO_FACET)
 	public boolean noFacet;
-	/**
-	 * A string-encoded JSON object encoding arbitrary properties which are then
-	 * applied directly to the resulting facet node in the Neo4j database.
-	 */
-	@SerializedName(FacetConstants.PROP_PROPERTIES)
-	public String facetProperties;
+	@SerializedName(PROP_LABELS)
+	public Collection<String> labels;
 
+	/**
+	 * Add a label for the resulting Neo4j node.
+	 * 
+	 * @param label
+	 *            An arbitrary label.
+	 */
+	public void addLabel(String label) {
+		if (labels == null)
+			labels = new ArrayList<>();
+		labels.add(label);
+	}
 }

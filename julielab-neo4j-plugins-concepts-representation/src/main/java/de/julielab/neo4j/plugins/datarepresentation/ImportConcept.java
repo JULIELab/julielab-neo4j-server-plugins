@@ -109,7 +109,7 @@ public class ImportConcept {
 	public List<ConceptCoordinates> parentCoordinates;
 	@SerializedName(ConceptConstants.RELATIONSHIPS)
 	public List<ImportFacetTermRelationship> relationships;
-	@SerializedName(ConceptConstants.PROP_GENERAL_LABELS)
+	@SerializedName(ConceptConstants.PROP_LABELS)
 	public List<String> generalLabels;
 	@SerializedName(ConceptConstants.PROP_DISPLAY_NAME)
 	public String displayName;

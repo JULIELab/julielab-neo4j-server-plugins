@@ -22,7 +22,7 @@ import org.neo4j.graphdb.traversal.Traverser;
 
 import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
@@ -50,7 +50,7 @@ public class TraversalTest {
 
 	@Test
 	public void testGetAcronymsTraversal() throws Exception {
-		ImportConceptAndFacet testTerms = ConceptManagerTest.getTestTerms(2);
+		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
 		ConceptManager tm = new ConceptManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
@@ -91,7 +91,7 @@ public class TraversalTest {
 	public void testGetWritingVariantsTraversal() throws Exception {
 		// this is the same traversal as above, just for writing variants
 		// instead of acronyms
-		ImportConceptAndFacet testTerms = ConceptManagerTest.getTestTerms(2);
+		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
 		ConceptManager tm = new ConceptManager();
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 

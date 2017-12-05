@@ -1,14 +1,11 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_FIELD_PREFIX;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_FACET_GROUPS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NO_FACET;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_GENERAL_LABELS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_UNIQUE_LABELS;
 
@@ -150,9 +147,7 @@ public class FacetManager extends ServerPlugin {
 			for (Path facetPath : traverse) {
 				Node facet = facetPath.endNode();
 				Object sourceType = facet.getProperty(FacetConstants.PROP_SOURCE_TYPE);
-				boolean isFacetWithoutPredefinedRoots = sourceType.equals(FacetConstants.SRC_TYPE_STRINGS)
-						|| sourceType.equals(FacetConstants.SRC_TYPE_FACET_AGGREGATION)
-						|| sourceType.equals(FacetConstants.SRC_TYPE_FLAT);
+				boolean isFacetWithoutPredefinedRoots = !sourceType.equals(FacetConstants.SRC_TYPE_HIERARCHICAL);
 
 				// For string-sourced facets it doesn't make sense to check
 				// their roots since they have none in the
@@ -236,8 +231,7 @@ public class FacetManager extends ServerPlugin {
 	public static Node createFacet(GraphDatabaseService graphDb, JSONObject jsonFacet) throws JSONException {
 		log.info("Creating facet with the following data: " + jsonFacet);
 
-		String sourceName = JSON.getString(jsonFacet, PROP_SOURCE_NAME);
-		JSONArray generalLabels = JSON.getJSONArray(jsonFacet, PROP_GENERAL_LABELS);
+		JSONArray generalLabels = JSON.getJSONArray(jsonFacet, PROP_LABELS);
 		JSONArray uniqueLabels = JSON.getJSONArray(jsonFacet, PROP_UNIQUE_LABELS);
 		boolean isNoFacet = JSON.getBoolean(jsonFacet, NO_FACET);
 
@@ -253,31 +247,13 @@ public class FacetManager extends ServerPlugin {
 
 			// Create the actual facet node and populate it with data.
 			Node facet = graphDb.createNode(FacetLabel.FACET);
-			PropertyUtilities.copyJSONObjectToPropertyContainer(jsonFacet, facet, NO_FACET, PROP_GENERAL_LABELS,
+			PropertyUtilities.copyJSONObjectToPropertyContainer(jsonFacet, facet, NO_FACET, PROP_LABELS,
 					PROP_UNIQUE_LABELS, FACET_GROUP);
-
-			// Check integrity of the new facet.
-			String name = (String) PropertyUtilities.getNonNullNodeProperty(facet, PROP_NAME);
-			String sourceType = (String) PropertyUtilities.getNonNullNodeProperty(facet, PROP_SOURCE_TYPE);
-			if (!(sourceType.equals(FacetConstants.SRC_TYPE_FLAT)
-					|| sourceType.equals(FacetConstants.SRC_TYPE_HIERARCHICAL)
-					|| sourceType.equals(FacetConstants.SRC_TYPE_STRINGS)
-					|| sourceType.equals(FacetConstants.SRC_TYPE_FACET_AGGREGATION)))
-				throw new IllegalArgumentException(
-						"Unknown source type \"" + sourceType + "\" on facet with name \"" + name + "\".");
-			if (sourceType.equals(FacetConstants.SRC_TYPE_FACET_AGGREGATION)) {
-				if (!jsonFacet.has(FacetConstants.AGGREGATION_LABELS)
-						|| jsonFacet.getJSONArray(FacetConstants.AGGREGATION_LABELS).length() == 0)
-					throw new IllegalArgumentException(
-							"Facet shall be imported that is an aggregation of other facets but fails to specify with which label(s) the aggregated facets should be identified. JSON source was "
-									+ jsonFacet.toString(2));
-			}
 
 			// If everything is alright, get an ID for the facet.
 			String facetId = NodeIDPrefixConstants.FACET
 					+ SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_FACET);
 			facet.setProperty(PROP_ID, facetId);
-			PropertyUtilities.setNonNullNodeProperty(facet, PROP_SOURCE_NAME, sourceName, FACET_FIELD_PREFIX + facetId);
 			facetGroup.createRelationshipTo(facet, EdgeTypes.HAS_FACET);
 			if (null != generalLabels) {
 				for (int i = 0; i < generalLabels.length(); i++) {
@@ -377,17 +353,13 @@ public class FacetManager extends ServerPlugin {
 			log.log(Level.FINE, "Facet group \"" + facetGroupName + "\" (ID: " + facetGroupName
 					+ ") does not exist and is created.");
 			facetGroupNode = graphDb.createNode();
-			PropertyUtilities.copyJSONObjectToPropertyContainer(jsonFacetGroup, facetGroupNode, PROP_GENERAL_LABELS);
+			PropertyUtilities.copyJSONObjectToPropertyContainer(jsonFacetGroup, facetGroupNode, PROP_LABELS);
 
 			int nextSequenceValue = SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_FACET_GROUP);
-			// facetGroupNode.setProperty(FacetGroupConstants.PROP_NAME,
-			// facetGroupName);
 			facetGroupNode.setProperty(PROP_ID, NodeIDPrefixConstants.FACET_GROUP + nextSequenceValue);
 			facetGroupsNode.createRelationshipTo(facetGroupNode, EdgeTypes.HAS_FACET_GROUP);
 		}
-		// Integer position = JSON.getInt(jsonFacetGroup,
-		// FacetGroupConstants.PROP_POSITION);
-		JSONArray labels = JSON.getJSONArray(jsonFacetGroup, FacetGroupConstants.PROP_GENERAL_LABELS);
+		JSONArray labels = JSON.getJSONArray(jsonFacetGroup, FacetGroupConstants.PROP_LABELS);
 
 		if (null != labels) {
 			for (int i = 0; i < labels.length(); i++) {
@@ -396,14 +368,6 @@ public class FacetManager extends ServerPlugin {
 				facetGroupNode.addLabel(label);
 			}
 		}
-
-		// Set some properties of the facet group if delivered and not already
-		// set.
-		// NodeUtilities.setNonNullNodeProperty(facetGroupNode,
-		// FacetGroupConstants.PROP_POSITION, position);
-		// NodeUtilities.setNonNullNodeProperty(facetGroupNode,
-		// FacetGroupConstants.PROP_GENERAL_LABELS,
-		// JSON.json2JavaArray(properties));
 
 		if (null == facetGroupNode.getProperty(FacetGroupConstants.PROP_POSITION))
 			throw new IllegalArgumentException("The facet group \"" + facetGroupName
@@ -425,20 +389,6 @@ public class FacetManager extends ServerPlugin {
 			tx.success();
 		}
 		return facetGroupsNode;
-		// Node facetGroupsNode = null;
-		// try (Transaction tx = graphDb.beginTx()) {
-		// Index<Node> uniqNodeIndex =
-		// graphDb.index().forNodes(NodeConstants.INDEX_ROOT_NODES);
-		// facetGroupsNode = uniqNodeIndex.get(PROP_NAME,
-		// NAME_FACET_GROUPS).getSingle();
-		// if (null == facetGroupsNode) {
-		// facetGroupsNode = graphDb.createNode();
-		// facetGroupsNode.setProperty(PROP_NAME, NAME_FACET_GROUPS);
-		// uniqNodeIndex.add(facetGroupsNode, PROP_NAME, NAME_FACET_GROUPS);
-		// }
-		// tx.success();
-		// }
-		// return facetGroupsNode;
 	}
 
 	public static Node getNoFacetGroupsNode(GraphDatabaseService graphDb) {
