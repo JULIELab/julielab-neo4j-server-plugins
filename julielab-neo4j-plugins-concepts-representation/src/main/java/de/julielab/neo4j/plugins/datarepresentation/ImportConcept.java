@@ -9,7 +9,7 @@ import java.util.Set;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
 public class ImportConcept {
 

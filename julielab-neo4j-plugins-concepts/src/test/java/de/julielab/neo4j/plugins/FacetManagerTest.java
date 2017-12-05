@@ -1,16 +1,16 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.FACET_FIELD_PREFIX;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_CSS_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_FILTER_FIELD_NAMES;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_POSITION;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SEARCH_FIELD_NAMES;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SOURCE_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SOURCE_TYPE;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.SRC_TYPE_HIERARCHICAL;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_FIELD_PREFIX;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_CSS_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_FILTER_FIELD_NAMES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_POSITION;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SEARCH_FIELD_NAMES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.SRC_TYPE_HIERARCHICAL;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -48,11 +48,6 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
-import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
-import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
-import de.julielab.neo4j.plugins.constants.semedico.FacetGroupConstants;
-import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
-import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
@@ -60,6 +55,11 @@ import de.julielab.neo4j.plugins.datarepresentation.ImportConceptAndFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
 import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class FacetManagerTest {

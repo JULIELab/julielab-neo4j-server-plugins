@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.julielab.neo4j.plugins.constants.semedico.FacetGroupConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
 
 public class ImportFacetGroup {
 	public ImportFacetGroup(String name, int position, List<String> generalLabels) {

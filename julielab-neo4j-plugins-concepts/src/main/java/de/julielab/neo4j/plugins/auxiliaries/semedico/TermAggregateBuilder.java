@@ -2,8 +2,8 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayProperty;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.setNonNullNodeProperty;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.INDEX_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.INDEX_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,11 +33,11 @@ import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.constants.semedico.AggregateConstants;
-import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
-import de.julielab.neo4j.plugins.constants.semedico.ConceptRelationConstants;
-import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 
 public class TermAggregateBuilder {
 

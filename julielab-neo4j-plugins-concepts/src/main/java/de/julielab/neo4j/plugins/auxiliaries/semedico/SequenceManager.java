@@ -1,8 +1,8 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_VALUE;
 import static de.julielab.neo4j.plugins.constants.semedico.SequenceConstants.NAME_SEQUENCES_ROOT;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_VALUE;
 
 import java.util.NoSuchElementException;
 
@@ -14,7 +14,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 
-import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 
 public class SequenceManager {
 

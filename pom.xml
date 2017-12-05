@@ -101,6 +101,7 @@
 		
 		<module>julielab-neo4j-plugins-concepts</module>
 		<module>julielab-neo4j-plugins-utilities</module>
+		<module>julielab-neo4j-plugins-concepts-representation</module>
 	</modules>
 	<organization>
 		<name>JULIE Lab Jena, Germany</name>

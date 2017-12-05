@@ -4,7 +4,7 @@ import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
 
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
-import de.julielab.neo4j.plugins.constants.semedico.CoordinateConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.CoordinateConstants;
 
 public class ConceptCoordinates implements Cloneable {
 

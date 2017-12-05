@@ -1,16 +1,16 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PARENT_COORDINATES;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_COORDINATES;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SOURCES;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SRC_IDS;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_SYNONYMS;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.PROP_UNIQUE_SRC_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.ConceptConstants.RELATIONSHIPS;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PARENT_COORDINATES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_COORDINATES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_FACETS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_PREF_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SOURCES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_UNIQUE_SRC_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.RELATIONSHIPS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,7 +25,7 @@ import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
 public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUtilities {
 

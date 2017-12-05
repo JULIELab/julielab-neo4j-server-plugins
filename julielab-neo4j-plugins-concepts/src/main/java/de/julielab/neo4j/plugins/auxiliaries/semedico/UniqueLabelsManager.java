@@ -7,7 +7,7 @@ import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 
-import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 
 /**
  * Used to ensure unique values in array-valued properties. For non-array values, a unique constraint in conjunction with an Neo4j schema index may be used.

@@ -1,7 +1,7 @@
 package de.julielab.neo4j.plugins.evaluators;
 
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.NAME_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_FACET_GROUPS;
 
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;

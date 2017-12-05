@@ -12,8 +12,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 
-import de.julielab.neo4j.plugins.auxiliaries.semedico.UniqueLabelsManager;
-import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class UniqueLabelsManagerTest {

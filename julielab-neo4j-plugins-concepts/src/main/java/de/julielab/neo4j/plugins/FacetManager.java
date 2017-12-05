@@ -1,16 +1,16 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.FACET_FIELD_PREFIX;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.NAME_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.NAME_NO_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.NO_FACET;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SOURCE_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SOURCE_TYPE;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_GENERAL_LABELS;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_UNIQUE_LABELS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_FIELD_PREFIX;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_FACET_GROUPS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NO_FACET;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_GENERAL_LABELS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_UNIQUE_LABELS;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -54,11 +54,11 @@ import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
-import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
-import de.julielab.neo4j.plugins.constants.semedico.FacetGroupConstants;
-import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
-import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 
 @Description("This plugin offers access to facets for Semedico.")
 public class FacetManager extends ServerPlugin {

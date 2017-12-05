@@ -16,9 +16,8 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 
-import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
-import de.julielab.neo4j.plugins.constants.semedico.NodeConstants;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class SequenceManagerTest {

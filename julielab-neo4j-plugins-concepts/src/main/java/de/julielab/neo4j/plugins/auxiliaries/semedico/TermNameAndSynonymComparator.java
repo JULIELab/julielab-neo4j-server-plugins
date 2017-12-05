@@ -11,7 +11,7 @@ import org.neo4j.graphdb.Node;
 import com.ibm.icu.text.Collator;
 import com.ibm.icu.text.RuleBasedCollator;
 
-import de.julielab.neo4j.plugins.constants.semedico.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
 /**
  * This comparator can be used to sort nodes according to their similarity in preferred name and synonyms. The

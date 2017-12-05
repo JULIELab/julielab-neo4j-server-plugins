@@ -1,4 +1,4 @@
-package de.julielab.neo4j.plugins.constants.semedico;
+package de.julielab.neo4j.plugins.datarepresentation.constants;
 
 public class CoordinateConstants {
 	/**

@@ -1,4 +1,6 @@
-package de.julielab.neo4j.plugins.constants.semedico;
+package de.julielab.neo4j.plugins.datarepresentation.constants;
+
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 
 public class FacetConstants extends NodeConstants {
 	public static final String PROP_CSS_ID = "cssId";

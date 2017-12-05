@@ -1,20 +1,20 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_CSS_ID;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_FILTER_FIELD_NAMES;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_POSITION;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SEARCH_FIELD_NAMES;
-import static de.julielab.neo4j.plugins.constants.semedico.FacetConstants.PROP_SOURCE_TYPE;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_GENERAL_LABELS;
-import static de.julielab.neo4j.plugins.constants.semedico.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_CSS_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_FILTER_FIELD_NAMES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_POSITION;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SEARCH_FIELD_NAMES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_GENERAL_LABELS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import com.google.gson.annotations.SerializedName;
 
-import de.julielab.neo4j.plugins.constants.semedico.FacetConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 
 public class ImportFacet {
 	public ImportFacet(String name, String cssId, String sourceType, List<String> searchFieldNames,

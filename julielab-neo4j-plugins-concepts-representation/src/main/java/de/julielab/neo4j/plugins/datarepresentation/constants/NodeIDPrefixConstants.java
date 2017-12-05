@@ -1,4 +1,4 @@
-package de.julielab.neo4j.plugins.constants.semedico;
+package de.julielab.neo4j.plugins.datarepresentation.constants;
 
 public class NodeIDPrefixConstants {
 	public static final String FACET_GROUP = "fgid";
