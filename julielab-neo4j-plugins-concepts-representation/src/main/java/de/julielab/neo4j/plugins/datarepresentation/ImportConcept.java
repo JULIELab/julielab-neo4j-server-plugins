@@ -7,7 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.google.gson.annotations.SerializedName;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
@@ -95,44 +95,44 @@ public class ImportConcept {
 	public ImportConcept() {
 	}
 
-	@SerializedName(ConceptConstants.PROP_PREF_NAME)
+	@JsonProperty(ConceptConstants.PROP_PREF_NAME)
 	public String prefName;
-	@SerializedName(ConceptConstants.PROP_DESCRIPTIONS)
+	@JsonProperty(ConceptConstants.PROP_DESCRIPTIONS)
 	public List<String> descriptions;
-	@SerializedName(ConceptConstants.PROP_SYNONYMS)
+	@JsonProperty(ConceptConstants.PROP_SYNONYMS)
 	public List<String> synonyms;
-	@SerializedName(ConceptConstants.PROP_WRITING_VARIANTS)
+	@JsonProperty(ConceptConstants.PROP_WRITING_VARIANTS)
 	public List<String> writingVariants;
-	@SerializedName(ConceptConstants.PROP_COORDINATES)
+	@JsonProperty(ConceptConstants.PROP_COORDINATES)
 	public ConceptCoordinates coordinates;
-	@SerializedName(ConceptConstants.PARENT_COORDINATES)
+	@JsonProperty(ConceptConstants.PARENT_COORDINATES)
 	public List<ConceptCoordinates> parentCoordinates;
-	@SerializedName(ConceptConstants.RELATIONSHIPS)
+	@JsonProperty(ConceptConstants.RELATIONSHIPS)
 	public List<ImportFacetTermRelationship> relationships;
-	@SerializedName(ConceptConstants.PROP_LABELS)
+	@JsonProperty(ConceptConstants.PROP_LABELS)
 	public List<String> generalLabels;
-	@SerializedName(ConceptConstants.PROP_DISPLAY_NAME)
+	@JsonProperty(ConceptConstants.PROP_DISPLAY_NAME)
 	public String displayName;
-	@SerializedName(ConceptConstants.PROP_QUALIFIERS)
+	@JsonProperty(ConceptConstants.PROP_QUALIFIERS)
 	public List<String> qualifiers;
 
 	// ------------- for aggregates -----------------
-	@SerializedName(ConceptConstants.AGGREGATE)
+	@JsonProperty(ConceptConstants.AGGREGATE)
 	public Boolean aggregate;
-	@SerializedName(ConceptConstants.ELEMENT_SRC_IDS)
+	@JsonProperty(ConceptConstants.ELEMENT_SRC_IDS)
 	@Deprecated
 	public List<String> elementSrcIds;
-	@SerializedName(ConceptConstants.ELEMENT_SOURCES)
+	@JsonProperty(ConceptConstants.ELEMENT_SOURCES)
 	@Deprecated
 	public List<String> elementSources;
-	@SerializedName(ConceptConstants.ELEMENT_COORDINATES)
+	@JsonProperty(ConceptConstants.ELEMENT_COORDINATES)
 	public List<TermCoordinates> elementCoordinates;
-	@SerializedName(ConceptConstants.PROP_COPY_PROPERTIES)
+	@JsonProperty(ConceptConstants.PROP_COPY_PROPERTIES)
 	public List<String> copyProperties;
-	@SerializedName(ConceptConstants.AGGREGATE_SOURCES)
+	@JsonProperty(ConceptConstants.AGGREGATE_SOURCES)
 	@Deprecated
 	public List<String> aggregateSources;
-	@SerializedName(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
+	@JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
 	public Boolean aggregateIncludeInHierarchy;
 
 	public void addRelationship(ImportFacetTermRelationship relationship) {

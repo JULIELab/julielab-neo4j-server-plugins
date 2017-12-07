@@ -41,10 +41,10 @@ import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
-import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class ConceptAggregateBuilderTest {
@@ -172,9 +172,9 @@ public class ConceptAggregateBuilderTest {
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t12", "t21", "EQUAL"));
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet2), JsonSerializer.toJson(terms2), null);
-		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet2), ConceptsJsonSerializer.toJson(terms2), null);
+		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
 		Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
 
@@ -263,8 +263,8 @@ public class ConceptAggregateBuilderTest {
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
-		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
+		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
 		Label aggLabel = Label.label("EQUAL_AGG");
 		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
@@ -318,8 +318,8 @@ public class ConceptAggregateBuilderTest {
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(importFacet1), JsonSerializer.toJson(terms1), null);
-		tm.insertMappings(graphDb, JsonSerializer.toJson(mapping));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
+		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
 		// The label by which we will identify all nodes representing an
 		// aggregated unit, i.e. an actual aggregate node
 		// or a term without any mappings that is its own aggregate.

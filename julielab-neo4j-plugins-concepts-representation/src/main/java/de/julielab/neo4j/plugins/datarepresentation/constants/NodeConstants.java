@@ -17,7 +17,7 @@ public class NodeConstants extends de.julielab.neo4j.plugins.constants.NodeConst
 	 * 'hide this facet on startup'.
 	 * 
 	 */
-	public static final String PROP_LABELS = "generalLabels";
+	public static final String PROP_LABELS = "labels";
 
 	/**
 	 * The value of this property is a list of boolean properties where each

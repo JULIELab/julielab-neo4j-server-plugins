@@ -1,6 +1,5 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_DESCRIPTIONS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_FACETS;
@@ -8,10 +7,11 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptCons
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_ORG_SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_PREF_NAME;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SOURCES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -57,11 +57,10 @@ import org.neo4j.shell.util.json.JSONObject;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.google.gson.Gson;
 
+import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.ConceptManager.MorphoLabel;
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -75,7 +74,6 @@ import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetTermRelationship;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
 import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
-import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.datarepresentation.PushConceptsToSetCommand;
 import de.julielab.neo4j.plugins.datarepresentation.TermCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
@@ -86,6 +84,7 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class ConceptManagerTest {
@@ -116,27 +115,27 @@ public class ConceptManagerTest {
 
 		ImportConcepts testTerms;
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src1";
-		testTerms.concepts.get(0).coordinates.source = "src1";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+		testTerms.getConceptsAsList().get(0).coordinates.source = "src1";
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src1";
-		testTerms.concepts.get(0).coordinates.source = "src2";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+		testTerms.getConceptsAsList().get(0).coordinates.source = "src2";
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.sourceId = "TERM42";
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src1";
-		testTerms.concepts.get(0).coordinates.source = null;
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(0).coordinates.sourceId = "TERM42";
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+		testTerms.getConceptsAsList().get(0).coordinates.source = null;
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Node term = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 0);
+			Node term = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			assertNotNull(term);
 			assertEquals("orgId", term.getProperty(PROP_ORG_ID));
 			String[] sourceIds = (String[]) term.getProperty(PROP_SRC_IDS);
@@ -156,33 +155,33 @@ public class ConceptManagerTest {
 
 		ImportConcepts testTerms;
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src1";
-		testTerms.concepts.get(0).coordinates.source = "someSource";
-		testTerms.concepts.get(0).descriptions = null;
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+		testTerms.getConceptsAsList().get(0).coordinates.source = "someSource";
+		testTerms.getConceptsAsList().get(0).descriptions = null;
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Node term = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 0);
+			Node term = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			assertNotNull(term);
 			assertFalse(term.hasProperty(PROP_DESCRIPTIONS));
 		}
 
 		// Now add a description, only by knowing the term's original ID.
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src1";
-		testTerms.concepts.get(0).coordinates.sourceId = null;
-		testTerms.concepts.get(0).descriptions = Lists.newArrayList("desc");
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+		testTerms.getConceptsAsList().get(0).coordinates.sourceId = null;
+		testTerms.getConceptsAsList().get(0).descriptions = Lists.newArrayList("desc");
 		ImportOptions importOptions = new ImportOptions();
 		importOptions.merge = true;
-		testTerms.importOptions = importOptions;
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.setImportOptions(importOptions);
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Node term = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 0);
+			Node term = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			assertNotNull(term);
 			assertTrue(term.hasProperty(PROP_DESCRIPTIONS));
 			assertArrayEquals(new String[] { "desc" }, (String[]) term.getProperty(PROP_DESCRIPTIONS));
@@ -200,20 +199,20 @@ public class ConceptManagerTest {
 
 		ImportConcepts testTerms;
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src1";
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
 		// we also have to set the source ID and source of at least one term to
 		// a different value or we will get an exception telling us that our
 		// data is inconsistent (because source ID and source would match but
 		// the original ID and original source wouldn't)
-		testTerms.concepts.get(0).coordinates.sourceId = "anothersourceid";
-		testTerms.concepts.get(0).coordinates.source = "anothersource";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(0).coordinates.sourceId = "anothersourceid";
+		testTerms.getConceptsAsList().get(0).coordinates.source = "anothersource";
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.concepts.get(0).coordinates.originalId = "orgId";
-		testTerms.concepts.get(0).coordinates.originalSource = "src2";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src2";
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterable<Node> terms = () -> graphDb.findNodes(ConceptLabel.CONCEPT);
@@ -232,9 +231,9 @@ public class ConceptManagerTest {
 	}
 
 	/**
-	 * Tests the import of a (small) set of terms together with their complete
-	 * facet definition. The facet should be created and the terms be created
-	 * and connected to it.
+	 * Tests the import of a (small) set of terms together with their complete facet
+	 * definition. The facet should be created and the terms be created and
+	 * connected to it.
 	 * 
 	 * @throws JSONException
 	 * @throws IllegalAccessException
@@ -255,8 +254,8 @@ public class ConceptManagerTest {
 		// import method "knows" which facet Id to use (there will only be this
 		// one facet, so its fid0...)
 		ImportFacet facetMap = FacetManagerTest.getImportFacet();
-		Gson gson = new Gson();
-		String jsonFacet = gson.toJson(facetMap);
+
+		String jsonFacet = ConceptsJsonSerializer.toJson(facetMap);
 		FacetManager.createFacet(graphDb, new JSONObject(jsonFacet));
 
 		// Do the term import and tests.
@@ -300,8 +299,7 @@ public class ConceptManagerTest {
 		termsAndFacet.put("concepts", termList);
 
 		// --------- CREATE JSON AND SEND DATA --------
-		Gson gson = new Gson();
-		String termsAndFacetBytes = gson.toJson(termsAndFacet);
+		String termsAndFacetBytes = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertConcepts(graphDb, termsAndFacetBytes);
 
@@ -398,24 +396,23 @@ public class ConceptManagerTest {
 				new ImportConcept("prefname1", "desc of term1", new ConceptCoordinates("TERM1", "TEST_SOURCE", SRC)));
 
 		// -------- SEND TERM WITH FACET DEFINITION ------
-		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
 
 		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("concepts", termList);
-		String termsAndFacetJson = gson.toJson(termsAndFacet);
+		String termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// Create the 2nd facet separately.
 		facetMap = FacetManagerTest.getTestFacetMap(2);
-		String jsonFacet = gson.toJson(facetMap);
+		String jsonFacet = ConceptsJsonSerializer.toJson(facetMap);
 		FacetManager.createFacet(graphDb, new JSONObject(jsonFacet));
 
 		// ---------- SEND TERM ONLY WITH FACET ID --------
 		facetMap = new ImportFacet("fid1");
 		termsAndFacet.put("facet", facetMap);
-		termsAndFacetJson = gson.toJson(termsAndFacet);
+		termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------------ MAKE TESTS ---------------
@@ -439,10 +436,10 @@ public class ConceptManagerTest {
 		// graph.
 
 		ImportConcepts testTerms = getTestTerms(5);
-		testTerms.facet.noFacet = true;
+		testTerms.getFacet().setNoFacet(true);
 
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Node facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, NodeConstants.Labels.ROOT,
@@ -480,13 +477,12 @@ public class ConceptManagerTest {
 		ImportConcept concept = new ImportConcept("prefname1",
 				new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
 
 		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
-		String termsAndFacetJson = gson.toJson(termsAndFacet);
+		String termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 2 ---------------
@@ -494,7 +490,7 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("TERM1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
-		termsAndFacetJson = gson.toJson(termsAndFacet);
+		termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 3 ---------------
@@ -502,7 +498,7 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("TERM2", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
-		termsAndFacetJson = gson.toJson(termsAndFacet);
+		termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 4 ---------------
@@ -510,7 +506,7 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("TERM3", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
-		termsAndFacetJson = gson.toJson(termsAndFacet);
+		termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------ MAKE TESTS ---------------
@@ -548,16 +544,17 @@ public class ConceptManagerTest {
 		// existing concept
 		ImportConcepts testTerms = getTestTerms(1);
 		ConceptManager cm = new ConceptManager();
-		cm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		cm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		testTerms = getTestTerms(1);
-		testTerms.importOptions = new ImportOptions();
-		testTerms.importOptions.merge = true;
-		testTerms.concepts.get(0).addGeneralLabel("ANOTHER_LABEL");
-		// just to make am more thorough test, we change the source coordinates (but NOT the original coordinates)
-		testTerms.concepts.get(0).coordinates.sourceId ="somesrcid";
-		testTerms.concepts.get(0).coordinates.source ="somesrc";
-		cm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.setImportOptions(new ImportOptions());
+		testTerms.getImportOptions().merge = true;
+		testTerms.getConceptsAsList().get(0).addGeneralLabel("ANOTHER_LABEL");
+		// just to make am more thorough test, we change the source coordinates (but NOT
+		// the original coordinates)
+		testTerms.getConceptsAsList().get(0).coordinates.sourceId = "somesrcid";
+		testTerms.getConceptsAsList().get(0).coordinates.source = "somesrc";
+		cm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			// Check that there is only one concept node
@@ -596,9 +593,9 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportConcepts(terms, importFacet);
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 		// Insert another time.
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Index<Node> index = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
@@ -622,10 +619,10 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportConcepts(terms, importFacet);
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 		try (Transaction tx = graphDb.beginTx()) {
-			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 1);
+			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 1);
 			assertNotNull(n1);
 			Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
 			assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
@@ -637,10 +634,10 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportConcepts(terms, importFacet);
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 		try (Transaction tx = graphDb.beginTx()) {
-			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 1);
+			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 1);
 			Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
 			assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
 		}
@@ -650,10 +647,10 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
 		importFacet = FacetManagerTest.getImportFacet();
 		importTermAndFacet = new ImportConcepts(terms, importFacet);
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 		try (Transaction tx = graphDb.beginTx()) {
-			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 1);
+			Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 1);
 			Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
 			assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
 		}
@@ -678,20 +675,20 @@ public class ConceptManagerTest {
 		// We set for two terms the general properties
 		// "do not use for suggestions", "do not use for query dictionary"
 		// that should be excluded then.
-		testTerms.concepts.get(numTerms).addGeneralLabel(termLabelDoNotUseForSuggestions);
-		testTerms.concepts.get(numTerms + 1).addGeneralLabel(termLabelDoNotUseForSuggestions);
+		testTerms.getConceptsAsList().get(numTerms).addGeneralLabel(termLabelDoNotUseForSuggestions);
+		testTerms.getConceptsAsList().get(numTerms + 1).addGeneralLabel(termLabelDoNotUseForSuggestions);
 		// We do set the correct property to the test facet so that the test
 		// method call to pushAllTermsToSet() may refer to this property as a
 		// constraint.
 		// Map<String, Object> facetMap = (Map<String, Object>)
 		// testTerms.get("facet");
-		ImportFacet facetMap = testTerms.facet;
-		facetMap.labels = new ArrayList<>();
+		ImportFacet facetMap = testTerms.getFacet();
+		facetMap.setLabels(new ArrayList<>());
 		facetMap.addLabel(facetLabelUseForSuggestions);
 		// facetMap.put(NodeConstants.PROP_GENERAL_LABELS, new String[] {
 		// facetLabelUseForSuggestions });
-		Gson gson = new Gson();
-		String termsAndFacetBytes = gson.toJson(testTerms);
+
+		String termsAndFacetBytes = ConceptsJsonSerializer.toJson(testTerms);
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertConcepts(graphDb, termsAndFacetBytes);
 
@@ -705,7 +702,7 @@ public class ConceptManagerTest {
 			cmd.eligibleConceptDefinition.facetLabel = facetLabelUseForSuggestions;
 			cmd.excludeConceptDefinition = cmd.new ConceptSelectionDefinition();
 			cmd.excludeConceptDefinition.conceptLabel = termLabelDoNotUseForSuggestions;
-			ftm.pushConceptsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
+			ftm.pushConceptsToSet(graphDb, ConceptsJsonSerializer.toJson(cmd), -1);
 
 			// And check whether they have been successfully added to the set.
 			it = graphDb.findNodes(Label.label(setName));
@@ -746,8 +743,8 @@ public class ConceptManagerTest {
 		String setName = "PENDING_FOR_SUGGESTIONS";
 
 		ImportConcepts testTerms = getTestTerms(numTerms);
-		Gson gson = new Gson();
-		String termsAndFacetBytes = gson.toJson(testTerms);
+
+		String termsAndFacetBytes = ConceptsJsonSerializer.toJson(testTerms);
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertConcepts(graphDb, termsAndFacetBytes);
 
@@ -757,7 +754,7 @@ public class ConceptManagerTest {
 		PushConceptsToSetCommand cmd = new PushConceptsToSetCommand(setName);
 		cmd.eligibleConceptDefinition = cmd.new ConceptSelectionDefinition(FacetConstants.PROP_LABELS,
 				facetLabelUseForSuggestions);
-		ftm.pushConceptsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
+		ftm.pushConceptsToSet(graphDb, ConceptsJsonSerializer.toJson(cmd), -1);
 
 		// And check whether they have been successfully added to the set.
 		try (Transaction tx = graphDb.beginTx()) {
@@ -774,15 +771,15 @@ public class ConceptManagerTest {
 
 		String setName = "PENDING_FOR_SUGGESTIONS";
 		ImportConcepts testTerms = getTestTerms(numTerms);
-		Gson gson = new Gson();
-		String termsAndFacetBytes = gson.toJson(testTerms);
+
+		String termsAndFacetBytes = ConceptsJsonSerializer.toJson(testTerms);
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertConcepts(graphDb, termsAndFacetBytes);
 
 		// Now try to push the terms into the "pending for suggestion" set
 		// without any restrictions.
 		PushConceptsToSetCommand cmd = new PushConceptsToSetCommand(setName);
-		ftm.pushConceptsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
+		ftm.pushConceptsToSet(graphDb, ConceptsJsonSerializer.toJson(cmd), -1);
 
 		// And check whether they have been successfully added to the set.
 		int termCount = countNodesWithLabel(Label.label(setName));
@@ -794,7 +791,7 @@ public class ConceptManagerTest {
 		setName = "other set";
 		cmd = new PushConceptsToSetCommand(setName);
 		cmd.eligibleConceptDefinition = cmd.new ConceptSelectionDefinition("", "", "", "");
-		ftm.pushConceptsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
+		ftm.pushConceptsToSet(graphDb, ConceptsJsonSerializer.toJson(cmd), -1);
 
 		// And check whether they have been successfully added to the set.
 		termCount = countNodesWithLabel(Label.label(setName));
@@ -807,15 +804,15 @@ public class ConceptManagerTest {
 
 		String setName = "PENDING_FOR_SUGGESTIONS";
 		ImportConcepts testTerms = getTestTerms(numTerms);
-		Gson gson = new Gson();
-		String termsAndFacetBytes = gson.toJson(testTerms);
+
+		String termsAndFacetBytes = ConceptsJsonSerializer.toJson(testTerms);
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertConcepts(graphDb, termsAndFacetBytes);
 
 		// Now try to push the terms into the "pending for suggestion", but only
 		// a part of the terms.
 		PushConceptsToSetCommand cmd = new PushConceptsToSetCommand(setName);
-		ftm.pushConceptsToSet(graphDb, JsonSerializer.toJson(cmd), 42);
+		ftm.pushConceptsToSet(graphDb, ConceptsJsonSerializer.toJson(cmd), 42);
 
 		// And check that only the specified number of terms is returned.
 		int termCount = countNodesWithLabel(Label.label(setName));
@@ -879,8 +876,7 @@ public class ConceptManagerTest {
 		termsAndFacet.put("facet", FacetManagerTest.getImportFacet());
 		termsAndFacet.put("concepts", termList);
 
-		Gson gson = new Gson();
-		String termsJson = gson.toJson(termsAndFacet);
+		String termsJson = ConceptsJsonSerializer.toJson(termsAndFacet);
 		ConceptManager ftt = new ConceptManager();
 
 		ftt.insertConcepts(graphDb, termsJson);
@@ -909,7 +905,7 @@ public class ConceptManagerTest {
 		// created on behalf of the referenced other half. After inserting
 		// this other half, there should be no more "hollow" terms.
 		ImportConcepts testTermsAndFacet = getTestTerms(4);
-		List<ImportConcept> terms = testTermsAndFacet.concepts;
+		List<ImportConcept> terms = testTermsAndFacet.getConceptsAsList();
 		// Now we just create relationships so that:
 		// 0 equals 1
 		// 0 equals 3
@@ -933,14 +929,13 @@ public class ConceptManagerTest {
 
 		// Now we split the terms in two lists in order to check the behavior of
 		// the "hollow" label assignment.
-		ImportConcepts firstTerms = new ImportConcepts(terms.subList(0, 2), testTermsAndFacet.facet);
-		ImportConcepts secondTerms = new ImportConcepts(terms.subList(2, 4), testTermsAndFacet.facet);
+		ImportConcepts firstTerms = new ImportConcepts(terms.subList(0, 2), testTermsAndFacet.getFacet());
+		ImportConcepts secondTerms = new ImportConcepts(terms.subList(2, 4), testTermsAndFacet.getFacet());
 
-		Gson gson = new Gson();
 		ConceptManager ftt = new ConceptManager();
 
 		// Insert the first half of terms.
-		ftt.insertConcepts(graphDb, gson.toJson(firstTerms));
+		ftt.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(firstTerms));
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.ConceptLabel.CONCEPT);
 			int nodeCount = 0;
@@ -959,7 +954,7 @@ public class ConceptManagerTest {
 		// Now insert the other half of terms. After this we should still have 4
 		// terms, but non of them should be
 		// hollow and all should have an ID, a facet and a description.
-		ftt.insertConcepts(graphDb, gson.toJson(secondTerms));
+		ftt.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(secondTerms));
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.ConceptLabel.CONCEPT);
 			while (nodesIt.hasNext()) {
@@ -1015,7 +1010,7 @@ public class ConceptManagerTest {
 	@Test
 	public void testAdditionalRelationships2() throws JSONException {
 		ImportConcepts testTermsAndFacet = getTestTerms(4);
-		List<ImportConcept> terms = testTermsAndFacet.concepts;
+		List<ImportConcept> terms = testTermsAndFacet.getConceptsAsList();
 		String termSource = terms.get(0).coordinates.originalSource;
 		ImportFacetTermRelationship rel1 = new ImportFacetTermRelationship("TERM" + 1, termSource,
 				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE);
@@ -1029,8 +1024,8 @@ public class ConceptManagerTest {
 		terms.get(0).addRelationship(rel2);
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTermsAndFacet));
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTermsAndFacet));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTermsAndFacet));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTermsAndFacet));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Node term0 = graphDb.findNode(ConceptLabel.CONCEPT, PROP_ID, NodeIDPrefixConstants.TERM + 0);
@@ -1052,7 +1047,7 @@ public class ConceptManagerTest {
 		// from external data as opposed to
 		// computing it within the database.
 		ImportConcepts testTerms = getTestTerms(5);
-		List<ImportConcept> terms = testTerms.concepts;
+		List<ImportConcept> terms = testTerms.getConceptsAsList();
 		// Add an aggregate term with terms 0-3 as elements. The term on
 		// position 4 will stay alone.
 		List<String> aggregateElementSrcIds = Lists.newArrayList("TERM" + 0, "TERM" + 1, "TERM" + 2, "TERM" + 3);
@@ -1067,9 +1062,8 @@ public class ConceptManagerTest {
 		terms.add(new ImportConcept(aggregateElementCoords,
 				Lists.newArrayList(PROP_PREF_NAME, PROP_SYNONYMS, PROP_DESCRIPTIONS)));
 
-		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, gson.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		assertEquals("Number of actual terms", 5, countNodesWithLabel(ConceptManager.ConceptLabel.CONCEPT));
 		assertEquals("Number of aggregate terms", 1, countNodesWithLabel(ConceptManager.ConceptLabel.AGGREGATE));
@@ -1124,13 +1118,14 @@ public class ConceptManagerTest {
 				Arrays.asList(PROP_PREF_NAME));
 		aggregate.coordinates = new ConceptCoordinates("testagg", "TEST_DATA", SRC);
 		aggregate.aggregateIncludeInHierarchy = true;
-		testTerms.concepts.add(aggregate);
-		testTerms.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
-		testTerms.concepts.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().add(aggregate);
+		testTerms.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
 
-		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, gson.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			int aggregateCount = countNodesWithLabel(ConceptLabel.AGGREGATE);
@@ -1163,13 +1158,14 @@ public class ConceptManagerTest {
 		aggregate.coordinates = new ConceptCoordinates("testagg", "TEST_TERM", SRC);
 		aggregate.aggregateIncludeInHierarchy = true;
 		aggregate.generalLabels = Arrays.asList("MY_COOL_AGGREGATE_LABEL");
-		testTerms.concepts.add(aggregate);
-		testTerms.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_TERM", SRC));
-		testTerms.concepts.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("testagg", "TEST_TERM", SRC));
+		testTerms.getConceptsAsList().add(aggregate);
+		testTerms.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("testagg", "TEST_TERM", SRC));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("testagg", "TEST_TERM", SRC));
 
-		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, gson.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			int aggregateCount = countNodesWithLabel(Label.label("MY_COOL_AGGREGATE_LABEL"));
@@ -1202,7 +1198,7 @@ public class ConceptManagerTest {
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		ImportConcepts importTermAndFacet = new ImportConcepts(terms, importFacet);
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 		ftm.buildAggregatesByNameAndSynonyms(graphDb, ConceptConstants.PROP_LABELS,
 				"[\"DO_NOT_USE_FOR_SUGGESTIONS\",\"DO_NOT_USE_FOR_QUERY_DICTIONARY\"]");
 
@@ -1270,24 +1266,28 @@ public class ConceptManagerTest {
 		testTerms2 = getTestTerms(1, 2);
 		testTerms3 = getTestTerms(1, 3);
 		testTerms4 = getTestTerms(1, 4);
-		testTerms.facet.name = "facet0";
-		testTerms1.facet.name = "facet1";
-		testTerms2.facet.name = "facet2";
-		testTerms3.facet.name = "facet3";
-		testTerms4.facet.name = "facet4";
-		testTerms1.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms2.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM1", "TEST_DATA", SRC));
-		testTerms3.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM2", "TEST_DATA", SRC));
-		testTerms4.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms1));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms2));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms3));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms4));
+		testTerms.getFacet().setName("facet0");
+		testTerms1.getFacet().setName("facet1");
+		testTerms2.getFacet().setName("facet2");
+		testTerms3.getFacet().setName("facet3");
+		testTerms4.getFacet().setName("facet4");
+		testTerms1.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms2.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM1", "TEST_DATA", SRC));
+		testTerms3.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM2", "TEST_DATA", SRC));
+		testTerms4.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms1));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms2));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms3));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms4));
 
 		List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("TERM0", "TERM1", "loom"));
 
-		int numInsertedRels = ftm.insertMappings(graphDb, JsonSerializer.toJson(mappings));
+		int numInsertedRels = ftm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mappings));
 		assertEquals(1, numInsertedRels);
 
 		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("loom"), ConceptLabel.CONCEPT,
@@ -1309,8 +1309,8 @@ public class ConceptManagerTest {
 			assertEquals(2, relCount);
 
 			// now: get the "children" of the aggregate (should be the elements)
-			RecursiveMappingRepresentation response = (RecursiveMappingRepresentation) ftm.getChildrenOfConcepts(graphDb,
-					"[" + NodeIDPrefixConstants.AGGREGATE_TERM + "0]", ConceptLabel.AGGREGATE.name());
+			RecursiveMappingRepresentation response = (RecursiveMappingRepresentation) ftm.getChildrenOfConcepts(
+					graphDb, "[" + NodeIDPrefixConstants.AGGREGATE_TERM + "0]", ConceptLabel.AGGREGATE.name());
 			@SuppressWarnings("unchecked")
 			Map<String, Object> relAndChildMap = (Map<String, Object>) response.getUnderlyingMap()
 					.get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
@@ -1335,11 +1335,11 @@ public class ConceptManagerTest {
 				new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC)));
 		ImportConcepts termAndFacet = new ImportConcepts(terms, importFacet);
 		// Allow hollow parents:
-		termAndFacet.importOptions = new ImportOptions();
-		termAndFacet.importOptions.doNotCreateHollowParents = false;
+		termAndFacet.setImportOptions(new ImportOptions());
+		termAndFacet.getImportOptions().doNotCreateHollowParents = false;
 		ConceptManager ftm = new ConceptManager();
 		RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) ftm.insertConcepts(graphDb,
-				JsonSerializer.toJson(termAndFacet));
+				ConceptsJsonSerializer.toJson(termAndFacet));
 		Map<String, Object> reportMap = report.getUnderlyingMap();
 		assertEquals("Number of inserted terms", 2, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_CONCEPTS));
 		// we expect relations for the root term, broader than and broader than fid0
@@ -1390,9 +1390,9 @@ public class ConceptManagerTest {
 		// We need to replace the facet definition by the ID of the already
 		// created facet because a new facet will be
 		// created otherwise.
-		termAndFacet.facet = new ImportFacet("fid0");
+		termAndFacet.setFacet(new ImportFacet("fid0"));
 
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Iterable<Node> allNodes = () -> graphDb.findNodes(ConceptManager.ConceptLabel.CONCEPT);
@@ -1441,9 +1441,9 @@ public class ConceptManagerTest {
 		terms.add(new ImportConcept("prefname5", Lists.newArrayList("syn2"), "desc2",
 				new ConceptCoordinates("parentid8", "TEST_SOURCE", SRC),
 				new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
-		termAndFacet.facet = new ImportFacet("fid0");
+		termAndFacet.setFacet(new ImportFacet("fid0"));
 
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Index<Node> index = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
@@ -1463,11 +1463,11 @@ public class ConceptManagerTest {
 		// Terms 2 and 3 don't get a parent and should become "no-facet" terms.
 		ImportConcepts testTerms = getTestTerms(4);
 		ImportOptions options = new ImportOptions();
-		testTerms.importOptions = options;
+		testTerms.setImportOptions(options);
 		AddToNonFacetGroupCommand cmd = new AddToNonFacetGroupCommand();
 		cmd.addParentCriterium(AddToNonFacetGroupCommand.ParentCriterium.NO_PARENT);
 		options.noFacetCmd = cmd;
-		List<ImportConcept> terms = testTerms.concepts;
+		List<ImportConcept> terms = testTerms.getConceptsAsList();
 		// Here, we just give any parent so that the non-facet-group-command
 		// does not trigger.
 		List<ConceptCoordinates> parentSrcIds = Lists
@@ -1481,7 +1481,7 @@ public class ConceptManagerTest {
 		options.doNotCreateHollowParents = true;
 
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Node noFacetGroups = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, NodeConstants.Labels.ROOT,
@@ -1547,14 +1547,14 @@ public class ConceptManagerTest {
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		ImportConcepts importTermAndFacet = new ImportConcepts(terms, importFacet);
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 
-		Gson gson = new Gson();
 		RecursiveMappingRepresentation pathsFromFacetroots;
 		List<String[]> paths;
 
 		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
-				gson.toJson(Lists.newArrayList("source1", "source3")), ConceptConstants.PROP_SRC_IDS, false, "");
+				ConceptsJsonSerializer.toJson(Lists.newArrayList("source1", "source3")), ConceptConstants.PROP_SRC_IDS,
+				false, "");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		for (String[] path : paths) {
 			// We expect one path with a single node, i.e. source1 and two paths
@@ -1577,7 +1577,8 @@ public class ConceptManagerTest {
 		assertEquals("Wrong number of paths", 3, paths.size());
 
 		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
-				gson.toJson(Lists.newArrayList("source4", "source6")), ConceptConstants.PROP_SRC_IDS, false, "");
+				ConceptsJsonSerializer.toJson(Lists.newArrayList("source4", "source6")), ConceptConstants.PROP_SRC_IDS,
+				false, "");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		String[] expectedPath1 = new String[] { NodeIDPrefixConstants.TERM + 0, NodeIDPrefixConstants.TERM + 2,
 				NodeIDPrefixConstants.TERM + 3 };
@@ -1628,7 +1629,7 @@ public class ConceptManagerTest {
 		ImportFacet importFacet = FacetManagerTest.getImportFacet();
 		ImportConcepts importTermAndFacet = new ImportConcepts(terms, importFacet);
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 
 		// Now we insert two terms in another facet that would open another path
 		// from source5 to source1 if we would
@@ -1645,16 +1646,15 @@ public class ConceptManagerTest {
 		for (ImportConcept term : terms)
 			term.coordinates.source = "TEST_SOURCE";
 		importFacet = FacetManagerTest.getImportFacet();
-		importFacet.name = "otherfacet";
+		importFacet.setName("otherfacet");
 		importTermAndFacet = new ImportConcepts(terms, importFacet);
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(importTermAndFacet));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importTermAndFacet));
 
-		Gson gson = new Gson();
 		RecursiveMappingRepresentation pathsFromFacetroots;
 		List<String[]> paths;
 
 		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
-				gson.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false, "");
+				ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false, "");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		for (String[] path : paths) {
 			// We expect two paths, both chains that have been defined by the
@@ -1666,13 +1666,15 @@ public class ConceptManagerTest {
 		assertEquals("Wrong number of paths", 2, paths.size());
 
 		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
-				gson.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false, "fid0");
+				ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false,
+				"fid0");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		assertEquals("Wrong number of paths", 1, paths.size());
 		assertArrayEquals(new String[] { "tid0", "tid1", "tid2", "tid3", "tid4" }, paths.get(0));
 
 		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
-				gson.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false, "fid1");
+				ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false,
+				"fid1");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		assertEquals("Wrong number of paths", 1, paths.size());
 		assertArrayEquals(new String[] { "tid0", "tid5", "tid4" }, paths.get(0));
@@ -1690,21 +1692,24 @@ public class ConceptManagerTest {
 		ImportConcepts testTerms;
 		ConceptManager ftm = new ConceptManager();
 		testTerms = getTestTerms(2);
-		testTerms.concepts.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		// Insert terms for the second facet. We have to adjust some values here
 		// to actually get four terms and not just
 		// two because the duplicate source IDs would be detected.
 		testTerms = getTestTerms(2);
-		testTerms.facet.name = "secondfacet";
-		testTerms.concepts.get(0).coordinates.sourceId = "TERM2";
-		testTerms.concepts.get(0).coordinates.originalId = "TERM2";
-		testTerms.concepts.get(1).coordinates.sourceId = "TERM3";
-		testTerms.concepts.get(1).coordinates.originalId = "TERM3";
-		testTerms.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms.concepts.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getFacet().setName("secondfacet");
+		testTerms.getConceptsAsList().get(0).coordinates.sourceId = "TERM2";
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = "TERM2";
+		testTerms.getConceptsAsList().get(1).coordinates.sourceId = "TERM3";
+		testTerms.getConceptsAsList().get(1).coordinates.originalId = "TERM3";
+		testTerms.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		ftm.updateChildrenInformation(graphDb);
 
@@ -1725,11 +1730,15 @@ public class ConceptManagerTest {
 		ImportConcepts testTerms;
 		ConceptManager ftm = new ConceptManager();
 		testTerms = getTestTerms(5);
-		testTerms.concepts.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms.concepts.get(2).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms.concepts.get(3).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms.concepts.get(4).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(2).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(3).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(4).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			// Get the children of a single node.
@@ -1783,30 +1792,34 @@ public class ConceptManagerTest {
 		testTerms2 = getTestTerms(1, 2);
 		testTerms3 = getTestTerms(1, 3);
 		testTerms4 = getTestTerms(1, 4);
-		testTerms.facet.name = "facet0";
-		testTerms1.facet.name = "facet1";
-		testTerms2.facet.name = "facet2";
-		testTerms3.facet.name = "facet3";
-		testTerms4.facet.name = "facet4";
-		testTerms1.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms2.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM1", "TEST_DATA", SRC));
-		testTerms3.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM2", "TEST_DATA", SRC));
-		testTerms4.concepts.get(0).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms1));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms2));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms3));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms4));
+		testTerms.getFacet().setName("facet0");
+		testTerms1.getFacet().setName("facet1");
+		testTerms2.getFacet().setName("facet2");
+		testTerms3.getFacet().setName("facet3");
+		testTerms4.getFacet().setName("facet4");
+		testTerms1.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms2.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM1", "TEST_DATA", SRC));
+		testTerms3.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM2", "TEST_DATA", SRC));
+		testTerms4.getConceptsAsList().get(0).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms1));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms2));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms3));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms4));
 
 		List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("TERM0", "TERM1", "loom"),
 				new ImportMapping("TERM3", "TERM2", "same_uris"));
 
-		int numInsertedRels = ftm.insertMappings(graphDb, JsonSerializer.toJson(mappings));
+		int numInsertedRels = ftm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mappings));
 		assertEquals(2, numInsertedRels);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			Node term0 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 0);
+			Node term0 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			Iterable<Relationship> relationships = term0.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
 			int relCounter = 0;
 			for (Relationship rel : relationships) {
@@ -1816,8 +1829,8 @@ public class ConceptManagerTest {
 			}
 			assertEquals(1, relCounter);
 
-			Node term1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 1);
+			Node term1 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 1);
 			relationships = term1.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
 			relCounter = 0;
 			for (Relationship rel : relationships) {
@@ -1829,7 +1842,7 @@ public class ConceptManagerTest {
 		}
 
 		// Check that there are no duplicates created.
-		numInsertedRels = ftm.insertMappings(graphDb, JsonSerializer.toJson(mappings));
+		numInsertedRels = ftm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mappings));
 		assertEquals(0, numInsertedRels);
 
 		// Even if we add a mapping with a new type between two classes that
@@ -1841,12 +1854,12 @@ public class ConceptManagerTest {
 		mappings = Lists.newArrayList(new ImportMapping("TERM0", "TERM1", "new_type"),
 				new ImportMapping("TERM0", "TERM1", "new_type"),
 				new ImportMapping("TERM_DOES_NOT_EXIST", "TERM1", "new_type"));
-		numInsertedRels = ftm.insertMappings(graphDb, JsonSerializer.toJson(mappings));
+		numInsertedRels = ftm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mappings));
 		assertEquals(0, numInsertedRels);
 		// But the relationship now should know both mapping types.
 		try (Transaction tx = graphDb.beginTx()) {
-			Node term0 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT, PROP_ID,
-					NodeIDPrefixConstants.TERM + 0);
+			Node term0 = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
+					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			Iterable<Relationship> relationships = term0.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
 			int relCounter = 0;
 			for (Relationship rel : relationships) {
@@ -1870,18 +1883,22 @@ public class ConceptManagerTest {
 		ConceptManager ftm = new ConceptManager();
 		// Create terms in THE SAME facets we will then map to each other
 		testTerms = getTestTerms(5);
-		testTerms.concepts.get(1).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
-		testTerms.concepts.get(2).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM1", "TEST_DATA", SRC));
-		testTerms.concepts.get(3).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM2", "TEST_DATA", SRC));
-		testTerms.concepts.get(4).parentCoordinates = Arrays.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM0", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(2).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM1", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(3).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM2", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(4).parentCoordinates = Arrays
+				.asList(new ConceptCoordinates("TERM3", "TEST_DATA", SRC));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("TERM0", "TERM1", "loom"),
 				new ImportMapping("TERM3", "TERM2", "same_uris"));
 
 		// We have a loom mapping between TERM0 and TERM1 which should be
 		// filtered out since both terms appear in the same facet.
-		int numInsertedRels = ftm.insertMappings(graphDb, JsonSerializer.toJson(mappings));
+		int numInsertedRels = ftm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mappings));
 		assertEquals(1, numInsertedRels);
 	}
 
@@ -1894,12 +1911,13 @@ public class ConceptManagerTest {
 		// terms.
 		ImportConcepts testTerms = getTestTerms(4);
 		// add a fifth term that has the first term as a parent
-		testTerms.concepts.add(new ImportConcept("someterm", new ConceptCoordinates("somesrcid", "somesource", SRC),
-				new ConceptCoordinates("TERM0", "TEST_DATA", SRC)));
-		testTerms.concepts.get(testTerms.concepts.size() - 1).coordinates.source = "somesource";
+		testTerms.getConceptsAsList()
+				.add(new ImportConcept("someterm", new ConceptCoordinates("somesrcid", "somesource", SRC),
+						new ConceptCoordinates("TERM0", "TEST_DATA", SRC)));
+		testTerms.getConceptsAsList().get(testTerms.getConceptsAsList().size() - 1).coordinates.source = "somesource";
 		ConceptManager tm = new ConceptManager();
 		// first insert.
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		// now again get two test terms. Those will be identical to the first
 		// two test terms above.
@@ -1907,20 +1925,20 @@ public class ConceptManagerTest {
 		// IMPORTANT: this is the key in this test: We do NOT insert a facet
 		// which should be not necessary because we
 		// only insert terms that are already in the database.
-		testTerms.facet = null;
+		testTerms.setFacet(null);
 		// Give new property values to the first term, leave the second
 		// unchanged.
-		testTerms.concepts.get(0).generalLabels = Lists.newArrayList("newlabel1");
-		testTerms.concepts.get(0).descriptions = Lists.newArrayList("newdescription1");
-		testTerms.concepts.get(0).prefName = "newprefname1";
+		testTerms.getConceptsAsList().get(0).generalLabels = Lists.newArrayList("newlabel1");
+		testTerms.getConceptsAsList().get(0).descriptions = Lists.newArrayList("newdescription1");
+		testTerms.getConceptsAsList().get(0).prefName = "newprefname1";
 		// re-insert the additional term from above but with a description and a
 		// synonym, without a parent; we should
 		// not need it since the term is already known.
 		ImportConcept term = new ImportConcept("somesrcid", Arrays.asList("newsynonym2"), "newdesc2",
 				new ConceptCoordinates("somesrcid", "somesource", SRC));
-		testTerms.concepts.add(term);
+		testTerms.getConceptsAsList().add(term);
 		// second insert, duplicate terms should now be merged.
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		// Test the success of the merging.
 		try (Transaction tx = graphDb.beginTx()) {
@@ -1929,15 +1947,15 @@ public class ConceptManagerTest {
 			ResourceIterator<Node> facets = graphDb.findNodes(FacetManager.FacetLabel.FACET);
 			int facetCounter = 0;
 			for (@SuppressWarnings("unused")
-			Node facet : (Iterable<Node>)() -> facets) {
+			Node facet : (Iterable<Node>) () -> facets) {
 				facetCounter++;
 			}
 			assertEquals(1, facetCounter);
 
 			// Now test that the merged-in properties - and labels - are
 			// actually there.
-			Node mergedTerm = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, Label.label("newlabel1"),
-					PROP_ID, "tid0");
+			Node mergedTerm = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, Label.label("newlabel1"), PROP_ID,
+					"tid0");
 			// have we found the term? Then it got its new label.
 			assertNotNull(mergedTerm);
 			List<String> descriptions = Lists.newArrayList((String[]) mergedTerm.getProperty(PROP_DESCRIPTIONS));
@@ -1979,7 +1997,7 @@ public class ConceptManagerTest {
 		termsMap.put(ConceptManager.KEY_CONCEPTS, terms);
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(termsMap));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termsMap));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			Node termNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, ConceptManager.ConceptLabel.CONCEPT,
@@ -1995,13 +2013,13 @@ public class ConceptManagerTest {
 	public void testGetAllFacetRoots() throws Exception {
 		ConceptManager tm = new ConceptManager();
 		ImportConcepts testTerms = getTestTerms(3);
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 		// Insert two times so we have two facets
-		testTerms.facet.name = "secondfacet";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		testTerms.getFacet().setName("secondfacet");
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 		RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm
 				.getFacetRoots(graphDb,
-						JsonSerializer.toJson(
+						ConceptsJsonSerializer.toJson(
 								Lists.newArrayList(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1)),
 						null, 0);
 		Map<String, Object> map = facetRoots.getUnderlyingMap();
@@ -2034,12 +2052,12 @@ public class ConceptManagerTest {
 		// maximum roots
 		ConceptManager tm = new ConceptManager();
 		ImportConcepts testTerms = getTestTerms(3);
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 		// Insert two times so we have two facets
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 		RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm
 				.getFacetRoots(graphDb,
-						JsonSerializer.toJson(
+						ConceptsJsonSerializer.toJson(
 								Lists.newArrayList(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1)),
 						null, 2);
 		Map<String, Object> map = facetRoots.getUnderlyingMap();
@@ -2056,11 +2074,11 @@ public class ConceptManagerTest {
 		ConceptManager tm = new ConceptManager();
 		ImportConcepts testTerms = getTestTerms(3);
 		// Insert three times so we have three facets
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
-		testTerms.facet.name = "secondfacet";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
-		testTerms.facet.name = "thirdfacet";
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+		testTerms.getFacet().setName("secondfacet");
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+		testTerms.getFacet().setName("thirdfacet");
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		Map<String, List<String>> requestedRoots = new HashMap<>();
 		requestedRoots.put(NodeIDPrefixConstants.FACET + 0, Lists.newArrayList(NodeIDPrefixConstants.TERM + 0));
@@ -2069,9 +2087,9 @@ public class ConceptManagerTest {
 		// for the third facet, we want all roots returned
 
 		RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm.getFacetRoots(graphDb,
-				JsonSerializer.toJson(Lists.newArrayList(NodeIDPrefixConstants.FACET + 0,
+				ConceptsJsonSerializer.toJson(Lists.newArrayList(NodeIDPrefixConstants.FACET + 0,
 						NodeIDPrefixConstants.FACET + 1, NodeIDPrefixConstants.FACET + 2)),
-				JsonSerializer.toJson(requestedRoots), 0);
+				ConceptsJsonSerializer.toJson(requestedRoots), 0);
 		Map<String, Object> map = facetRoots.getUnderlyingMap();
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -2159,8 +2177,8 @@ public class ConceptManagerTest {
 		ImportConcepts facet2 = getTestTerms(1);
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(facet1));
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(facet2));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(facet1));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(facet2));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			assertEquals(1, countNodesWithLabel(FacetLabel.FACET));
@@ -2172,7 +2190,7 @@ public class ConceptManagerTest {
 		{
 			ImportConcepts testTerms = getTestTerms(1);
 			ConceptManager tm = new ConceptManager();
-			tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+			tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 			Map<String, Map<String, Map<String, Integer>>> variantCountsByTermIdPerDoc = new HashMap<>();
 			Map<String, Map<String, Integer>> variantCountsPerDoc = new HashMap<>();
@@ -2184,7 +2202,7 @@ public class ConceptManagerTest {
 			variantCounts.put("var1", 3);
 			variantCountsPerDoc.put("doc2", variantCounts);
 			variantCountsByTermIdPerDoc.put(NodeIDPrefixConstants.TERM + 0, variantCountsPerDoc);
-			tm.addWritingVariants(graphDb, JsonSerializer.toJson(variantCountsByTermIdPerDoc), null);
+			tm.addWritingVariants(graphDb, ConceptsJsonSerializer.toJson(variantCountsByTermIdPerDoc), null);
 		}
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -2216,7 +2234,7 @@ public class ConceptManagerTest {
 		{
 			ImportConcepts testTerms = getTestTerms(1);
 			ConceptManager tm = new ConceptManager();
-			tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+			tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 			Map<String, Map<String, Map<String, Integer>>> variantCountsByTermIdPerDoc = new HashMap<>();
 			Map<String, Map<String, Integer>> variantCountsPerDoc = new HashMap<>();
@@ -2245,7 +2263,7 @@ public class ConceptManagerTest {
 			variantCounts.put("var1", 8);
 			variantCountsPerDoc.put("doc8", variantCounts);
 			variantCountsByTermIdPerDoc.put(NodeIDPrefixConstants.TERM + 0, variantCountsPerDoc);
-			tm.addWritingVariants(graphDb, JsonSerializer.toJson(variantCountsByTermIdPerDoc), null);
+			tm.addWritingVariants(graphDb, ConceptsJsonSerializer.toJson(variantCountsByTermIdPerDoc), null);
 		}
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -2290,22 +2308,22 @@ public class ConceptManagerTest {
 		ImportConcepts testTerms = getTestTerms(2);
 		// first, remove original ID and source because otherwise the original
 		// ID checks will take over
-		testTerms.concepts.get(0).coordinates.originalId = null;
-		testTerms.concepts.get(0).coordinates.originalSource = null;
-		testTerms.concepts.get(1).coordinates.originalId = null;
-		testTerms.concepts.get(1).coordinates.originalSource = null;
+		testTerms.getConceptsAsList().get(0).coordinates.originalId = null;
+		testTerms.getConceptsAsList().get(0).coordinates.originalSource = null;
+		testTerms.getConceptsAsList().get(1).coordinates.originalId = null;
+		testTerms.getConceptsAsList().get(1).coordinates.originalSource = null;
 
 		// now set terms that should be equal by source ID despite having a
 		// different source
-		testTerms.concepts.get(0).coordinates.uniqueSourceId = true;
-		testTerms.concepts.get(0).coordinates.sourceId = "id0";
-		testTerms.concepts.get(0).coordinates.source = "source0";
-		testTerms.concepts.get(1).coordinates.uniqueSourceId = true;
-		testTerms.concepts.get(1).coordinates.sourceId = "id0";
-		testTerms.concepts.get(1).coordinates.source = "source1";
+		testTerms.getConceptsAsList().get(0).coordinates.uniqueSourceId = true;
+		testTerms.getConceptsAsList().get(0).coordinates.sourceId = "id0";
+		testTerms.getConceptsAsList().get(0).coordinates.source = "source0";
+		testTerms.getConceptsAsList().get(1).coordinates.uniqueSourceId = true;
+		testTerms.getConceptsAsList().get(1).coordinates.sourceId = "id0";
+		testTerms.getConceptsAsList().get(1).coordinates.source = "source1";
 
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 	}
 
 	public static void printNodeLabels(Node n) {

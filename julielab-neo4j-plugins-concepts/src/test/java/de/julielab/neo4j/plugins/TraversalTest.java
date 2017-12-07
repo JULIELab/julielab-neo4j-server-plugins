@@ -23,10 +23,10 @@ import org.neo4j.graphdb.traversal.Traverser;
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
-import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class TraversalTest {
@@ -52,7 +52,7 @@ public class TraversalTest {
 	public void testGetAcronymsTraversal() throws Exception {
 		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		Map<String, Integer> acronymCounts = new HashMap<>();
 		// acro1 is a shared acronym
@@ -67,7 +67,7 @@ public class TraversalTest {
 		acronymCounts.put("acro1", 4);
 		acronymCounts.put("acro3", 7);
 
-		tm.addWritingVariants(graphDb, null, JsonSerializer.toJson(acronyms));
+		tm.addWritingVariants(graphDb, null, ConceptsJsonSerializer.toJson(acronyms));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> acronymsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
@@ -93,7 +93,7 @@ public class TraversalTest {
 		// instead of acronyms
 		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
 		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, JsonSerializer.toJson(testTerms));
+		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
 
 		Map<String, Integer> variantCounts = new HashMap<>();
 		// acro1 is a shared acronym
@@ -108,7 +108,7 @@ public class TraversalTest {
 		variantCounts.put("variant1", 4);
 		variantCounts.put("variant2", 7);
 
-		tm.addWritingVariants(graphDb, JsonSerializer.toJson(variants), null);
+		tm.addWritingVariants(graphDb, ConceptsJsonSerializer.toJson(variants), null);
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> variantsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);

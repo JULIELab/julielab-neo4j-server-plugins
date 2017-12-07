@@ -51,12 +51,12 @@ import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
-import de.julielab.neo4j.plugins.datarepresentation.JsonSerializer;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 
 public class FacetManagerTest {
@@ -215,7 +215,7 @@ public class FacetManagerTest {
 	@Test
 	public void testCreateFacet() throws JSONException {
 		ImportFacet facetMap = getTestFacetMap(1);
-		facetMap.labels = Lists.newArrayList("uniqueLabel1", "uniqueLabel2");
+		facetMap.setLabels(Lists.newArrayList("uniqueLabel1", "uniqueLabel2"));
 		Gson gson = new Gson();
 		String jsonFacetString = gson.toJson(facetMap);
 		JSONObject jsonFacet = new JSONObject(jsonFacetString);
@@ -339,10 +339,10 @@ public class FacetManagerTest {
 						NodeIDPrefixConstants.FACET + "3"));
 
 		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet0));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet1));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet2));
-		ftm.insertConcepts(graphDb, JsonSerializer.toJson(termAndFacet3));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet0));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet1));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet2));
+		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet3));
 
 		// Get the facets and check that everything is alright.
 		RecursiveMappingRepresentation facetRep = (RecursiveMappingRepresentation) fm.getFacets(
@@ -386,7 +386,7 @@ public class FacetManagerTest {
 
 		ImportConcepts terms = ConceptManagerTest.getTestTerms(amount);
 		ConceptManager termManager = new ConceptManager();
-		termManager.insertConcepts(graphDb, JsonSerializer.toJson(terms));
+		termManager.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(terms));
 		FacetManager facetManager = new FacetManager();
 
 		assertEquals(amount, facetManager.getFacetSize(graphDb, facet));
