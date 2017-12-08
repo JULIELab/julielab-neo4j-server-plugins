@@ -17,31 +17,31 @@ public class ImportFacet {
 	 * @see FacetConstants#PROP_CUSTOM_ID
 	 */
 	@JsonProperty(FacetConstants.PROP_CUSTOM_ID)
-	private String customId;
+	protected String customId;
 
 	@JsonProperty(FACET_GROUP)
-	private ImportFacetGroup facetGroup;
+	protected ImportFacetGroup facetGroup;
 
 	/**
 	 * The database-internal ID which is automatically created. This field should
 	 * only be set to refer to an already created facet node.
 	 */
 	@JsonProperty(FacetConstants.PROP_ID)
-	private String id;
+	protected String id;
 
 	@JsonProperty(PROP_LABELS)
-	private Collection<String> labels;
+	protected Collection<String> labels;
 	@JsonProperty(PROP_NAME)
-	private String name;
+	protected String name;
 	/**
 	 * @see FacetConstants#NO_FACET
 	 */
 	@JsonProperty(FacetConstants.NO_FACET)
-	private boolean noFacet;
+	protected boolean noFacet;
 	@JsonProperty(FacetConstants.PROP_SHORT_NAME)
-	private String shortName;
+	protected String shortName;
 	@JsonProperty(PROP_SOURCE_TYPE)
-	private String sourceType;
+	protected String sourceType;
 	/**
 	 * Constructor eligible for creating new facets in the database.
 	 * 
