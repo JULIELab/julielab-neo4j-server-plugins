@@ -156,7 +156,7 @@ public class FacetManager extends ServerPlugin {
 				if (!isFacetWithoutPredefinedRoots) {
 					// Leave out facets without any root terms (this may happen
 					// by some weird BioPortal ontologies).
-					Iterator<Relationship> rootIt = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM)
+					Iterator<Relationship> rootIt = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT)
 							.iterator();
 					if (!rootIt.hasNext())
 						continue;
@@ -287,7 +287,7 @@ public class FacetManager extends ServerPlugin {
 			Node node = getFacetNode(graphDb, fid);
 
 			Traverser traverser = graphDb.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
-					.relationships(ConceptManager.EdgeTypes.HAS_ROOT_TERM, Direction.OUTGOING)
+					.relationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT, Direction.OUTGOING)
 					.relationships(dynRel, Direction.OUTGOING).traverse(node);
 			for (@SuppressWarnings("unused")
 			Node n : traverser.nodes()) {

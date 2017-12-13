@@ -28,8 +28,8 @@ import com.google.common.collect.Multiset;
 import com.google.common.collect.Multiset.Entry;
 
 import de.julielab.neo4j.plugins.ConceptManager;
-import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;

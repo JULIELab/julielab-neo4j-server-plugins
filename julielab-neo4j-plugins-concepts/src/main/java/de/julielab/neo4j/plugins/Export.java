@@ -217,7 +217,7 @@ public class Export extends ServerPlugin {
 					Set<Node> visitedNodes = new HashSet<>();
 					for (Node facet : facets) {
 						Iterable<Relationship> rels = facet.getRelationships(Direction.OUTGOING,
-								EdgeTypes.HAS_ROOT_TERM);
+								EdgeTypes.HAS_ROOT_CONCEPT);
 						for (Relationship rel : rels) {
 							Node rootTerm = rel.getEndNode();
 							if (null != termLabel && !rootTerm.hasLabel(termLabel))

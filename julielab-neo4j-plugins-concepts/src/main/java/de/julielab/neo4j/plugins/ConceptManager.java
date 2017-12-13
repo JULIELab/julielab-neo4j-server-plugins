@@ -18,6 +18,7 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptCons
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_UNIQUE_SRC_ID;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static java.util.stream.Collectors.joining;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -103,66 +105,63 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConsta
 @Description("This plugin discloses special operation for efficient access to the FacetConcepts for Semedico.")
 public class ConceptManager extends ServerPlugin {
 
-	private static final String UNKNOWN_TERM_SOURCE = "<unknown>";
+	private static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
 
 	public static enum EdgeTypes implements RelationshipType {
 		/**
 		 * Relationship type for connecting aggregate classes with their element
 		 * concepts.
 		 */
-		HAS_ELEMENT, HAS_ROOT_TERM,
+		HAS_ELEMENT, HAS_ROOT_CONCEPT,
 		/**
-		 * Relationship type to express that two concepts seem to be identical
-		 * regarding preferred label and synonyms.
+		 * Relationship type to express that two concepts seem to be identical regarding
+		 * preferred label and synonyms.
 		 */
 		HAS_SAME_NAMES, IS_BROADER_THAN,
 		/**
 		 * A concept mapping that expresses some similarity between to concepts, e.g.
-		 * 'equal' or 'related'. The actual type of relatedness should be added
-		 * as a property to the relationship.
+		 * 'equal' or 'related'. The actual type of relatedness should be added as a
+		 * property to the relationship.
 		 */
 		IS_MAPPED_TO,
 		/**
-		 * Concept writing variants and their frequencies are stored in a special
-		 * kind of node, connected to the respective concept with this relationship
-		 * type.
+		 * Concept writing variants and their frequencies are stored in a special kind
+		 * of node, connected to the respective concept with this relationship type.
 		 */
 		HAS_VARIANTS, HAS_ACRONYMS
 	}
 
 	private class InsertionReport {
 		/**
-		 * A temporary storage to keep track over relationships created during a
-		 * single concept insertion batch. It is used for deconceptination whether
-		 * existing relationships between two concepts must be checked or not. This
-		 * is required for the case that a concept is inserted multiple times in a
-		 * single insertion batch. Then, the "concept already existing" method does
-		 * not work anymore.
+		 * A temporary storage to keep track over relationships created during a single
+		 * concept insertion batch. It is used for deconceptination whether existing
+		 * relationships between two concepts must be checked or not. This is required
+		 * for the case that a concept is inserted multiple times in a single insertion
+		 * batch. Then, the "concept already existing" method does not work anymore.
 		 */
 		public Set<String> createdRelationshipsCache = new HashSet<>();
 		/**
-		 * The concept nodes that already existed before they should have been
-		 * inserted again (duplicate detection). This is used to deconceptine
-		 * whether a check about already existing relationships between two
-		 * nodes is necessary. If at least one of two concepts between which a
-		 * relationships should be created did not exist before, no check is
-		 * necessary: A concept that did not exist could not have had any
-		 * relationships.
+		 * The concept nodes that already existed before they should have been inserted
+		 * again (duplicate detection). This is used to deconceptine whether a check
+		 * about already existing relationships between two nodes is necessary. If at
+		 * least one of two concepts between which a relationships should be created did
+		 * not exist before, no check is necessary: A concept that did not exist could
+		 * not have had any relationships.
 		 */
 		public Set<Node> existingConcepts = new HashSet<>();
 		/**
 		 * The source IDs of concepts that have been omitted from the data for -
 		 * hopefully - good reasons. The first (and perhaps only) use case were
-		 * aggregates which had a single elements and were thus omitted but
-		 * should also be included into the concept hierarchy and have other concepts
-		 * referring to them as a parent. This set serves as a lookup in this
-		 * case so we know there is not an error.
+		 * aggregates which had a single elements and were thus omitted but should also
+		 * be included into the concept hierarchy and have other concepts referring to
+		 * them as a parent. This set serves as a lookup in this case so we know there
+		 * is not an error.
 		 */
 		public Set<String> omittedConcepts = new HashSet<>();
 		/**
-		 * The coordinates of all concepts that are being imported. This
-		 * information is used by the relationship creation method to know if a
-		 * parent is included in the imported data or not.
+		 * The coordinates of all concepts that are being imported. This information is
+		 * used by the relationship creation method to know if a parent is included in
+		 * the imported data or not.
 		 */
 		public CoordinatesSet importedCoordinates = new CoordinatesSet();
 		public int numRelationships = 0;
@@ -199,11 +198,11 @@ public class ConceptManager extends ServerPlugin {
 		/** A particular type of {@link #AGGREGATE} node. */
 		AGGREGATE_EQUAL_NAMES,
 		/**
-		 * Label for nodes that are referenced by at least one other concept in
-		 * imported data, but are not included in the imported data themselves.
-		 * Such concepts know their source ID (given by the reference of another
-		 * concept) and will be made un-HOLLOW as soon at a concept with this source
-		 * ID occurs in imported data.
+		 * Label for nodes that are referenced by at least one other concept in imported
+		 * data, but are not included in the imported data themselves. Such concepts
+		 * know their source ID (given by the reference of another concept) and will be
+		 * made un-HOLLOW as soon at a concept with this source ID occurs in imported
+		 * data.
 		 */
 		HOLLOW, CONCEPT,
 		/**
@@ -232,7 +231,7 @@ public class ConceptManager extends ServerPlugin {
 	public static final String GET_PATHS_FROM_FACETROOTS = "get_paths_to_facetroots";
 	public static final String INSERT_CONCEPTS = "insert_concepts";
 	public static final String GET_FACET_ROOTS = "get_facet_roots";
-	public static final String ADD_CONCEPT_TERM = "add_concept_term";
+	public static final String ADD_CONCEPT_CONCEPT = "add_concept_term";
 	public static final String KEY_AMOUNT = "amount";
 	public static final String KEY_CREATE_HOLLOW_PARENTS = "createHollowParents";
 	public static final String KEY_FACET = "facet";
@@ -252,7 +251,7 @@ public class ConceptManager extends ServerPlugin {
 	public static final String KEY_CONCEPT_PUSH_CMD = "conceptPushCommand";
 	public static final String KEY_AGGREGATED_LABEL = "aggregatedLabel";
 	public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
-	public static final String KEY_CONCEPT_TERMS = "conceptConcepts";
+	public static final String KEY_CONCEPT_CONCEPTS = "conceptConcepts";
 	public static final String KEY_CONCEPT_ACRONYMS = "conceptAcronyms";
 
 	/**
@@ -276,8 +275,8 @@ public class ConceptManager extends ServerPlugin {
 	public static final String RET_KEY_CONCEPTS = "concepts";
 
 	/**
-	 * The REST context path to this plugin. This is for convenience for usage
-	 * from external programs that make use of the plugin.
+	 * The REST context path to this plugin. This is for convenience for usage from
+	 * external programs that make use of the plugin.
 	 */
 	public static final String CONCEPT_MANAGER_ENDPOINT = "db/data/ext/" + ConceptManager.class.getSimpleName()
 			+ "/graphdb/";
@@ -304,8 +303,8 @@ public class ConceptManager extends ServerPlugin {
 		Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
 		Label allowedConceptLabel = StringUtils.isBlank(allowedConceptLabelString) ? null
 				: Label.label(allowedConceptLabelString);
-		log.info("Creating mapping aggregates for concepts with label " + allowedConceptLabel + " and mapping types "
-				+ allowedMappingTypesJson);
+		log.info("Creating mapping aggregates for concepts with label {} and mapping types {}"
+				, allowedConceptLabel, allowedMappingTypesJson);
 		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, allowedMappingTypes, allowedConceptLabel,
 				aggregatedConceptsLabel);
 	}
@@ -316,7 +315,7 @@ public class ConceptManager extends ServerPlugin {
 	public void deleteAggregatesByMappigs(@Source GraphDatabaseService graphDb,
 			@Description("Label for concepts that have been processed by the aggregation algorithm. Such concepts"
 					+ " can be aggregate concepts (with the label AGGREGATE) or just plain concepts"
-					+ " (with the label TERM) that are not an element of an aggregate.") @Parameter(name = KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString)
+					+ " (with the label CONCEPT) that are not an element of an aggregate.") @Parameter(name = KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString)
 			throws JSONException {
 		Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
 		ConceptAggregateBuilder.deleteAggregates(graphDb, aggregatedConceptsLabel);
@@ -328,7 +327,8 @@ public class ConceptManager extends ServerPlugin {
 	@PluginTarget(GraphDatabaseService.class)
 	public void buildAggregatesByNameAndSynonyms(@Source GraphDatabaseService graphDb,
 			@Description("TODO") @Parameter(name = KEY_CONCEPT_PROP_KEY) String conceptPropertyKey,
-			@Description("TODO") @Parameter(name = KEY_CONCEPT_PROP_VALUES) String propertyValues) throws JSONException {
+			@Description("TODO") @Parameter(name = KEY_CONCEPT_PROP_VALUES) String propertyValues)
+			throws JSONException {
 		JSONArray jsonPropertyValues = new JSONArray(propertyValues);
 		ConceptAggregateBuilder.buildAggregatesForEqualNames(graphDb, conceptPropertyKey, jsonPropertyValues);
 	}
@@ -388,8 +388,7 @@ public class ConceptManager extends ServerPlugin {
 			facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
 		RelationshipType relBroaderThanInFacet = null;
 		if (null != facet)
-			relBroaderThanInFacet = RelationshipType
-					.withName(EdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
+			relBroaderThanInFacet = RelationshipType.withName(EdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
 		AddToNonFacetGroupCommand noFacetCmd = importOptions.noFacetCmd;
 		Node noFacet = null;
 		int quarter = jsonConcepts.length() / 4;
@@ -429,7 +428,7 @@ public class ConceptManager extends ServerPlugin {
 						if (importOptions.cutParents.contains(parentSrcId)) {
 							log.debug("Concept node " + coordinates
 									+ " has a parent that is marked to be cut away. Concept will be a facet root.");
-							createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+							createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
 							continue;
 						}
 
@@ -482,8 +481,9 @@ public class ConceptManager extends ServerPlugin {
 							// other cases where they aren't? Then perhaps we
 							// need an option to allow "source-less" lookup
 							// explicitly.
-							log.debug("Concept with source ID \"" + srcId + "\" referenced the concept with source ID \""
-									+ parentSrcId + "\" as its parent. However, that parent node does not exist.");
+							log.debug("Concept with source ID \"" + srcId
+									+ "\" referenced the concept with source ID \"" + parentSrcId
+									+ "\" as its parent. However, that parent node does not exist.");
 
 							if (!importOptions.doNotCreateHollowParents) {
 								log.debug(
@@ -498,14 +498,15 @@ public class ConceptManager extends ServerPlugin {
 								// Node hollowParent =
 								// registerNewHollowConceptNode(graphDb,
 								// parentCoordinates, idIndex,
-								// ConceptLabel.TERM);
+								// ConceptLabel.CONCEPT);
 								parent.addLabel(ConceptLabel.CONCEPT);
 								// nodesByCoordinates.put(parentCoordinates,
 								// hollowParent);
 								// insertionReport.numConcepts++;
-								createRelationshipIfNotExists(parent, concept, EdgeTypes.IS_BROADER_THAN, insertionReport);
+								createRelationshipIfNotExists(parent, concept, EdgeTypes.IS_BROADER_THAN,
+										insertionReport);
 								createRelationshipIfNotExists(parent, concept, relBroaderThanInFacet, insertionReport);
-								createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+								createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
 							} else {
 								log.warn(
 										"Creating hollow parents is switched off. Hence the concept will be added as root concept for its facet (\""
@@ -513,15 +514,20 @@ public class ConceptManager extends ServerPlugin {
 								// Connect the concept as a root, it's the best we
 								// can
 								// do.
-								createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+								createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
 							}
 						}
-						if (null != parent && parent.hasLabel(ConceptLabel.AGGREGATE) && !parent.hasLabel(ConceptLabel.CONCEPT))
+						if (null != parent && parent.hasLabel(ConceptLabel.AGGREGATE)
+								&& !parent.hasLabel(ConceptLabel.CONCEPT))
 							throw new IllegalArgumentException("Concept with source ID " + srcId
 									+ " specifies source ID " + parentSrcId
-									+ " as parent. This node is an aggregate but not a TERM itself and thus is not included in the hierarchy and cannot be the conceptual parent of other concepts. To achieve this, import the aggregate with the property "
+									+ " as parent. This node is an aggregate but not a CONCEPT itself and thus is not included in the hierarchy and cannot be the conceptual parent of other concepts. To achieve this, import the aggregate with the property "
 									+ ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY
-									+ " set to true or build the aggregates in a way that assignes the TERM label to them.");
+									+ " set to true or build the aggregates in a way that assignes the CONCEPT label to them. The parent is "
+									+ NodeUtilities.getNodePropertiesAsString(parent)
+									+ " and has the following labels: "
+									+ StreamSupport.stream(parent.getLabels().spliterator(), false).map(Label::name)
+											.collect(joining(", ")));
 					}
 
 				} else {
@@ -531,7 +537,7 @@ public class ConceptManager extends ServerPlugin {
 							noFacet = FacetManager.getNoFacet(graphDb, (String) facet.getProperty(PROP_ID));
 						}
 
-						createRelationshipIfNotExists(noFacet, concept, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+						createRelationshipIfNotExists(noFacet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
 					} else if (null != facet) {
 						// This concept does not have a concept parent. It is a facet
 						// root,
@@ -539,7 +545,7 @@ public class ConceptManager extends ServerPlugin {
 						log.debug("Installing concept with source ID " + srcId + " (ID: " + concept.getProperty(PROP_ID)
 								+ ") as root for facet " + facet.getProperty(NodeConstants.PROP_NAME) + "(ID: "
 								+ facet.getProperty(PROP_ID) + ")");
-						createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_TERM, insertionReport);
+						createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
 					}
 					// else: nothing, because the concept already existed, we are
 					// merely merging here.
@@ -665,8 +671,8 @@ public class ConceptManager extends ServerPlugin {
 	 * </p>
 	 * <p>
 	 * If a relationship of type <tt>type</tt> already exists but has different
-	 * properties than specified by <tt>properties</tt>, it will be tried to
-	 * merge the properties instead of creating a new relationship.
+	 * properties than specified by <tt>properties</tt>, it will be tried to merge
+	 * the properties instead of creating a new relationship.
 	 * </p>
 	 * 
 	 * @param source
@@ -675,9 +681,9 @@ public class ConceptManager extends ServerPlugin {
 	 * @param insertionReport
 	 * @param direction
 	 * @param properties
-	 *            A sequence of property key and property values. These
-	 *            properties will be used to deconceptine whether a relationship -
-	 *            with those properties - already exists.
+	 *            A sequence of property key and property values. These properties
+	 *            will be used to deconceptine whether a relationship - with those
+	 *            properties - already exists.
 	 * @return
 	 */
 	private Relationship createRelationShipIfNotExists(Node source, Node target, RelationshipType type,
@@ -720,8 +726,8 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	@Name(CREATE_SCHEMA_INDEXES)
-	@Description("Creates uniqueness constraints (and thus, indexes), on the following label / property combinations: TERM / "
-			+ ConceptConstants.PROP_ID + "; TERM / " + ConceptConstants.PROP_ORG_ID + "; FACET / "
+	@Description("Creates uniqueness constraints (and thus, indexes), on the following label / property combinations: CONCEPT / "
+			+ ConceptConstants.PROP_ID + "; CONCEPT / " + ConceptConstants.PROP_ORG_ID + "; FACET / "
 			+ FacetConstants.PROP_ID + "; NO_FACET / " + FacetConstants.PROP_ID + "; ROOT / " + NodeConstants.PROP_NAME
 			+ ". This should be done after the main initial import because node insertion with uniqueness switched on costs significant insertion performance.")
 	@PluginTarget(GraphDatabaseService.class)
@@ -742,7 +748,7 @@ public class ConceptManager extends ServerPlugin {
 	@PluginTarget(GraphDatabaseService.class)
 	public MappingRepresentation getChildrenOfConcepts(@Source GraphDatabaseService graphDb,
 			@Description("JSON array of concept IDs for which to return their children.") @Parameter(name = KEY_CONCEPT_IDS) String conceptIdArray,
-			@Description("The label agsinst which the given concept IDs are resolved. Defaults to 'TERM'.") @Parameter(name = KEY_LABEL, optional = true) String labelString)
+			@Description("The label agsinst which the given concept IDs are resolved. Defaults to 'CONCEPT'.") @Parameter(name = KEY_LABEL, optional = true) String labelString)
 			throws JSONException {
 		Label label = ConceptLabel.CONCEPT;
 		if (!StringUtils.isBlank(labelString))
@@ -787,7 +793,7 @@ public class ConceptManager extends ServerPlugin {
 	}
 
 	@Name(GET_NUM_CONCEPTS)
-	@Description("Returns the number of concepts in the database, i.e. the number of nodes with the \"TERM\" label.")
+	@Description("Returns the number of concepts in the database, i.e. the number of nodes with the \"CONCEPT\" label.")
 	@PluginTarget(GraphDatabaseService.class)
 	public long getNumConcepts(@Source GraphDatabaseService graphDb) {
 		try (Transaction tx = graphDb.beginTx()) {
@@ -817,7 +823,7 @@ public class ConceptManager extends ServerPlugin {
 			public Evaluation evaluate(Path path) {
 				Node endNode = path.endNode();
 
-				Iterator<Relationship> iterator = endNode.getRelationships(EdgeTypes.HAS_ROOT_TERM).iterator();
+				Iterator<Relationship> iterator = endNode.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT).iterator();
 				if (iterator.hasNext()) {
 					if (StringUtils.isBlank(facetId)) {
 						return Evaluation.INCLUDE_AND_CONTINUE;
@@ -917,11 +923,11 @@ public class ConceptManager extends ServerPlugin {
 	 * 
 	 * I.e. a representative concept that has no distinct properties on its own. It
 	 * will get links to the concept source IDs given in <code>elementSrcIds</code>
-	 * with respect to <code>source</code>. The <code>copyProperties</code>
-	 * property contains the properties of element concepts that should be copied
-	 * into the aggregate and does not have to be present in which case nothing
-	 * will be copied. The copy process will NOT be done in this method call but
-	 * must be triggered manually via
+	 * with respect to <code>source</code>. The <code>copyProperties</code> property
+	 * contains the properties of element concepts that should be copied into the
+	 * aggregate and does not have to be present in which case nothing will be
+	 * copied. The copy process will NOT be done in this method call but must be
+	 * triggered manually via
 	 * {@link #copyAggregateProperties(GraphDatabaseService)}.
 	 * 
 	 * @param graphDb
@@ -943,7 +949,7 @@ public class ConceptManager extends ServerPlugin {
 		String aggSrcId = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE_ID);
 		String aggSource = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE);
 		if (null == aggSource)
-			aggSource = UNKNOWN_TERM_SOURCE;
+			aggSource = UNKNOWN_CONCEPT_SOURCE;
 		log.debug("Looking up aggregate (" + aggOrgId + "," + aggOrgSource + ") / (" + aggSrcId + "," + aggSource
 				+ "), original/source coordinates.");
 		Node aggregate = lookupConcept(new ConceptCoordinates(aggCoordinates, false), conceptIndex);
@@ -966,7 +972,7 @@ public class ConceptManager extends ServerPlugin {
 		boolean includeAggreationInHierarchy = jsonConcept.has(AGGREGATE_INCLUDE_IN_HIERARCHY)
 				&& jsonConcept.getBoolean(AGGREGATE_INCLUDE_IN_HIERARCHY);
 		// If the aggregate is to be included into the hierarchy, it also should
-		// be a TERM for path creation
+		// be a CONCEPT for path creation
 		if (includeAggreationInHierarchy)
 			aggregate.addLabel(ConceptLabel.CONCEPT);
 		JSONArray elementCoords = jsonConcept.getJSONArray(ConceptConstants.ELEMENT_COORDINATES);
@@ -976,7 +982,7 @@ public class ConceptManager extends ServerPlugin {
 			String elementSrcId = elementCoord.getString(ConceptConstants.COORD_ID);
 			String elementSource = elementCoord.getString(ConceptConstants.COORD_SOURCE);
 			if (null == elementSource)
-				elementSource = UNKNOWN_TERM_SOURCE;
+				elementSource = UNKNOWN_CONCEPT_SOURCE;
 			Node element = nodesByCoordinates.get(new ConceptCoordinates(elementSrcId, elementSource, false));
 			if (null != element) {
 				String[] srcIds = (String[]) element.getProperty(PROP_SRC_IDS);
@@ -1102,7 +1108,7 @@ public class ConceptManager extends ServerPlugin {
 		}
 
 		if (StringUtils.isBlank(source))
-			source = UNKNOWN_TERM_SOURCE;
+			source = UNKNOWN_CONCEPT_SOURCE;
 
 		if (StringUtils.isBlank(orgId) ^ StringUtils.isBlank(orgSource))
 			throw new IllegalArgumentException(
@@ -1132,7 +1138,7 @@ public class ConceptManager extends ServerPlugin {
 			log.debug("Got HOLLOW concept node with coordinates " + coordinatesJson + " and will create full concept.");
 			concept.removeLabel(ConceptLabel.HOLLOW);
 			concept.addLabel(ConceptLabel.CONCEPT);
-			Iterable<Relationship> relationships = concept.getRelationships(EdgeTypes.HAS_ROOT_TERM);
+			Iterable<Relationship> relationships = concept.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT);
 			for (Relationship rel : relationships) {
 				Node startNode = rel.getStartNode();
 				if (startNode.hasLabel(FacetManager.FacetLabel.FACET))
@@ -1196,7 +1202,6 @@ public class ConceptManager extends ServerPlugin {
 			concept.addLabel(Label.label(generalLabels.getString(i)));
 		}
 
-
 		if (srcIduniqueMarkerChanged) {
 			log.warn("Merging concept nodes with unique source ID " + srcId
 					+ " because on concept with this source ID and source " + source
@@ -1253,15 +1258,15 @@ public class ConceptManager extends ServerPlugin {
 	 * A few things to realize:
 	 * <ul>
 	 * <li>Referenced concepts - parents, elements of aggregates, targets of
-	 * explicitly specified concept nodes - are not required to be included in
-	 * the same import data as the referencing concept. Then, the referee will
-	 * be realized as a HOLLOW node.</li>
+	 * explicitly specified concept nodes - are not required to be included in the
+	 * same import data as the referencing concept. Then, the referee will be
+	 * realized as a HOLLOW node.</li>
 	 * <li>For non-aggregate concepts, we use the
 	 * {@link #createRelationShipIfNotExists(Node, Node, RelationshipType, InsertionReport, Direction, Object...)}
-	 * method that is sped up by knowing if the two input nodes for the
-	 * relationship did exist before the current import. Because if not, then
-	 * they cannot have had a relationship before. The method will make errors
-	 * if this information is wrong, causing missing relationships</li>
+	 * method that is sped up by knowing if the two input nodes for the relationship
+	 * did exist before the current import. Because if not, then they cannot have
+	 * had a relationship before. The method will make errors if this information is
+	 * wrong, causing missing relationships</li>
 	 * <li>Thus, all concept nodes that might be used in this method and that
 	 * existed before the current import, must be set so in the
 	 * <code>importOptions</code> parameter.</li>
@@ -1391,7 +1396,8 @@ public class ConceptManager extends ServerPlugin {
 			JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
 			boolean isAggregate = JSON.getBoolean(jsonConcept, ConceptConstants.AGGREGATE);
 			if (isAggregate) {
-				insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport, importOptions);
+				insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+						importOptions);
 			} else {
 				insertConcept(graphDb, facetId, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
 						importOptions);
@@ -1399,8 +1405,9 @@ public class ConceptManager extends ServerPlugin {
 		}
 		log.debug(jsonConcepts.length() + " concepts inserted.");
 		time = System.currentTimeMillis() - time;
-		log.info(insertionReport.numConcepts + " new concepts - but not yet relationships - have been inserted. This took "
-				+ time + " ms (" + (time / 1000) + " s)");
+		log.info(insertionReport.numConcepts
+				+ " new concepts - but not yet relationships - have been inserted. This took " + time + " ms ("
+				+ (time / 1000) + " s)");
 		return insertionReport;
 	}
 
@@ -1420,7 +1427,7 @@ public class ConceptManager extends ServerPlugin {
 			Label label = additionalLabels[i];
 			node.addLabel(label);
 		}
-		log.debug("Created new HOLLOW concept node for coordinates " + coordinates + "");
+		log.trace("Created new HOLLOW concept node for coordinates {}", coordinates);
 		if (!StringUtils.isBlank(coordinates.originalId)) {
 			node.setProperty(PROP_ORG_ID, coordinates.originalId);
 			node.setProperty(PROP_ORG_SRC, coordinates.originalSource);
@@ -1437,8 +1444,7 @@ public class ConceptManager extends ServerPlugin {
 		return node;
 	}
 
-	public Representation insertConcepts(GraphDatabaseService graphDb, String conceptsWithFacet)
-			throws JSONException {
+	public Representation insertConcepts(GraphDatabaseService graphDb, String conceptsWithFacet) throws JSONException {
 		JSONObject input = new JSONObject(conceptsWithFacet);
 		JSONObject jsonFacet = JSON.getJSONObject(input, KEY_FACET);
 		JSONArray jsonConcepts = input.getJSONArray(KEY_CONCEPTS);
@@ -1456,7 +1462,7 @@ public class ConceptManager extends ServerPlugin {
 			@Description("TODO") @Parameter(name = KEY_CONCEPTS, optional = true) String conceptsJson,
 			@Description("TODO") @Parameter(name = KEY_IMPORT_OPTIONS, optional = true) String importOptionsJsonString)
 			throws JSONException {
-		log.info(INSERT_CONCEPTS + " was called");
+		log.info("{} was called", INSERT_CONCEPTS);
 		long time = System.currentTimeMillis();
 
 		Gson gson = new Gson();
@@ -1467,7 +1473,7 @@ public class ConceptManager extends ServerPlugin {
 		jsonFacet = !StringUtils.isEmpty(facetJson) ? new JSONObject(facetJson) : null;
 		if (null != conceptsJson) {
 			jsonConcepts = new JSONArray(conceptsJson);
-			log.info("Got " + jsonConcepts.length() + " input concepts for import.");
+			log.info("Got {} input concepts for import.", jsonConcepts.length());
 		} else {
 			log.info("Got 0 input concepts for import.");
 		}
@@ -1490,7 +1496,7 @@ public class ConceptManager extends ServerPlugin {
 			log.debug("Handling import of facet.");
 			if (null != jsonFacet && jsonFacet.has(PROP_ID)) {
 				facetId = jsonFacet.getString(PROP_ID);
-				log.info("Facet ID " + facetId + " has been given to add the concepts to.");
+				log.info("Facet ID {} has been given to add the concepts to.", facetId);
 				boolean isNoFacet = JSON.getBoolean(jsonFacet, FacetConstants.NO_FACET);
 				if (isNoFacet)
 					facet = FacetManager.getNoFacet(graphDb, facetId);
@@ -1516,7 +1522,7 @@ public class ConceptManager extends ServerPlugin {
 			}
 			if (null != facet) {
 				facetId = (String) facet.getProperty(PROP_ID);
-				log.debug("Facet " + facetId + " was successfully created or deconceptined by ID.");
+				log.debug("Facet {} was successfully created or determined by ID.", facetId);
 			} else {
 				log.debug(
 						"No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
@@ -1531,7 +1537,8 @@ public class ConceptManager extends ServerPlugin {
 				// at least no concepts with a source ID. Then,
 				// relationship creation is currently not supported.
 				if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
-					createRelationships(graphDb, jsonConcepts, facet, nodesByCoordinates, importOptions, insertionReport);
+					createRelationships(graphDb, jsonConcepts, facet, nodesByCoordinates, importOptions,
+							insertionReport);
 				else
 					log.info("This is a property merging import, no relationships are created.");
 				time = System.currentTimeMillis() - time;
@@ -1554,9 +1561,9 @@ public class ConceptManager extends ServerPlugin {
 
 	/**
 	 * RULE: Two concepts are equal, iff they have the same original source ID
-	 * assigned from the same original source or both have no contradicting
-	 * original ID and original source but the same source ID and source.
-	 * Contradicting means two non-null values that are not equal.
+	 * assigned from the same original source or both have no contradicting original
+	 * ID and original source but the same source ID and source. Contradicting means
+	 * two non-null values that are not equal.
 	 * 
 	 * @param orgId
 	 * @param orgSource
@@ -1571,8 +1578,8 @@ public class ConceptManager extends ServerPlugin {
 		String srcId = coordinates.sourceId;
 		String source = coordinates.source;
 		boolean uniqueSourceId = coordinates.uniqueSourceId;
-		log.debug("Looking up concept via original ID and source ({}, {}) and source ID and source ({}, {}).",
-				new Object[] { orgId, orgSource, srcId, source });
+		log.trace("Looking up concept via original ID and source ({}, {}) and source ID and source ({}, {}).", orgId,
+				orgSource, srcId, source);
 		if ((null == orgId || null == orgSource) && (null == srcId || null == source)) {
 			// no source information is complete, per definition we cannot find
 			// an equal concept
@@ -1583,16 +1590,16 @@ public class ConceptManager extends ServerPlugin {
 		// Do we know the original ID?
 		concept = null != orgId ? conceptIndex.get(PROP_ORG_ID, orgId).getSingle() : null;
 		if (concept != null)
-			log.debug("Found concept by original ID " + orgId);
+			log.trace("Found concept by original ID {}", orgId);
 		// 1. Check if there is a concept with the given original ID and a matching
 		// original source.
 		if (null != concept) {
 			if (!PropertyUtilities.hasSamePropertyValue(concept, PROP_ORG_SRC, orgSource)) {
-				log.debug("Original source doesn't match; requested: " + orgSource + ", found concept has: "
-						+ NodeUtilities.getString(concept, PROP_ORG_SRC));
+				log.trace("Original source doesn't match; requested: {}, found concept has: {}", orgSource,
+						NodeUtilities.getString(concept, PROP_ORG_SRC));
 				concept = null;
 			} else {
-				log.debug("Found existing concept for original ID " + orgId + " and original source " + orgSource);
+				log.trace("Found existing concept for original ID {} and original source {}", orgId, orgSource);
 			}
 		}
 		// 2. If there was no original ID, check for a concept with the same source
@@ -1616,9 +1623,9 @@ public class ConceptManager extends ServerPlugin {
 			}
 		}
 		if (null == concept)
-			log.debug(
+			log.trace(
 					"    Did not find an existing concept with original ID and source ({}, {}) or source ID and source ({}, {}).",
-					new Object[] { orgId, orgSource, srcId, source });
+					orgId, orgSource, srcId, source);
 		return concept;
 	}
 
@@ -1632,14 +1639,14 @@ public class ConceptManager extends ServerPlugin {
 	 *            The source in which the concept node should be given
 	 *            <tt>srcId</tt> as a source ID.
 	 * @param uniqueSourceId
-	 *            Whether the ID should be unique, independently from the
-	 *            source. This holds, for example, for ontology class IRIs.
+	 *            Whether the ID should be unique, independently from the source.
+	 *            This holds, for example, for ontology class IRIs.
 	 * @param conceptIndex
 	 *            The concept index.
-	 * @return The requested concept node or <tt>null</tt> if no such node is
-	 *         found.
+	 * @return The requested concept node or <tt>null</tt> if no such node is found.
 	 */
-	private Node lookupConceptBySourceId(String srcId, String source, boolean uniqueSourceId, Index<Node> conceptIndex) {
+	private Node lookupConceptBySourceId(String srcId, String source, boolean uniqueSourceId,
+			Index<Node> conceptIndex) {
 		log.debug("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
 		IndexHits<Node> indexHits = conceptIndex.get(PROP_SRC_IDS, srcId);
 		if (!indexHits.hasNext())
@@ -1739,7 +1746,8 @@ public class ConceptManager extends ServerPlugin {
 		if (null != eligibleConceptDefinition && null != eligibleConceptDefinition.facetLabel)
 			facetLabel = Label.label(eligibleConceptDefinition.facetLabel);
 		String facetPropertyKey = null != eligibleConceptDefinition ? eligibleConceptDefinition.facetPropertyKey : "*";
-		String facetPropertyValue = null != eligibleConceptDefinition ? eligibleConceptDefinition.facetPropertyValue : "*";
+		String facetPropertyValue = null != eligibleConceptDefinition ? eligibleConceptDefinition.facetPropertyValue
+				: "*";
 
 		// Get the facets for which we want to push concepts into the set.
 		try (Transaction tx = graphDb.beginTx()) {
@@ -2079,8 +2087,7 @@ public class ConceptManager extends ServerPlugin {
 				String facetId = (String) facetNode.getProperty(FacetConstants.PROP_ID);
 				if (maxRoots > 0 && facetNode.hasProperty(FacetConstants.PROP_NUM_ROOT_TERMS)
 						&& (long) facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) > maxRoots) {
-					log.info("Skipping facet with ID " + facetId + " because it has more than " + maxRoots
-							+ " root concepts (" + facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) + ").");
+					log.info("Skipping facet with ID {} because it has more than {} root concepts ({}).", facetId, maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
 				}
 				Set<String> requestedIdSet = null;
 				if (null != requestedConceptIds)
@@ -2088,7 +2095,7 @@ public class ConceptManager extends ServerPlugin {
 				if (requestedFacetIds.contains(facetId)) {
 					List<Node> roots = new ArrayList<>();
 					Iterable<Relationship> relationships = facetNode.getRelationships(Direction.OUTGOING,
-							EdgeTypes.HAS_ROOT_TERM);
+							EdgeTypes.HAS_ROOT_CONCEPT);
 					for (Relationship rel : relationships) {
 						Node rootConcept = rel.getEndNode();
 						boolean include = true;
@@ -2113,13 +2120,13 @@ public class ConceptManager extends ServerPlugin {
 		return new RecursiveMappingRepresentation(Representation.MAP, facetRoots);
 	}
 
-	@Name(ADD_CONCEPT_TERM)
+	@Name(ADD_CONCEPT_CONCEPT)
 	@Description("Allows to add writing variants and acronyms to concepts in the database. For each type of data (variants and acronyms) there is a parameter of its own."
 			+ " It is allowed to omit a parameter value. The expected format is"
 			+ " {'tid1': {'docID1': {'variant1': count1, 'variant2': count2, ...}, 'docID2': {...}}, 'tid2':...} for both variants and acronyms.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void addWritingVariants(@Source GraphDatabaseService graphDb,
-			@Description("A JSON object mapping concept IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_CONCEPT_TERMS, optional = true) String conceptVariants,
+			@Description("A JSON object mapping concept IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_CONCEPT_CONCEPTS, optional = true) String conceptVariants,
 			@Description("A JSON object mapping concept IDs to an array of acronyms to add to the existing concept acronyms.") @Parameter(name = KEY_CONCEPT_ACRONYMS, optional = true) String conceptAcronyms)
 			throws JSONException {
 		if (null != conceptVariants)
@@ -2130,6 +2137,7 @@ public class ConceptManager extends ServerPlugin {
 
 	/**
 	 * Expected format:
+	 * 
 	 * <pre>
 	 * {"tid1": {
 	 *         "docID1": {
@@ -2214,7 +2222,8 @@ public class ConceptManager extends ServerPlugin {
 					}
 					Node concept = graphDb.findNode(ConceptLabel.CONCEPT, PROP_ID, conceptId);
 					if (null == concept) {
-						log.warn("Concept with ID " + conceptId + " was not found, cannot add writing variants / acronyms.");
+						log.warn("Concept with ID " + conceptId
+								+ " was not found, cannot add writing variants / acronyms.");
 						continue;
 					}
 
