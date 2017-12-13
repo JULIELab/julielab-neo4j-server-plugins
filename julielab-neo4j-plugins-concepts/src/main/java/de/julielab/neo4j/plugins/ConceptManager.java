@@ -956,14 +956,14 @@ public class ConceptManager extends ServerPlugin {
 			String aggSource = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE);
 			if (null == aggSource)
 				aggSource = UNKNOWN_CONCEPT_SOURCE;
-			log.debug("Looking up aggregate ({}, {}) / ({}, {}), original/source coordinates.", aggOrgId, aggOrgSource,
+			log.trace("Looking up aggregate ({}, {}) / ({}, {}), original/source coordinates.", aggOrgId, aggOrgSource,
 					aggSrcId, aggSource);
 			Node aggregate = lookupConcept(new ConceptCoordinates(aggCoordinates, false), conceptIndex);
 			if (null != aggregate) {
 				String isHollowMessage = "";
 				if (aggregate.hasLabel(ConceptLabel.HOLLOW))
 					isHollowMessage = ", however it is hollow and its properties will be set now.";
-				log.debug("    aggregate does already exist {}", isHollowMessage);
+				log.trace("    aggregate does already exist {}", isHollowMessage);
 				if (!aggregate.hasLabel(ConceptLabel.HOLLOW))
 					return;
 				// remove the HOLLOW label, we have to aggregate information now and
@@ -972,7 +972,7 @@ public class ConceptManager extends ServerPlugin {
 				aggregate.addLabel(ConceptLabel.AGGREGATE);
 			}
 			if (aggregate == null) {
-				log.debug("    aggregate is being created");
+				log.trace("    aggregate is being created");
 				aggregate = graphDb.createNode(ConceptLabel.AGGREGATE);
 			}
 			boolean includeAggreationInHierarchy = jsonConcept.has(AGGREGATE_INCLUDE_IN_HIERARCHY)
@@ -982,7 +982,7 @@ public class ConceptManager extends ServerPlugin {
 			if (includeAggreationInHierarchy)
 				aggregate.addLabel(ConceptLabel.CONCEPT);
 			JSONArray elementCoords = jsonConcept.getJSONArray(ConceptConstants.ELEMENT_COORDINATES);
-			log.debug("    looking up aggregate elements");
+			log.trace("    looking up aggregate elements");
 			for (int i = 0; i < elementCoords.length(); i++) {
 				JSONObject elementCoord = elementCoords.getJSONObject(i);
 				String elementSrcId = elementCoord.getString(ConceptConstants.COORD_ID);
@@ -1006,14 +1006,14 @@ public class ConceptManager extends ServerPlugin {
 							break;
 					}
 					if (null != element)
-						log.debug("\tFound element with source ID and source ({}, {}) in in-memory map.", elementSrcId,
+						log.trace("\tFound element with source ID and source ({}, {}) in in-memory map.", elementSrcId,
 								elementSource);
 				}
 				if (null == element)
 					element = lookupConceptBySourceId(elementSrcId, elementSource, false, conceptIndex);
 				if (null == element && importOptions.createHollowAggregateElements) {
 					element = graphDb.createNode(ConceptLabel.CONCEPT, ConceptLabel.HOLLOW);
-					log.debug("    Creating HOLLOW element with source coordinates ({}, {})", elementSrcId,
+					log.trace("    Creating HOLLOW element with source coordinates ({}, {})", elementSrcId,
 							elementSource);
 					addToArrayProperty(element, PROP_SRC_IDS, elementSrcId);
 					addToArrayProperty(element, PROP_SOURCES, elementSource);
@@ -1126,7 +1126,7 @@ public class ConceptManager extends ServerPlugin {
 			// nothing
 			return;
 		if (concept.hasLabel(ConceptLabel.HOLLOW)) {
-			log.debug("Got HOLLOW concept node with coordinates " + coordinatesJson + " and will create full concept.");
+			log.trace("Got HOLLOW concept node with coordinates " + coordinatesJson + " and will create full concept.");
 			concept.removeLabel(ConceptLabel.HOLLOW);
 			concept.addLabel(ConceptLabel.CONCEPT);
 			Iterable<Relationship> relationships = concept.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT);
