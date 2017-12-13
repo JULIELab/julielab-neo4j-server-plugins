@@ -86,6 +86,8 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
+import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
+import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 
 public class ConceptManagerTest {
 
@@ -240,16 +242,16 @@ public class ConceptManagerTest {
 	 * @throws NoSuchFieldException
 	 * @throws IllegalArgumentException
 	 * @throws SecurityException
+	 * @throws ConceptInsertionException 
 	 */
 	@Test
 	public void testImportConceptsWithFacetDefinition() throws JSONException, SecurityException,
-			IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+			IllegalArgumentException, NoSuchFieldException, IllegalAccessException, ConceptInsertionException {
 		testTermImportWithOrWithoutFacetDefinition(true);
 	}
 
 	@Test
-	public void testImportConceptsWithoutFacetDefinition() throws JSONException, SecurityException,
-			IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+	public void testImportConceptsWithoutFacetDefinition() throws Exception {
 		// Here, create the facet "manually" and then do the term import. The
 		// import method "knows" which facet Id to use (there will only be this
 		// one facet, so its fid0...)
@@ -262,7 +264,7 @@ public class ConceptManagerTest {
 		testTermImportWithOrWithoutFacetDefinition(false);
 	}
 
-	private void testTermImportWithOrWithoutFacetDefinition(boolean withFacetDefinition) throws JSONException {
+	private void testTermImportWithOrWithoutFacetDefinition(boolean withFacetDefinition) throws JSONException, ConceptInsertionException {
 		// ----------- THE FACET --------------
 		ImportFacet facetMap;
 		if (withFacetDefinition) {
@@ -384,7 +386,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testInsertTermIntoMultipleFacets() throws JSONException {
+	public void testInsertTermIntoMultipleFacets() throws Exception {
 		// Two facets will be created. A term will be added to both, then.
 		// The first facet will be sent with the term as whole facet definition.
 		// The second facet will be created beforehand and then the term will
@@ -465,7 +467,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testMergeTermProperties() throws JSONException {
+	public void testMergeTermProperties() throws Exception {
 		// We will insert the same term (identified by the same original ID)
 		// multiple times with additional
 		// information each time. At the end, the information that can be merged
@@ -538,7 +540,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testMergeTermLabels() throws JSONException {
+	public void testMergeTermLabels() throws Exception {
 		// Check if we can insert a concept and then insert the term again but
 		// with an additional label so that the new labels gets added to the
 		// existing concept
@@ -662,9 +664,10 @@ public class ConceptManagerTest {
 	 * terms belong to that facet - that has the label "USE_FOR_SUGGESTIONS".
 	 * 
 	 * @throws JSONException
+	 * @throws AggregateConceptInsertionException 
 	 */
 	@Test
-	public void testPushAllTermsToSetMatchingFacet() throws JSONException {
+	public void testPushAllTermsToSetMatchingFacet() throws Exception {
 		// Some value initialization...
 		int numTerms = 50;
 		String setName = "PENDING_FOR_SUGGESTIONS";
@@ -733,9 +736,10 @@ public class ConceptManagerTest {
 	 * terms should be pushed into the set.
 	 * 
 	 * @throws JSONException
+	 * @throws AggregateConceptInsertionException 
 	 */
 	@Test
-	public void testPushAllTermstoSetNoMatchingFacet() throws JSONException {
+	public void testPushAllTermstoSetNoMatchingFacet() throws Exception {
 		int numTerms = 10;
 		// It doesn't really matter what exact value we have here as we test
 		// against a facet WITHOUT that value ;-)
@@ -766,7 +770,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testPushAllTermsToSetWithoutFacetPropertyConstraint() throws JSONException {
+	public void testPushAllTermsToSetWithoutFacetPropertyConstraint() throws Exception {
 		int numTerms = 10;
 
 		String setName = "PENDING_FOR_SUGGESTIONS";
@@ -799,7 +803,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testPushAllTermsToSetWithLimit() throws JSONException {
+	public void testPushAllTermsToSetWithLimit() throws Exception {
 		int numTerms = 100;
 
 		String setName = "PENDING_FOR_SUGGESTIONS";
@@ -843,7 +847,7 @@ public class ConceptManagerTest {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testPopTermsFromSet() throws JSONException {
+	public void testPopTermsFromSet() throws Exception {
 		int numPoppedTerms = 17;
 
 		String setName = "PENDING_FOR_SUGGESTIONS";
@@ -864,7 +868,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testOrganizeSynonyms() throws JSONException {
+	public void testOrganizeSynonyms() throws Exception {
 		// In this test, we have a term that specifies its preferred term as a
 		// synonym, too. The FacetConceptManager should detect this and remove
 		// the
@@ -896,7 +900,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testAdditionalRelationships() throws JSONException {
+	public void testAdditionalRelationships() throws Exception {
 		// Multiple terms will be inserted that are "equal" according to the
 		// preferred names. This will be expressed via
 		// additional relationships other then the default taxonomic
@@ -1008,7 +1012,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testAdditionalRelationships2() throws JSONException {
+	public void testAdditionalRelationships2() throws Exception {
 		ImportConcepts testTermsAndFacet = getTestTerms(4);
 		List<ImportConcept> terms = testTermsAndFacet.getConceptsAsList();
 		String termSource = terms.get(0).coordinates.originalSource;
@@ -1042,7 +1046,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testInsertAggregateTerm() throws JSONException {
+	public void testInsertAggregateTerm() throws Exception {
 		// Here we test the case where an aggregate term is explicitly imported
 		// from external data as opposed to
 		// computing it within the database.
@@ -1109,7 +1113,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testAddAggregateAsHierarchyNode() throws JSONException {
+	public void testAddAggregateAsHierarchyNode() throws Exception {
 		// Insert an aggregate and check the relationships.
 
 		ImportConcepts testTerms = getTestTerms(2);
@@ -1147,7 +1151,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testAddAggregateAsHierarchyNode2() throws JSONException {
+	public void testAddAggregateAsHierarchyNode2() throws Exception {
 		// Insert aggregate with an additional label and check that it has been
 		// applied.
 
@@ -1174,7 +1178,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testBuildAggregate() throws JSONException {
+	public void testBuildAggregate() throws Exception {
 		// In this test, the database is scanned for terms with the same name
 		// and synonyms. If some are found, an
 		// aggregate node containing these nodes as elements will be created.
@@ -1320,7 +1324,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testHollowParent() throws JSONException {
+	public void testHollowParent() throws Exception {
 		// In this test, we will add a node with a single parent. However, we
 		// won't add the parent itself, thus creating
 		// a "hollow" parent node.
@@ -1455,7 +1459,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testNonFacetGroupCommand() throws JSONException {
+	public void testNonFacetGroupCommand() throws Exception {
 		// We will test whether it works correctly to sort terms into the
 		// "non-facet" facet group according to a
 		// particular criterium, e.g. "no parent".
@@ -2304,7 +2308,7 @@ public class ConceptManagerTest {
 	}
 
 	@Test
-	public void testUniqueSourceIds() throws JSONException {
+	public void testUniqueSourceIds() throws Exception {
 		ImportConcepts testTerms = getTestTerms(2);
 		// first, remove original ID and source because otherwise the original
 		// ID checks will take over

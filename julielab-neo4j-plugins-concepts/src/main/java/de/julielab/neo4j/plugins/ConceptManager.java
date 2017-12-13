@@ -101,6 +101,8 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
+import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 
 @Description("This plugin discloses special operation for efficient access to the FacetConcepts for Semedico.")
 public class ConceptManager extends ServerPlugin {
@@ -303,8 +305,8 @@ public class ConceptManager extends ServerPlugin {
 		Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
 		Label allowedConceptLabel = StringUtils.isBlank(allowedConceptLabelString) ? null
 				: Label.label(allowedConceptLabelString);
-		log.info("Creating mapping aggregates for concepts with label {} and mapping types {}"
-				, allowedConceptLabel, allowedMappingTypesJson);
+		log.info("Creating mapping aggregates for concepts with label {} and mapping types {}", allowedConceptLabel,
+				allowedMappingTypesJson);
 		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, allowedMappingTypes, allowedConceptLabel,
 				aggregatedConceptsLabel);
 	}
@@ -452,7 +454,7 @@ public class ConceptManager extends ServerPlugin {
 						// if (null != parent) {
 						if (insertionReport.importedCoordinates.contains(parentCoordinates)
 								|| insertionReport.existingConcepts.contains(parent)) {
-							log.debug("Parent with " + parentCoordinates + " was found by source ID for concept "
+							log.trace("Parent with " + parentCoordinates + " was found by source ID for concept "
 									+ coordinates + ".");
 							long creationTime = System.currentTimeMillis();
 							createRelationshipIfNotExists(parent, concept, EdgeTypes.IS_BROADER_THAN, insertionReport);
@@ -506,7 +508,8 @@ public class ConceptManager extends ServerPlugin {
 								createRelationshipIfNotExists(parent, concept, EdgeTypes.IS_BROADER_THAN,
 										insertionReport);
 								createRelationshipIfNotExists(parent, concept, relBroaderThanInFacet, insertionReport);
-								createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+								createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_CONCEPT,
+										insertionReport);
 							} else {
 								log.warn(
 										"Creating hollow parents is switched off. Hence the concept will be added as root concept for its facet (\""
@@ -514,7 +517,8 @@ public class ConceptManager extends ServerPlugin {
 								// Connect the concept as a root, it's the best we
 								// can
 								// do.
-								createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+								createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT,
+										insertionReport);
 							}
 						}
 						if (null != parent && parent.hasLabel(ConceptLabel.AGGREGATE)
@@ -542,7 +546,7 @@ public class ConceptManager extends ServerPlugin {
 						// This concept does not have a concept parent. It is a facet
 						// root,
 						// thus connect it to the facet node.
-						log.debug("Installing concept with source ID " + srcId + " (ID: " + concept.getProperty(PROP_ID)
+						log.trace("Installing concept with source ID " + srcId + " (ID: " + concept.getProperty(PROP_ID)
 								+ ") as root for facet " + facet.getProperty(NodeConstants.PROP_NAME) + "(ID: "
 								+ facet.getProperty(PROP_ID) + ")");
 						createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
@@ -938,138 +942,125 @@ public class ConceptManager extends ServerPlugin {
 	 * @param importOptions
 	 * @return
 	 * @throws JSONException
+	 * @throws AggregateConceptInsertionException
 	 */
 	private void insertAggregateConcept(GraphDatabaseService graphDb, Index<Node> conceptIndex, JSONObject jsonConcept,
 			CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
-			throws JSONException {
-		JSONObject aggCoordinates = jsonConcept.has(PROP_COORDINATES) ? jsonConcept.getJSONObject(PROP_COORDINATES)
-				: new JSONObject();
-		String aggOrgId = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_ID);
-		String aggOrgSource = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_SOURCE);
-		String aggSrcId = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE_ID);
-		String aggSource = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE);
-		if (null == aggSource)
-			aggSource = UNKNOWN_CONCEPT_SOURCE;
-		log.debug("Looking up aggregate (" + aggOrgId + "," + aggOrgSource + ") / (" + aggSrcId + "," + aggSource
-				+ "), original/source coordinates.");
-		Node aggregate = lookupConcept(new ConceptCoordinates(aggCoordinates, false), conceptIndex);
-		if (null != aggregate) {
-			String isHollowMessage = "";
-			if (aggregate.hasLabel(ConceptLabel.HOLLOW))
-				isHollowMessage = ", however it is hollow and its properties will be set now.";
-			log.debug("    aggregate does already exist" + isHollowMessage);
-			if (!aggregate.hasLabel(ConceptLabel.HOLLOW))
-				return;
-			// remove the HOLLOW label, we have to aggregate information now and
-			// will set it to the node in the following
-			aggregate.removeLabel(ConceptLabel.HOLLOW);
-			aggregate.addLabel(ConceptLabel.AGGREGATE);
-		}
-		if (aggregate == null) {
-			log.debug("    aggregate is being created");
-			aggregate = graphDb.createNode(ConceptLabel.AGGREGATE);
-		}
-		boolean includeAggreationInHierarchy = jsonConcept.has(AGGREGATE_INCLUDE_IN_HIERARCHY)
-				&& jsonConcept.getBoolean(AGGREGATE_INCLUDE_IN_HIERARCHY);
-		// If the aggregate is to be included into the hierarchy, it also should
-		// be a CONCEPT for path creation
-		if (includeAggreationInHierarchy)
-			aggregate.addLabel(ConceptLabel.CONCEPT);
-		JSONArray elementCoords = jsonConcept.getJSONArray(ConceptConstants.ELEMENT_COORDINATES);
-		log.debug("    looking up aggregate elements");
-		for (int i = 0; i < elementCoords.length(); i++) {
-			JSONObject elementCoord = elementCoords.getJSONObject(i);
-			String elementSrcId = elementCoord.getString(ConceptConstants.COORD_ID);
-			String elementSource = elementCoord.getString(ConceptConstants.COORD_SOURCE);
-			if (null == elementSource)
-				elementSource = UNKNOWN_CONCEPT_SOURCE;
-			Node element = nodesByCoordinates.get(new ConceptCoordinates(elementSrcId, elementSource, false));
-			if (null != element) {
-				String[] srcIds = (String[]) element.getProperty(PROP_SRC_IDS);
-				String[] sources = element.hasProperty(PROP_SOURCES) ? (String[]) element.getProperty(PROP_SOURCES)
-						: new String[0];
-				for (int j = 0; j < srcIds.length; j++) {
-					String srcId = srcIds[j];
-					String source = sources.length > j ? sources[j] : null;
-					// If the source ID matches but not the sources then this is
-					// the wrong node.
-					if (srcId.equals(elementSrcId)
-							&& !((elementSource == null && source == null) || (elementSource.equals(source))))
-						element = null;
-					else
-						break;
+			throws AggregateConceptInsertionException {
+		try {
+			JSONObject aggCoordinates = jsonConcept.has(PROP_COORDINATES) ? jsonConcept.getJSONObject(PROP_COORDINATES)
+					: new JSONObject();
+			String aggOrgId = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_ID);
+			String aggOrgSource = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_SOURCE);
+			String aggSrcId = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE_ID);
+			String aggSource = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE);
+			if (null == aggSource)
+				aggSource = UNKNOWN_CONCEPT_SOURCE;
+			log.debug("Looking up aggregate ({}, {}) / ({}, {}), original/source coordinates.", aggOrgId, aggOrgSource,
+					aggSrcId, aggSource);
+			Node aggregate = lookupConcept(new ConceptCoordinates(aggCoordinates, false), conceptIndex);
+			if (null != aggregate) {
+				String isHollowMessage = "";
+				if (aggregate.hasLabel(ConceptLabel.HOLLOW))
+					isHollowMessage = ", however it is hollow and its properties will be set now.";
+				log.debug("    aggregate does already exist {}", isHollowMessage);
+				if (!aggregate.hasLabel(ConceptLabel.HOLLOW))
+					return;
+				// remove the HOLLOW label, we have to aggregate information now and
+				// will set it to the node in the following
+				aggregate.removeLabel(ConceptLabel.HOLLOW);
+				aggregate.addLabel(ConceptLabel.AGGREGATE);
+			}
+			if (aggregate == null) {
+				log.debug("    aggregate is being created");
+				aggregate = graphDb.createNode(ConceptLabel.AGGREGATE);
+			}
+			boolean includeAggreationInHierarchy = jsonConcept.has(AGGREGATE_INCLUDE_IN_HIERARCHY)
+					&& jsonConcept.getBoolean(AGGREGATE_INCLUDE_IN_HIERARCHY);
+			// If the aggregate is to be included into the hierarchy, it also should
+			// be a CONCEPT for path creation
+			if (includeAggreationInHierarchy)
+				aggregate.addLabel(ConceptLabel.CONCEPT);
+			JSONArray elementCoords = jsonConcept.getJSONArray(ConceptConstants.ELEMENT_COORDINATES);
+			log.debug("    looking up aggregate elements");
+			for (int i = 0; i < elementCoords.length(); i++) {
+				JSONObject elementCoord = elementCoords.getJSONObject(i);
+				String elementSrcId = elementCoord.getString(ConceptConstants.COORD_ID);
+				String elementSource = elementCoord.getString(ConceptConstants.COORD_SOURCE);
+				if (null == elementSource)
+					elementSource = UNKNOWN_CONCEPT_SOURCE;
+				Node element = nodesByCoordinates.get(new ConceptCoordinates(elementSrcId, elementSource, false));
+				if (null != element) {
+					String[] srcIds = (String[]) element.getProperty(PROP_SRC_IDS);
+					String[] sources = element.hasProperty(PROP_SOURCES) ? (String[]) element.getProperty(PROP_SOURCES)
+							: new String[0];
+					for (int j = 0; j < srcIds.length; j++) {
+						String srcId = srcIds[j];
+						String source = sources.length > j ? sources[j] : null;
+						// If the source ID matches but not the sources then this is
+						// the wrong node.
+						if (srcId.equals(elementSrcId)
+								&& !((elementSource == null && source == null) || (elementSource.equals(source))))
+							element = null;
+						else
+							break;
+					}
+					if (null != element)
+						log.debug("\tFound element with source ID and source ({}, {}) in in-memory map.", elementSrcId,
+								elementSource);
 				}
-				if (null != element)
-					log.debug("\tFound element with source ID and source (" + elementSrcId + ", " + elementSource
-							+ ") in in-memory map.");
+				if (null == element)
+					element = lookupConceptBySourceId(elementSrcId, elementSource, false, conceptIndex);
+				if (null == element && importOptions.createHollowAggregateElements) {
+					element = graphDb.createNode(ConceptLabel.CONCEPT, ConceptLabel.HOLLOW);
+					log.debug("    Creating HOLLOW element with source coordinates ({}, {})", elementSrcId,
+							elementSource);
+					addToArrayProperty(element, PROP_SRC_IDS, elementSrcId);
+					addToArrayProperty(element, PROP_SOURCES, elementSource);
+					conceptIndex.add(element, PROP_SRC_IDS, elementSrcId);
+				}
+				if (element != null) {
+					aggregate.createRelationshipTo(element, EdgeTypes.HAS_ELEMENT);
+				}
 			}
-			if (null == element)
-				element = lookupConceptBySourceId(elementSrcId, elementSource, false, conceptIndex);
-			// this is just a filter; if no sources to filter have been
-			// specified, all concepts are eligible
-			// if (null != sources) {
-			// String[] conceptSources = (String[])
-			// element.getProperty(PROP_SOURCES);
-			// // if sources are given but the concept does not define any,
-			// // we exclude it
-			// if (null == conceptSources)
-			// continue;
-			// // we look for a single source match between the concept
-			// // sources and the given aggregate sources
-			// boolean sourcesMatch = false;
-			// for (int j = 0; j < conceptSources.length; j++) {
-			// String conceptSource = conceptSources[j];
-			// if (sources.contains(conceptSource))
-			// sourcesMatch = true;
-			// }
-			// if (!sourcesMatch)
-			// continue;
-			// }
-			if (null == element && importOptions.createHollowAggregateElements) {
-				element = graphDb.createNode(ConceptLabel.CONCEPT, ConceptLabel.HOLLOW);
-				log.debug("    Creating HOLLOW element with source coordinates (" + elementSrcId + "," + elementSource
-						+ ")");
-				addToArrayProperty(element, PROP_SRC_IDS, elementSrcId);
-				addToArrayProperty(element, PROP_SOURCES, elementSource);
-				conceptIndex.add(element, PROP_SRC_IDS, elementSrcId);
+
+			// Set the aggregate's properties
+			if (null != aggSrcId) {
+				int idIndex = findFirstValueInArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId);
+				int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
+				if (!StringUtils.isBlank(aggSrcId)
+						&& ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
+					addToArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId, true);
+					addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
+				}
+				// if the aggregate has a source ID, add it to the respective
+				// map for later access during the relationship insertion phase
+				nodesByCoordinates.put(new ConceptCoordinates(aggCoordinates), aggregate);
+				conceptIndex.add(aggregate, PROP_SRC_IDS, aggSrcId);
 			}
-			if (element != null) {
-				aggregate.createRelationshipTo(element, EdgeTypes.HAS_ELEMENT);
+			if (null != aggOrgId)
+				aggregate.setProperty(PROP_ORG_ID, aggOrgId);
+			if (null != aggOrgSource)
+				aggregate.setProperty(PROP_ORG_SRC, aggOrgSource);
+			JSONArray copyProperties = JSON.getJSONArray(jsonConcept, ConceptConstants.PROP_COPY_PROPERTIES);
+			if (null != copyProperties && copyProperties.length() > 0)
+				aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, JSON.json2JavaArray(copyProperties));
+
+			JSONArray generalLabels = JSON.getJSONArray(jsonConcept, ConceptConstants.PROP_LABELS);
+			for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
+				aggregate.addLabel(Label.label(generalLabels.getString(i)));
 			}
+
+			String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
+					+ SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_AGGREGATE_TERM);
+			aggregate.setProperty(PROP_ID, aggregateId);
+			conceptIndex.add(aggregate, PROP_ID, aggregateId);
+
+			insertionReport.numConcepts++;
+		} catch (Exception e) {
+			throw new AggregateConceptInsertionException(
+					"Aggregate concept creation failed for aggregate " + jsonConcept, e);
 		}
-
-		// Set the aggregate's properties
-		if (null != aggSrcId) {
-			int idIndex = findFirstValueInArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId);
-			int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
-			if (!StringUtils.isBlank(aggSrcId) && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
-				addToArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId, true);
-				addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
-			}
-			// if the aggregate has a source ID, add it to the respective
-			// map for later access during the relationship insertion phase
-			nodesByCoordinates.put(new ConceptCoordinates(aggCoordinates), aggregate);
-			conceptIndex.add(aggregate, PROP_SRC_IDS, aggSrcId);
-		}
-		if (null != aggOrgId)
-			aggregate.setProperty(PROP_ORG_ID, aggOrgId);
-		if (null != aggOrgSource)
-			aggregate.setProperty(PROP_ORG_SRC, aggOrgSource);
-		JSONArray copyProperties = JSON.getJSONArray(jsonConcept, ConceptConstants.PROP_COPY_PROPERTIES);
-		if (null != copyProperties && copyProperties.length() > 0)
-			aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, JSON.json2JavaArray(copyProperties));
-
-		JSONArray generalLabels = JSON.getJSONArray(jsonConcept, ConceptConstants.PROP_LABELS);
-		for (int i = 0; null != generalLabels && i < generalLabels.length(); i++) {
-			aggregate.addLabel(Label.label(generalLabels.getString(i)));
-		}
-
-		String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
-				+ SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_AGGREGATE_TERM);
-		aggregate.setProperty(PROP_ID, aggregateId);
-		conceptIndex.add(aggregate, PROP_ID, aggregateId);
-
-		insertionReport.numConcepts++;
 	}
 
 	private void insertConcept(GraphDatabaseService graphDb, String facetId, Index<Node> conceptIndex,
@@ -1286,129 +1277,134 @@ public class ConceptManager extends ServerPlugin {
 	 * @param importOptions
 	 * @return
 	 * @throws JSONException
+	 * @throws AggregateConceptInsertionException 
 	 */
 	private InsertionReport insertConcepts(GraphDatabaseService graphDb, JSONArray jsonConcepts, String facetId,
-			CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws JSONException {
-		long time = System.currentTimeMillis();
-		InsertionReport insertionReport = new InsertionReport();
-		// Idea: First create all nodes and just store which Node has which
-		// parent. Then, after all nodes have been created, do the actual
-		// connection.
-		Index<Node> conceptIndex = null;
-		IndexManager indexManager = graphDb.index();
-		conceptIndex = indexManager.forNodes(INDEX_NAME);
+			CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
+		try {
+			long time = System.currentTimeMillis();
+			InsertionReport insertionReport = new InsertionReport();
+			// Idea: First create all nodes and just store which Node has which
+			// parent. Then, after all nodes have been created, do the actual
+			// connection.
+			Index<Node> conceptIndex = null;
+			IndexManager indexManager = graphDb.index();
+			conceptIndex = indexManager.forNodes(INDEX_NAME);
 
-		// this MUST be a TreeSort or at least some collection using the
-		// Comparable interface because ConceptCoordinates are rather
-		// complicated regarding equality
-		CoordinatesSet toBeCreated = new CoordinatesSet();
-		// First, iterate through all concepts and check if their parents
-		// already exist, before any nodes are created (for more efficient
-		// relationship creation).
+			// this MUST be a TreeSort or at least some collection using the
+			// Comparable interface because ConceptCoordinates are rather
+			// complicated regarding equality
+			CoordinatesSet toBeCreated = new CoordinatesSet();
+			// First, iterate through all concepts and check if their parents
+			// already exist, before any nodes are created (for more efficient
+			// relationship creation).
 
-		// When merging, we don't care about parents.
-		if (!importOptions.merge) {
-			for (int i = 0; i < jsonConcepts.length(); i++) {
-				JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
-				if (jsonConcept.has(PARENT_COORDINATES) && jsonConcept.getJSONArray(PARENT_COORDINATES).length() > 0) {
-					JSONArray parentCoordinatesArray = jsonConcept.getJSONArray(PARENT_COORDINATES);
-					for (int j = 0; j < parentCoordinatesArray.length(); j++) {
-						ConceptCoordinates parentCoordinates = new ConceptCoordinates(
-								parentCoordinatesArray.getJSONObject(j));
-						Node parentNode = lookupConcept(parentCoordinates, conceptIndex);
-						if (parentNode != null) {
-							insertionReport.addExistingConcept(parentNode);
-							nodesByCoordinates.put(parentCoordinates, parentNode);
-						} else {
-							toBeCreated.add(parentCoordinates);
+			// When merging, we don't care about parents.
+			if (!importOptions.merge) {
+				for (int i = 0; i < jsonConcepts.length(); i++) {
+					JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
+					if (jsonConcept.has(PARENT_COORDINATES) && jsonConcept.getJSONArray(PARENT_COORDINATES).length() > 0) {
+						JSONArray parentCoordinatesArray = jsonConcept.getJSONArray(PARENT_COORDINATES);
+						for (int j = 0; j < parentCoordinatesArray.length(); j++) {
+							ConceptCoordinates parentCoordinates = new ConceptCoordinates(
+									parentCoordinatesArray.getJSONObject(j));
+							Node parentNode = lookupConcept(parentCoordinates, conceptIndex);
+							if (parentNode != null) {
+								insertionReport.addExistingConcept(parentNode);
+								nodesByCoordinates.put(parentCoordinates, parentNode);
+							} else {
+								toBeCreated.add(parentCoordinates);
+							}
 						}
 					}
 				}
 			}
-		}
-		// Finished finding parents
+			// Finished finding parents
 
-		// When merging, we remove those import concepts that are not known in
-		// the database from the input data
-		List<Integer> importConceptsToRemove = new ArrayList<>();
-		// Second, iterate through all concepts to be imported and check if
-		// they already exist themselves or not. Not existing nodes will be
-		// created as
-		// HOLLOW nodes.
-		// The following methods can then just access the nodes by their source
-		// Id which ought to be unique for each import.
-		for (int i = 0; i < jsonConcepts.length(); i++) {
-			JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
-			ConceptCoordinates coordinates = null;
-			if (jsonConcept.has(ConceptConstants.PROP_COORDINATES)) {
-				coordinates = new ConceptCoordinates(jsonConcept.getJSONObject(ConceptConstants.PROP_COORDINATES));
-				insertionReport.addImportedCoordinates(coordinates);
-			} else if (!JSON.getBoolean(jsonConcept, ConceptConstants.AGGREGATE)) {
-				throw new IllegalArgumentException("Concept " + jsonConcept + " does not define concept coordinates.");
-			} else {
-				continue;
+			// When merging, we remove those import concepts that are not known in
+			// the database from the input data
+			List<Integer> importConceptsToRemove = new ArrayList<>();
+			// Second, iterate through all concepts to be imported and check if
+			// they already exist themselves or not. Not existing nodes will be
+			// created as
+			// HOLLOW nodes.
+			// The following methods can then just access the nodes by their source
+			// Id which ought to be unique for each import.
+			for (int i = 0; i < jsonConcepts.length(); i++) {
+				JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
+				ConceptCoordinates coordinates = null;
+				if (jsonConcept.has(ConceptConstants.PROP_COORDINATES)) {
+					coordinates = new ConceptCoordinates(jsonConcept.getJSONObject(ConceptConstants.PROP_COORDINATES));
+					insertionReport.addImportedCoordinates(coordinates);
+				} else if (!JSON.getBoolean(jsonConcept, ConceptConstants.AGGREGATE)) {
+					throw new IllegalArgumentException("Concept " + jsonConcept + " does not define concept coordinates.");
+				} else {
+					continue;
+				}
+				// many nodes will actually already have been seen as parents
+				// above
+				if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
+					continue;
+				Node conceptNode = lookupConcept(coordinates, conceptIndex);
+				if (conceptNode != null) {
+					insertionReport.addExistingConcept(conceptNode);
+					nodesByCoordinates.put(coordinates, conceptNode);
+				} else if (!importOptions.merge) {
+					// When merging, we don't create new concepts
+
+					// The concept coordinates are not yet known, create an
+					// empty
+					// concept node with its coordinates.
+					// Node newConcept = registerNewHollowConceptNode(graphDb,
+					// coordinates, conceptIndex);
+					toBeCreated.add(coordinates);
+
+					// conceptNode = newConcept;
+				} else {
+					// We are in merging mode and requested concept is not in the
+					// database; mark it for removal from the input data and
+					// continue
+					importConceptsToRemove.add(i);
+					continue;
+				}
+
 			}
-			// many nodes will actually already have been seen as parents
-			// above
-			if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
-				continue;
-			Node conceptNode = lookupConcept(coordinates, conceptIndex);
-			if (conceptNode != null) {
-				insertionReport.addExistingConcept(conceptNode);
+			// Finished getting existing nodes and creating HOLLOW nodes
+
+			for (ConceptCoordinates coordinates : toBeCreated) {
+				Node conceptNode = registerNewHollowConceptNode(graphDb, coordinates, conceptIndex);
+				++insertionReport.numConcepts;
+
 				nodesByCoordinates.put(coordinates, conceptNode);
-			} else if (!importOptions.merge) {
-				// When merging, we don't create new concepts
-
-				// The concept coordinates are not yet known, create an
-				// empty
-				// concept node with its coordinates.
-				// Node newConcept = registerNewHollowConceptNode(graphDb,
-				// coordinates, conceptIndex);
-				toBeCreated.add(coordinates);
-
-				// conceptNode = newConcept;
-			} else {
-				// We are in merging mode and requested concept is not in the
-				// database; mark it for removal from the input data and
-				// continue
-				importConceptsToRemove.add(i);
-				continue;
 			}
 
-		}
-		// Finished getting existing nodes and creating HOLLOW nodes
+			log.info("removing " + importConceptsToRemove.size()
+					+ " input concepts that should be omitted because we are merging and don't have them in the database");
+			for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
+				jsonConcepts.remove(importConceptsToRemove.get(index));
+			importConceptsToRemove = null;
 
-		for (ConceptCoordinates coordinates : toBeCreated) {
-			Node conceptNode = registerNewHollowConceptNode(graphDb, coordinates, conceptIndex);
-			++insertionReport.numConcepts;
-
-			nodesByCoordinates.put(coordinates, conceptNode);
-		}
-
-		log.info("removing " + importConceptsToRemove.size()
-				+ " input concepts that should be omitted because we are merging and don't have them in the database");
-		for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
-			jsonConcepts.remove(importConceptsToRemove.get(index));
-		importConceptsToRemove = null;
-
-		log.info("Starting to insert " + jsonConcepts.length() + " concepts.");
-		for (int i = 0; i < jsonConcepts.length(); i++) {
-			JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
-			boolean isAggregate = JSON.getBoolean(jsonConcept, ConceptConstants.AGGREGATE);
-			if (isAggregate) {
-				insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
-						importOptions);
-			} else {
-				insertConcept(graphDb, facetId, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
-						importOptions);
+			log.info("Starting to insert " + jsonConcepts.length() + " concepts.");
+			for (int i = 0; i < jsonConcepts.length(); i++) {
+				JSONObject jsonConcept = jsonConcepts.getJSONObject(i);
+				boolean isAggregate = JSON.getBoolean(jsonConcept, ConceptConstants.AGGREGATE);
+				if (isAggregate) {
+					insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+							importOptions);
+				} else {
+					insertConcept(graphDb, facetId, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+							importOptions);
+				}
 			}
+			log.debug(jsonConcepts.length() + " concepts inserted.");
+			time = System.currentTimeMillis() - time;
+			log.info(insertionReport.numConcepts
+					+ " new concepts - but not yet relationships - have been inserted. This took " + time + " ms ("
+					+ (time / 1000) + " s)");
+			return insertionReport;
+		} catch (JSONException e) {
+			throw new ConceptInsertionException(e);
 		}
-		log.debug(jsonConcepts.length() + " concepts inserted.");
-		time = System.currentTimeMillis() - time;
-		log.info(insertionReport.numConcepts
-				+ " new concepts - but not yet relationships - have been inserted. This took " + time + " ms ("
-				+ (time / 1000) + " s)");
-		return insertionReport;
 	}
 
 	/**
@@ -1444,7 +1440,7 @@ public class ConceptManager extends ServerPlugin {
 		return node;
 	}
 
-	public Representation insertConcepts(GraphDatabaseService graphDb, String conceptsWithFacet) throws JSONException {
+	public Representation insertConcepts(GraphDatabaseService graphDb, String conceptsWithFacet) throws JSONException, ConceptInsertionException {
 		JSONObject input = new JSONObject(conceptsWithFacet);
 		JSONObject jsonFacet = JSON.getJSONObject(input, KEY_FACET);
 		JSONArray jsonConcepts = input.getJSONArray(KEY_CONCEPTS);
@@ -1461,7 +1457,7 @@ public class ConceptManager extends ServerPlugin {
 			@Description("TODO") @Parameter(name = KEY_FACET, optional = true) String facetJson,
 			@Description("TODO") @Parameter(name = KEY_CONCEPTS, optional = true) String conceptsJson,
 			@Description("TODO") @Parameter(name = KEY_IMPORT_OPTIONS, optional = true) String importOptionsJsonString)
-			throws JSONException {
+			throws JSONException, ConceptInsertionException {
 		log.info("{} was called", INSERT_CONCEPTS);
 		long time = System.currentTimeMillis();
 
@@ -1647,16 +1643,16 @@ public class ConceptManager extends ServerPlugin {
 	 */
 	private Node lookupConceptBySourceId(String srcId, String source, boolean uniqueSourceId,
 			Index<Node> conceptIndex) {
-		log.debug("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
+		log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
 		IndexHits<Node> indexHits = conceptIndex.get(PROP_SRC_IDS, srcId);
 		if (!indexHits.hasNext())
-			log.debug("    Did not find any concept with source ID " + srcId);
+			log.trace("    Did not find any concept with source ID {}", srcId);
 
 		Node soughtConcept = null;
 		boolean uniqueSourceIdNodeFound = false;
 
 		while (indexHits.hasNext()) {
-			Node conceptNode = (Node) indexHits.next();
+			Node conceptNode = indexHits.next();
 			if (null != conceptNode) {
 				// The rule goes as follows: Two concepts that share a source ID
 				// which is marked as being unique on both concepts are equal. If
@@ -1671,8 +1667,9 @@ public class ConceptManager extends ServerPlugin {
 							throw new IllegalStateException("There are multiple concept nodes with unique source ID "
 									+ srcId
 									+ ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
-						log.debug("    Found existing concept with unique source ID " + srcId
-								+ " which matches given unique source ID");
+						log.trace(
+								"    Found existing concept with unique source ID {} which matches given unique source ID",
+								srcId);
 						uniqueSourceIdNodeFound = true;
 					}
 				}
@@ -2087,7 +2084,8 @@ public class ConceptManager extends ServerPlugin {
 				String facetId = (String) facetNode.getProperty(FacetConstants.PROP_ID);
 				if (maxRoots > 0 && facetNode.hasProperty(FacetConstants.PROP_NUM_ROOT_TERMS)
 						&& (long) facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) > maxRoots) {
-					log.info("Skipping facet with ID {} because it has more than {} root concepts ({}).", facetId, maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
+					log.info("Skipping facet with ID {} because it has more than {} root concepts ({}).", facetId,
+							maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
 				}
 				Set<String> requestedIdSet = null;
 				if (null != requestedConceptIds)

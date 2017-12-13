@@ -305,7 +305,7 @@ public class FacetManagerTest {
 
 	@SuppressWarnings("unchecked")
 	@Test
-	public void testGetFacets() throws JSONException {
+	public void testGetFacets() throws Exception {
 		// To be able to get facets, we first have to insert a few.
 		List<ImportFacet> facetMaps = new ArrayList<>();
 		facetMaps.add(getTestFacetMap(1));
