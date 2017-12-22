@@ -253,7 +253,7 @@ public class ConceptManager extends ServerPlugin {
 	public static final String KEY_CONCEPT_PUSH_CMD = "conceptPushCommand";
 	public static final String KEY_AGGREGATED_LABEL = "aggregatedLabel";
 	public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
-	public static final String KEY_CONCEPT_CONCEPTS = "conceptConcepts";
+	public static final String KEY_CONCEPT_TERMS = "conceptTerms";
 	public static final String KEY_CONCEPT_ACRONYMS = "conceptAcronyms";
 
 	/**
@@ -2124,7 +2124,7 @@ public class ConceptManager extends ServerPlugin {
 			+ " {'tid1': {'docID1': {'variant1': count1, 'variant2': count2, ...}, 'docID2': {...}}, 'tid2':...} for both variants and acronyms.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void addWritingVariants(@Source GraphDatabaseService graphDb,
-			@Description("A JSON object mapping concept IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_CONCEPT_CONCEPTS, optional = true) String conceptVariants,
+			@Description("A JSON object mapping concept IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_CONCEPT_TERMS, optional = true) String conceptVariants,
 			@Description("A JSON object mapping concept IDs to an array of acronyms to add to the existing concept acronyms.") @Parameter(name = KEY_CONCEPT_ACRONYMS, optional = true) String conceptAcronyms)
 			throws JSONException {
 		if (null != conceptVariants)

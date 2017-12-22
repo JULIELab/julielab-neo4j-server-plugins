@@ -361,8 +361,7 @@ public class Export extends ServerPlugin {
 							value = ConceptManager.getPropertyValueOfElements(term, idProperty);
 						if (null == value) {
 							terms.close();
-							throw new IllegalArgumentException("Term " + NodeUtilities.getNodePropertiesAsString(term)
-									+ " does not have a value for the property " + idProperty);
+							throw new IllegalArgumentException("A concept occurred that does not have a value for the property \"" + idProperty + "\": " + NodeUtilities.getNodePropertiesAsString(term));
 						}
 						arraySize = value.length;
 
@@ -477,7 +476,7 @@ public class Export extends ServerPlugin {
 			+ " Currently, only non-aggregate elements are eligible.")
 	@PluginTarget(GraphDatabaseService.class)
 	public String exportElementToAggregateIdMapping(@Source GraphDatabaseService graphDb,
-			@Parameter(name = PARAM_LABEL) @Description("The aggregate labels for which to create the mapping") String aggLabelStrings)
+			@Parameter(name = PARAM_LABELS) @Description("The aggregate labels for which to create the mapping") String aggLabelStrings)
 			throws Exception {
 		log.info("Exporting element-aggregate ID mapping data.");
 		JSONArray labelsArray = new JSONArray(aggLabelStrings);
