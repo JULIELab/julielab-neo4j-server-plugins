@@ -182,5 +182,11 @@ public class ConceptConstants extends NodeConstants {
 	public static final String COORD_SOURCE = "source";
 	// TODO should not be named "PROP_" since it is not a node property
 	public static final String PROP_COORDINATES = "coordinates";
+	
+	/**
+	 * Boolean property to indicate whether the facet was marked obsolete. If
+	 * the property is missing on facet, the convention is that the facet is not obsolete.
+	 */
+	public static final String PROP_OBSOLETE = "obsolete";
 
 }

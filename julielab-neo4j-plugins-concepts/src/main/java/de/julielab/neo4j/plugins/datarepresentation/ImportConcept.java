@@ -62,6 +62,13 @@ public class ImportConcept {
 		this.parentCoordinates = parentCoordinates;
 	}
 
+	public ImportConcept(String preferredName, List<String> synonyms, List<String> descriptions,
+			ConceptCoordinates coordinates, List<ConceptCoordinates> parentCoordinates, Boolean obsolete) {
+		this(preferredName, synonyms, descriptions, coordinates);
+		this.parentCoordinates = parentCoordinates;
+		this.obsolete = obsolete;
+	}
+
 	public ImportConcept(String preferredName, ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
 		this(preferredName, coordinates);
 		this.parentCoordinates = Arrays.asList(parentCoordinates);
@@ -115,6 +122,8 @@ public class ImportConcept {
 	public String displayName;
 	@SerializedName(ConceptConstants.PROP_QUALIFIERS)
 	public List<String> qualifiers;
+	@SerializedName(ConceptConstants.PROP_OBSOLETE)
+	public Boolean obsolete;
 
 	// ------------- for aggregates -----------------
 	@SerializedName(ConceptConstants.AGGREGATE)
