@@ -97,7 +97,7 @@ public class FacetManager extends ServerPlugin {
 	public ListRepresentation insertFacets(@Source GraphDatabaseService graphDb,
 			@Description("TODO") @Parameter(name = KEY_FACETS) String facetList) throws JSONException {
 		JSONArray input = new JSONArray(new String(facetList));
-		List<Node> facets = new ArrayList<Node>();
+		List<Node> facets = new ArrayList<>();
 		for (int i = 0; i < input.length(); i++) {
 			JSONObject jsonFacet = input.getJSONObject(i);
 			Node facet = createFacet(graphDb, jsonFacet);
@@ -107,9 +107,9 @@ public class FacetManager extends ServerPlugin {
 		try (Transaction tx = graphDb.beginTx()) {
 			// The response is a list - according to the input order - where for
 			// each facet is shown its name and which ID it received.
-			List<Representation> facetRepList = new ArrayList<Representation>();
+			List<Representation> facetRepList = new ArrayList<>();
 			for (Node facet : facets) {
-				Map<String, Object> map = new HashMap<String, Object>();
+				Map<String, Object> map = new HashMap<>();
 				map.put(PROP_NAME, facet.getProperty(PROP_NAME));
 				map.put(PROP_ID, facet.getProperty(PROP_ID));
 				RecursiveMappingRepresentation facetResponseRep = new RecursiveMappingRepresentation(Representation.MAP,
@@ -139,9 +139,9 @@ public class FacetManager extends ServerPlugin {
 			TraversalDescription td = PredefinedTraversals.getFacetTraversal(graphDb);
 			Traverser traverse = td.traverse(facetGroupsNode);
 
-			Map<String, Object> facetsByFacetGroupName = new HashMap<String, Object>();
-			Map<String, Node> facetGroupsMap = new HashMap<String, Node>();
-			List<Map<String, Object>> facetGroupsWithFacetsList = new ArrayList<Map<String, Object>>();
+			Map<String, Object> facetsByFacetGroupName = new HashMap<>();
+			Map<String, Node> facetGroupsMap = new HashMap<>();
+			List<Map<String, Object>> facetGroupsWithFacetsList = new ArrayList<>();
 
 			// First build intermediate maps where the facet group nodes and
 			// facets
@@ -198,7 +198,7 @@ public class FacetManager extends ServerPlugin {
 
 					List<Object> facets = (List<Object>) facetsByFacetGroupName.get(facetGroupName);
 					if (facets == null) {
-						facets = new ArrayList<Object>();
+						facets = new ArrayList<>();
 						facetsByFacetGroupName.put(facetGroupName, facets);
 					}
 					facets.add(facet);
@@ -213,7 +213,7 @@ public class FacetManager extends ServerPlugin {
 				Node facetGroupNode = facetGroupsMap.get(facetGroupName);
 				Object facets = facetsByFacetGroupName.get(facetGroupName);
 
-				Map<String, Object> facetGroupMap = new HashMap<String, Object>();
+				Map<String, Object> facetGroupMap = new HashMap<>();
 				for (String propKey : facetGroupNode.getPropertyKeys())
 					facetGroupMap.put(propKey, facetGroupNode.getProperty(propKey));
 				List<String> facetGroupLabels = new ArrayList<>();
@@ -224,7 +224,7 @@ public class FacetManager extends ServerPlugin {
 
 				facetGroupsWithFacetsList.add(facetGroupMap);
 			}
-			Map<String, Object> ret = new HashMap<String, Object>();
+			Map<String, Object> ret = new HashMap<>();
 			ret.put("facetGroups", facetGroupsWithFacetsList);
 			facetGroupsRep = new RecursiveMappingRepresentation(Representation.MAP, ret);
 			tx.success();

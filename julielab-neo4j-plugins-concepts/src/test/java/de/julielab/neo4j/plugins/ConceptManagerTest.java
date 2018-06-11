@@ -295,7 +295,7 @@ public class ConceptManagerTest {
 		termList.add(new ImportConcept("prefname3", coord3, coord1));
 		termList.add(new ImportConcept("prefname4", coord4, coord2));
 
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("terms", termList);
 
@@ -401,7 +401,7 @@ public class ConceptManagerTest {
 		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
 
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("terms", termList);
 		String termsAndFacetJson = gson.toJson(termsAndFacet);
@@ -483,7 +483,7 @@ public class ConceptManagerTest {
 		Gson gson = new Gson();
 		ConceptManager ftm = new ConceptManager();
 
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("terms", Lists.newArrayList(concept));
 		String termsAndFacetJson = gson.toJson(termsAndFacet);
@@ -874,7 +874,7 @@ public class ConceptManagerTest {
 		List<ImportConcept> termList = new ArrayList<>();
 		termList.add(new ImportConcept("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term",
 				new ConceptCoordinates("TERM", "TEST_SOURCE", SRC)));
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", FacetManagerTest.getImportFacet());
 		termsAndFacet.put("terms", termList);
 

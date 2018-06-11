@@ -81,7 +81,7 @@ public class FacetManagerTest {
 			JSONException {
 		Gson gson = new Gson();
 
-		Map<String, Object> facetGroupMap1 = new HashMap<String, Object>();
+		Map<String, Object> facetGroupMap1 = new HashMap<>();
 		facetGroupMap1.put(FacetGroupConstants.PROP_NAME, "Test Facet Group");
 		facetGroupMap1.put(FacetGroupConstants.PROP_POSITION, 1);
 		facetGroupMap1.put(FacetGroupConstants.PROP_GENERAL_LABELS,
@@ -90,7 +90,7 @@ public class FacetManagerTest {
 		String facetGroupJsonString1 = gson.toJson(facetGroupMap1);
 		JSONObject jsonFacetGroup1 = new JSONObject(facetGroupJsonString1);
 
-		Map<String, Object> facetGroupMap2 = new HashMap<String, Object>();
+		Map<String, Object> facetGroupMap2 = new HashMap<>();
 		facetGroupMap2.put(FacetGroupConstants.PROP_NAME, "Test Facet Group 2");
 		facetGroupMap2.put(FacetGroupConstants.PROP_POSITION, 2);
 		facetGroupMap2.put(FacetGroupConstants.PROP_GENERAL_LABELS,
@@ -173,13 +173,13 @@ public class FacetManagerTest {
 
 	@Test
 	public void testCreateMinimalFacet() throws JSONException {
-		Map<String, Object> facetGroupMap = new HashMap<String, Object>();
+		Map<String, Object> facetGroupMap = new HashMap<>();
 		facetGroupMap.put(FacetGroupConstants.PROP_NAME, "facetGroup1");
 		facetGroupMap.put(FacetGroupConstants.PROP_POSITION, 1);
 		facetGroupMap.put(FacetGroupConstants.PROP_GENERAL_LABELS,
 				Lists.newArrayList("showForSearch"));
 
-		Map<String, Object> facetMap = new HashMap<String, Object>();
+		Map<String, Object> facetMap = new HashMap<>();
 		facetMap.put(PROP_NAME, "testfacet1");
 		facetMap.put(PROP_CSS_ID, "cssid1");
 		facetMap.put(PROP_SOURCE_TYPE, SRC_TYPE_HIERARCHICAL);

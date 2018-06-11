@@ -68,7 +68,7 @@ public class TermAggregateBuilder {
 
 			// Get all terms and sort them by name and synonyms
 			ResourceIterable<Node> termIterable = () -> graphDb.findNodes(ConceptManager.TermLabel.TERM);
-			List<Node> terms = new ArrayList<Node>();
+			List<Node> terms = new ArrayList<>();
 			for (Node term : termIterable) {
 				terms.add(term);
 			}
@@ -76,14 +76,14 @@ public class TermAggregateBuilder {
 
 			String[] copyProperties = new String[] { ConceptConstants.PROP_PREF_NAME, ConceptConstants.PROP_SYNONYMS,
 					ConceptConstants.PROP_DESCRIPTIONS };
-			List<Node> equalNameTerms = new ArrayList<Node>();
+			List<Node> equalNameTerms = new ArrayList<>();
 			for (Node term : terms) {
 				boolean equalTerm = 0 == equalNameTerms.size()
 						|| 0 == nameAndSynonymComparator.compare(equalNameTerms.get(equalNameTerms.size() - 1), term);
 				if (equalTerm) {
 					equalNameTerms.add(term);
 				} else if (equalNameTerms.size() > 1) {
-					createAggregate(graphDb, copyProperties, new HashSet<Node>(equalNameTerms),
+					createAggregate(graphDb, copyProperties, new HashSet<>(equalNameTerms),
 							new String[] { ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES.toString() }, termIndex,
 							ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
 					for (Node equalNameTerm : equalNameTerms)
@@ -97,7 +97,7 @@ public class TermAggregateBuilder {
 				}
 			}
 			if (equalNameTerms.size() > 1)
-				createAggregate(graphDb, copyProperties, new HashSet<Node>(equalNameTerms),
+				createAggregate(graphDb, copyProperties, new HashSet<>(equalNameTerms),
 						new String[] { ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES.toString() }, termIndex,
 						ConceptManager.TermLabel.AGGREGATE_EQUAL_NAMES);
 			for (Node term : equalNameTerms)
