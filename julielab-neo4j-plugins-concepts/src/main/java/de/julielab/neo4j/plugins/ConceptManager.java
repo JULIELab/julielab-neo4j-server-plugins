@@ -1614,7 +1614,7 @@ public class ConceptManager extends ServerPlugin {
 			} else if (null != jsonFacet && jsonFacet.has(FacetConstants.PROP_NAME)) {
 				ResourceIterator<Node> facetIterator = graphDb.findNodes(FacetLabel.FACET);
 				while (facetIterator.hasNext()) {
-					facet = (Node) facetIterator.next();
+					facet = facetIterator.next();
 					if (facet.getProperty(FacetConstants.PROP_NAME)
 							.equals(jsonFacet.getString(FacetConstants.PROP_NAME)))
 						break;
@@ -1761,7 +1761,7 @@ public class ConceptManager extends ServerPlugin {
 		boolean uniqueSourceIdNodeFound = false;
 
 		while (indexHits.hasNext()) {
-			Node conceptNode = (Node) indexHits.next();
+			Node conceptNode = indexHits.next();
 			if (null != conceptNode) {
 				// The rule goes as follows: Two concepts that share a source ID
 				// which is marked as being unique on both terms are equal. If

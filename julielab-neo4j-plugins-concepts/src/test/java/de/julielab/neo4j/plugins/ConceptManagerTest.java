@@ -565,7 +565,7 @@ public class ConceptManagerTest {
 			int counter = 0;
 			while (conceptNodes.hasNext()) {
 				@SuppressWarnings("unused")
-				Node n = (Node) conceptNodes.next();
+				Node n = conceptNodes.next();
 				++counter;
 			}
 			assertEquals(1, counter);
@@ -576,7 +576,7 @@ public class ConceptManagerTest {
 			counter = 0;
 			while (conceptNodes.hasNext()) {
 				@SuppressWarnings("unused")
-				Node n = (Node) conceptNodes.next();
+				Node n = conceptNodes.next();
 				++counter;
 			}
 			assertEquals(1, counter);

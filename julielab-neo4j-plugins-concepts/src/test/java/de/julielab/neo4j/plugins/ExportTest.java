@@ -84,7 +84,7 @@ public class ExportTest {
 			ResourceIterator<Node> allNodesWithLabel = graphDb.findNodes(FacetManager.FacetLabel.FACET);
 			int facetCount = 0;
 			while (allNodesWithLabel.hasNext()) {
-				Node facet = (Node) allNodesWithLabel.next();
+				Node facet = allNodesWithLabel.next();
 				System.out.println("Got facet node: "  + NodeUtilities.getNodePropertiesAsString(facet));
 				facetCount++;
 			}

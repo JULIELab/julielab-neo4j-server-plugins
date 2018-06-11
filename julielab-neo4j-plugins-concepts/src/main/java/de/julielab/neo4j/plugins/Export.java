@@ -336,7 +336,7 @@ public class Export extends ServerPlugin {
 
 			int count = 0;
 			while (terms.hasNext()) {
-				Node term = (Node) terms.next();
+				Node term = terms.next();
 				count++;
 				boolean termHasExclusionLabel = false;
 				for (int i = 0; null != exclusionLabels && i < exclusionLabels.length; i++) {
