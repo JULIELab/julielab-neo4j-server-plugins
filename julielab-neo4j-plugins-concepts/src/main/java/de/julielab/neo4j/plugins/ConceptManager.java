@@ -821,12 +821,11 @@ public class ConceptManager extends ServerPlugin {
 				if (iterator.hasNext()) {
 					if (StringUtils.isBlank(facetId)) {
 						return Evaluation.INCLUDE_AND_CONTINUE;
-					} else {
-						String[] facetIds = (String[]) endNode.getProperty(PROP_FACETS);
-						for (String facetIdOfRootNode : facetIds) {
-							if (facetIdOfRootNode.equals(facetId))
-								return Evaluation.INCLUDE_AND_CONTINUE;
-						}
+					}
+					String[] facetIds = (String[]) endNode.getProperty(PROP_FACETS);
+					for (String facetIdOfRootNode : facetIds) {
+						if (facetIdOfRootNode.equals(facetId))
+							return Evaluation.INCLUDE_AND_CONTINUE;
 					}
 				}
 				return Evaluation.EXCLUDE_AND_CONTINUE;

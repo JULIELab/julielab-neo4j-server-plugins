@@ -28,14 +28,15 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 				c2.source = c.source;
 			}
 			return true;
-		} else {
-			// We didn't have compatible coordinates before. Add them.
-			if (c.originalId != null)
-				coordsByOriginalId.put(c.originalId, c);
-			if (coordinates.sourceId != null)
-				coordsBySourceId.put(c.sourceId, c);
-			return false;
 		}
+		// We didn't have compatible coordinates before. Add them.
+		if (c.originalId != null) {
+			coordsByOriginalId.put(c.originalId, c);
+		}
+		if (coordinates.sourceId != null) {
+			coordsBySourceId.put(c.sourceId, c);
+		}
+		return false;
 
 	}
 
