@@ -53,34 +53,24 @@ public class SequenceManager {
 
 	private static synchronized Node getSequence(GraphDatabaseService graphDb, String seqFacetGroup) {
 
-		try {
-			IndexHits<Node> indexHits = null;
-			try //(Transaction tx = graphDb.beginTx()) 
-			{
-				Index<Node> seqIndex = graphDb.index().forNodes(SEQUENCE_INDEX);
-				indexHits = seqIndex.get(NodeConstants.PROP_NAME, seqFacetGroup);
-				Node sequence = indexHits.getSingle();
-				if (null == sequence) {
-					// First get or create the sequences super node.
-					// We do a connection not for lookup but just so the graph is
-					// connected
-					// and everything easily visible when viewing the graph e.g.
-					// with the
-					// Neo4j server graph viewer.
-					Node seqRoot = getSequenceRoot(graphDb);
-					sequence = graphDb.createNode();
-					sequence.setProperty(PROP_NAME, seqFacetGroup);
-					sequence.setProperty(PROP_VALUE, 0);
-					seqIndex.putIfAbsent(sequence, PROP_NAME, seqFacetGroup);
-					seqRoot.createRelationshipTo(sequence, EdgeTypes.HAS_SEQUENCE);
-//					tx.success();
-				}
-				return sequence;
-			} 
-			finally {
-				if (null != indexHits)
-					indexHits.close();
+		Index<Node> seqIndex = graphDb.index().forNodes(SEQUENCE_INDEX);
+		try (IndexHits<Node> indexHits = seqIndex.get(NodeConstants.PROP_NAME, seqFacetGroup)) {
+			Node sequence = indexHits.getSingle();
+			if (null == sequence) {
+				// First get or create the sequences super node.
+				// We do a connection not for lookup but just so the graph is
+				// connected
+				// and everything easily visible when viewing the graph e.g.
+				// with the
+				// Neo4j server graph viewer.
+				Node seqRoot = getSequenceRoot(graphDb);
+				sequence = graphDb.createNode();
+				sequence.setProperty(PROP_NAME, seqFacetGroup);
+				sequence.setProperty(PROP_VALUE, 0);
+				seqIndex.putIfAbsent(sequence, PROP_NAME, seqFacetGroup);
+				seqRoot.createRelationshipTo(sequence, EdgeTypes.HAS_SEQUENCE);
 			}
+			return sequence;
 		} catch (NoSuchElementException e) {
 			throw new IllegalStateException("More than one sequence node for the sequence with name \"" + seqFacetGroup + "\" was returned.", e);
 		}

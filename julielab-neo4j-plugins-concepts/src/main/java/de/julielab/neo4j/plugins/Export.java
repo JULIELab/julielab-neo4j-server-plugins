@@ -330,100 +330,100 @@ public class Export extends ServerPlugin {
 		log.info("Exporting lingpipe dictionary data for nodes with label \"" + label.name()
 				+ "\", mapping their names to their properties " + propertiesToWrite + ".");
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
-		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
-			try (Transaction tx = graphDb.beginTx()) {
-				ResourceIterator<Node> terms = graphDb.findNodes(label);
-				int count = 0;
-				while (terms.hasNext()) {
-					Node term = (Node) terms.next();
-					count++;
-					boolean termHasExclusionLabel = false;
-					for (int i = 0; null != exclusionLabels && i < exclusionLabels.length; i++) {
-						Label exclusionLabel = exclusionLabels[i];
-						if (term.hasLabel(exclusionLabel)) {
-							termHasExclusionLabel = true;
-							break;
-						}
+		try (GZIPOutputStream os = new GZIPOutputStream(baos);
+				Transaction tx = graphDb.beginTx();
+				ResourceIterator<Node> terms = graphDb.findNodes(label);) {
+
+			int count = 0;
+			while (terms.hasNext()) {
+				Node term = (Node) terms.next();
+				count++;
+				boolean termHasExclusionLabel = false;
+				for (int i = 0; null != exclusionLabels && i < exclusionLabels.length; i++) {
+					Label exclusionLabel = exclusionLabels[i];
+					if (term.hasLabel(exclusionLabel)) {
+						termHasExclusionLabel = true;
+						break;
 					}
-					if (!termHasExclusionLabel && term.hasProperty(PROP_ID) && term.hasProperty(PROP_PREF_NAME)) {
-
-						int arraySize;
-						String idProperty = propertiesToWrite.get(0);
-						// for array-valued properties we require that all
-						// arrays are of the same length. Thus, to determine the
-						// required number of iterations we just use the first
-						// array since the others should have the same length.
-						String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(term, idProperty);
-
-						if (null == value && term.hasLabel(TermLabel.AGGREGATE))
-							// perhaps we have an aggregate term, then we can
-							// try and retrieve the value from its elements
-							value = ConceptManager.getPropertyValueOfElements(term, idProperty);
-						if (null == value) {
-							terms.close();
-							throw new IllegalArgumentException("Term " + NodeUtilities.getNodePropertiesAsString(term)
-									+ " does not have a value for the property " + idProperty);
-						}
-						arraySize = value.length;
-
-						List<String> categoryStrings = new ArrayList<>();
-						for (int i = 0; i < arraySize; ++i) {
-							StringBuilder sb = new StringBuilder();
-							for (int j = 0; j < propertiesToWrite.size(); ++j) {
-								String property = propertiesToWrite.get(j);
-								value = NodeUtilities.getNodePropertyAsStringArrayValue(term, property);
-								if (null == value && term.hasLabel(TermLabel.AGGREGATE))
-									// perhaps we have an aggregate term, then
-									// we can try and retrieve the value from
-									// its elements
-									value = ConceptManager.getPropertyValueOfElements(term, idProperty);
-								if (null == value || value.length == 0) {
-									terms.close();
-									throw new IllegalArgumentException("The property \"" + property
-											+ "\" does not contain a value for node " + term + " (properties: "
-											+ PropertyUtilities.getNodePropertiesAsString(term) + ")");
-								}
-								if (value.length != arraySize) {
-									terms.close();
-									throw new IllegalArgumentException("The properties \"" + propertiesToWrite
-											+ "\" on term " + PropertyUtilities.getNodePropertiesAsString(term)
-											+ " do not have all the same number of value elements which is required for dictionary creation by this method.");
-								}
-								sb.append(value[i]);
-								if (j < propertiesToWrite.size() - 1)
-									sb.append("||");
-							}
-							categoryStrings.add(sb.toString());
-						}
-
-						for (String categoryString : categoryStrings) {
-							String preferredName = (String) term.getProperty(PROP_PREF_NAME);
-							String[] synonyms = new String[0];
-							if (term.hasProperty(PROP_SYNONYMS))
-								synonyms = (String[]) term.getProperty(PROP_SYNONYMS);
-							// String[] writingVariants = new String[0];
-							// if (term.hasProperty(PROP_WRITING_VARIANTS))
-							// writingVariants = (String[]) term
-							// .getProperty(PROP_WRITING_VARIANTS);
-
-							writeNormalizedDictionaryEntry(preferredName, categoryString, os);
-							for (String synonString : synonyms)
-								writeNormalizedDictionaryEntry(synonString, categoryString, os);
-							TraversalDescription acronymsTraversal = PredefinedTraversals.getAcronymsTraversal(graphDb);
-							Traverser traverse = acronymsTraversal.traverse(term);
-							for (Node acronymNode : traverse.nodes()) {
-								String acronym = (String) acronymNode.getProperty(MorphoConstants.PROP_NAME);
-								writeNormalizedDictionaryEntry(acronym, categoryString, os);
-							}
-							// for (String variant : writingVariants)
-							// writeNormalizedDictionaryEntry(variant,
-							// categoryString, os);
-						}
-					}
-					if (count % 100000 == 0)
-						log.info(count + " terms processed.");
 				}
-			}
+				if (!termHasExclusionLabel && term.hasProperty(PROP_ID) && term.hasProperty(PROP_PREF_NAME)) {
+
+					int arraySize;
+					String idProperty = propertiesToWrite.get(0);
+					// for array-valued properties we require that all
+					// arrays are of the same length. Thus, to determine the
+					// required number of iterations we just use the first
+					// array since the others should have the same length.
+					String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(term, idProperty);
+
+					if (null == value && term.hasLabel(TermLabel.AGGREGATE))
+						// perhaps we have an aggregate term, then we can
+						// try and retrieve the value from its elements
+						value = ConceptManager.getPropertyValueOfElements(term, idProperty);
+					if (null == value) {
+						terms.close();
+						throw new IllegalArgumentException("Term " + NodeUtilities.getNodePropertiesAsString(term)
+						+ " does not have a value for the property " + idProperty);
+					}
+					arraySize = value.length;
+
+					List<String> categoryStrings = new ArrayList<>();
+					for (int i = 0; i < arraySize; ++i) {
+						StringBuilder sb = new StringBuilder();
+						for (int j = 0; j < propertiesToWrite.size(); ++j) {
+							String property = propertiesToWrite.get(j);
+							value = NodeUtilities.getNodePropertyAsStringArrayValue(term, property);
+							if (null == value && term.hasLabel(TermLabel.AGGREGATE))
+								// perhaps we have an aggregate term, then
+								// we can try and retrieve the value from
+								// its elements
+								value = ConceptManager.getPropertyValueOfElements(term, idProperty);
+							if (null == value || value.length == 0) {
+								terms.close();
+								throw new IllegalArgumentException("The property \"" + property
+										+ "\" does not contain a value for node " + term + " (properties: "
+										+ PropertyUtilities.getNodePropertiesAsString(term) + ")");
+							}
+							if (value.length != arraySize) {
+								terms.close();
+								throw new IllegalArgumentException("The properties \"" + propertiesToWrite
+										+ "\" on term " + PropertyUtilities.getNodePropertiesAsString(term)
+										+ " do not have all the same number of value elements which is required for dictionary creation by this method.");
+							}
+							sb.append(value[i]);
+							if (j < propertiesToWrite.size() - 1)
+								sb.append("||");
+						}
+						categoryStrings.add(sb.toString());
+					}
+
+					for (String categoryString : categoryStrings) {
+						String preferredName = (String) term.getProperty(PROP_PREF_NAME);
+						String[] synonyms = new String[0];
+						if (term.hasProperty(PROP_SYNONYMS))
+							synonyms = (String[]) term.getProperty(PROP_SYNONYMS);
+						// String[] writingVariants = new String[0];
+						// if (term.hasProperty(PROP_WRITING_VARIANTS))
+						// writingVariants = (String[]) term
+						// .getProperty(PROP_WRITING_VARIANTS);
+
+						writeNormalizedDictionaryEntry(preferredName, categoryString, os);
+						for (String synonString : synonyms)
+							writeNormalizedDictionaryEntry(synonString, categoryString, os);
+						TraversalDescription acronymsTraversal = PredefinedTraversals.getAcronymsTraversal(graphDb);
+						Traverser traverse = acronymsTraversal.traverse(term);
+						for (Node acronymNode : traverse.nodes()) {
+							String acronym = (String) acronymNode.getProperty(MorphoConstants.PROP_NAME);
+							writeNormalizedDictionaryEntry(acronym, categoryString, os);
+						}
+						// for (String variant : writingVariants)
+						// writeNormalizedDictionaryEntry(variant,
+						// categoryString, os);
+					}
+				}
+				if (count % 100000 == 0)
+					log.info(count + " terms processed.");
+			}		
 		}
 		log.info("Done exporting Lingpipe term dictionary.");
 		byte[] bytes = baos.toByteArray();
