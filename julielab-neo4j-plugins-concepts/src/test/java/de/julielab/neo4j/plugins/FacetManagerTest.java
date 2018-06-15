@@ -17,7 +17,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -71,7 +70,7 @@ public class FacetManagerTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 

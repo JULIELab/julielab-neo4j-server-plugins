@@ -317,7 +317,7 @@ public class ConceptManager extends ServerPlugin {
 			@Description("Label for terms that have been processed by the aggregation algorithm. Such terms"
 					+ " can be aggregate terms (with the label AGGREGATE) or just plain terms"
 					+ " (with the label TERM) that are not an element of an aggregate.") @Parameter(name = KEY_AGGREGATED_LABEL) String aggregatedTermsLabelString)
-			throws JSONException {
+			{
 		Label aggregatedTermsLabel = Label.label(aggregatedTermsLabelString);
 		TermAggregateBuilder.deleteAggregates(graphDb, aggregatedTermsLabel);
 	}
@@ -1967,11 +1967,12 @@ public class ConceptManager extends ServerPlugin {
 						}
 					}
 				}
-				if (facetsContainingChildren.size() == 0 && term.hasProperty(PROP_CHILDREN_IN_FACETS))
+				if (facetsContainingChildren.isEmpty() && term.hasProperty(PROP_CHILDREN_IN_FACETS))
 					term.removeProperty(PROP_CHILDREN_IN_FACETS);
-				else if (facetsContainingChildren.size() > 0)
+				else if (!facetsContainingChildren.isEmpty()) {
 					term.setProperty(PROP_CHILDREN_IN_FACETS,
-							facetsContainingChildren.toArray(new String[facetsContainingChildren.size()]));
+							facetsContainingChildren.toArray(new String[facetsContainingChildren.size()]));	
+				}
 			}
 			tx.success();
 			return "success";
@@ -1981,7 +1982,7 @@ public class ConceptManager extends ServerPlugin {
 	@Name("include_terms")
 	@Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
 	@PluginTarget(GraphDatabaseService.class)
-	public void includeTerms(@Source GraphDatabaseService graphDb) throws JSONException {
+	public void includeTerms(@Source GraphDatabaseService graphDb) {
 		Label includeLabel = Label.label("INCLUDE");
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterable<Node> terms = () -> graphDb.findNodes(includeLabel);
@@ -2025,7 +2026,7 @@ public class ConceptManager extends ServerPlugin {
 	@Name("exclude_terms")
 	@Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
 	@PluginTarget(GraphDatabaseService.class)
-	public void excludeTerms(@Source GraphDatabaseService graphDb) throws JSONException {
+	public void excludeTerms(@Source GraphDatabaseService graphDb) {
 		Label includeLabel = Label.label("INCLUDE");
 		Label excludeLabel = Label.label("EXCLUDE");
 		Label mappingAggregateLabel = Label.label("MAPPING_AGGREGATE");
@@ -2233,7 +2234,7 @@ public class ConceptManager extends ServerPlugin {
 	public void addWritingVariants(@Source GraphDatabaseService graphDb,
 			@Description("A JSON object mapping term IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_TERM_VARIANTS, optional = true) String termVariants,
 			@Description("A JSON object mapping term IDs to an array of acronyms to add to the existing term acronyms.") @Parameter(name = KEY_TERM_ACRONYMS, optional = true) String termAcronyms)
-			throws JSONException {
+			{
 		if (null != termVariants)
 			addConceptVariant(graphDb, termVariants, "writingVariants");
 		if (null != termAcronyms)

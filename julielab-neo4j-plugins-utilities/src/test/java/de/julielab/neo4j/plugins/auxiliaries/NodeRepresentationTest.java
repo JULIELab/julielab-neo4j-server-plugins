@@ -3,7 +3,6 @@ package de.julielab.neo4j.plugins.auxiliaries;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -30,7 +29,7 @@ public class NodeRepresentationTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 	

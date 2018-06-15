@@ -2,7 +2,6 @@ package de.julielab.neo4j.plugins;
 
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,7 +41,7 @@ public class TraversalTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 

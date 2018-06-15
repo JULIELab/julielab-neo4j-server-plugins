@@ -86,7 +86,7 @@ public class FacetManager extends ServerPlugin {
 	@Description("Returns the size of a facet by counting all the related children")
 	@PluginTarget(GraphDatabaseService.class)
 	public int getFacetSize(@Source GraphDatabaseService graphDb,
-			@Description("TODO") @Parameter(name = KEY_ID) String fid) throws JSONException {
+			@Description("TODO") @Parameter(name = KEY_ID) String fid) {
 		return countFacetChildren(graphDb, fid);
 	}
 
@@ -130,7 +130,7 @@ public class FacetManager extends ServerPlugin {
 	@PluginTarget(GraphDatabaseService.class)
 	public MappingRepresentation getFacets(@Source GraphDatabaseService graphDb,
 			@Description("TODO") @Parameter(name = PARAM_RETURN_HOLLOW_FACETS, optional = true) Boolean returnHollowfacets)
-					throws JSONException {
+					{
 		// As of Neo4j 2.0, read operations are required to be inside a
 		// transaction.
 		RecursiveMappingRepresentation facetGroupsRep;

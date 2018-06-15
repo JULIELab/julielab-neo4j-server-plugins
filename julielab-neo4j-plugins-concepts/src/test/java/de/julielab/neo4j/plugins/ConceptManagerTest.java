@@ -19,7 +19,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -98,7 +97,7 @@ public class ConceptManagerTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 
@@ -250,7 +249,7 @@ public class ConceptManagerTest {
 
 	@Test
 	public void testImportConceptsWithoutFacetDefinition() throws JSONException, SecurityException,
-			IllegalArgumentException, NoSuchFieldException, IllegalAccessException {
+			IllegalArgumentException {
 		// Here, create the facet "manually" and then do the term import. The
 		// import method "knows" which facet Id to use (there will only be this
 		// one facet, so its fid0...)

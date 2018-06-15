@@ -4,7 +4,6 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.zip.GZIPInputStream;
 
@@ -39,7 +38,7 @@ public class ExportTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 
