@@ -20,7 +20,7 @@ public class NodeRepresentation extends RecursiveMappingRepresentation {
 	}
 
 	private Map<String, Object> convertNodeToMap(Node node) {
-		HashMap<String, Object> nodeMap = new HashMap<String, Object>();
+		HashMap<String, Object> nodeMap = new HashMap<>();
 		for (String key : node.getPropertyKeys()) {
 			nodeMap.put(key, node.getProperty(key));
 		}

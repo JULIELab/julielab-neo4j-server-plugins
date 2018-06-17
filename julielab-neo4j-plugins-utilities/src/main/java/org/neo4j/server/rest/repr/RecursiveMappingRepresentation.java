@@ -143,32 +143,32 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 		Class<?> arrayClass = arrayObject.getClass();
 		if (arrayClass.equals(int[].class)) {
 			int[] array = (int[]) arrayObject;
-			repList = new ArrayList<Representation>();
+			repList = new ArrayList<>();
 			for (int i = 0; i < array.length; i++)
 				repList.add(getObjectRepresentation(array[i]));
 		} else if (arrayClass.equals(byte[].class)) {
 			byte[] array = (byte[]) arrayObject;
-			repList = new ArrayList<Representation>();
+			repList = new ArrayList<>();
 			for (int i = 0; i < array.length; i++)
 				repList.add(getObjectRepresentation(array[i]));
 		} else if (arrayClass.equals(short[].class)) {
 			short[] array = (short[]) arrayObject;
-			repList = new ArrayList<Representation>();
+			repList = new ArrayList<>();
 			for (int i = 0; i < array.length; i++)
 				repList.add(getObjectRepresentation(array[i]));
 		} else if (arrayClass.equals(double[].class)) {
 			double[] array = (double[]) arrayObject;
-			repList = new ArrayList<Representation>();
+			repList = new ArrayList<>();
 			for (int i = 0; i < array.length; i++)
 				repList.add(getObjectRepresentation(array[i]));
 		} else if (arrayClass.equals(float[].class)) {
 			float[] array = (float[]) arrayObject;
-			repList = new ArrayList<Representation>();
+			repList = new ArrayList<>();
 			for (int i = 0; i < array.length; i++)
 				repList.add(getObjectRepresentation(array[i]));
 		} else {
 			Object[] array = (Object[]) arrayObject;
-			repList = new ArrayList<Representation>();
+			repList = new ArrayList<>();
 			for (int i = 0; i < array.length; i++)
 				repList.add(getObjectRepresentation(array[i]));
 		}
@@ -179,8 +179,8 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 
 	public static ListRepresentation getIterableRepresentation(Iterable<?> value) {
 		ListRepresentation rep;
-		List<Representation> repList = new ArrayList<Representation>();
-		Iterable<?> iterable = (Iterable<?>) value;
+		List<Representation> repList = new ArrayList<>();
+		Iterable<?> iterable = value;
 		for (Object o : iterable)
 			repList.add(getObjectRepresentation(o));
 		// I have absolutely no idea what this "type" should be good for.
