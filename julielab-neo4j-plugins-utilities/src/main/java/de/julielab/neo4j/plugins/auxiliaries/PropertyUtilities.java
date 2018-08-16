@@ -97,7 +97,7 @@ public class PropertyUtilities {
 	private static void mergeJSONObjectIntoPropertyContainer(Node from, Node to, Set<String> exclusions) {
 		Iterator<String> keys = from.getPropertyKeys().iterator();
 		while (keys.hasNext()) {
-			String key = (String) keys.next();
+			String key = keys.next();
 			if (null != exclusions && exclusions.contains(key))
 				continue;
 			Object value = from.getProperty(key);
@@ -131,7 +131,7 @@ public class PropertyUtilities {
 			// Integer[] but the node stored an int[]
 			// which is not castable...
 			// Use the set to avoid duplicates.
-			Set<T> set = new LinkedHashSet<T>();
+			Set<T> set = new LinkedHashSet<>();
 			for (T o : array)
 				set.add(o);
 
