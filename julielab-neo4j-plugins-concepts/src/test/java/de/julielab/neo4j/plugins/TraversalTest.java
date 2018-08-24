@@ -11,7 +11,6 @@ import java.util.Set;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
@@ -20,9 +19,7 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
 
-import de.julielab.neo4j.plugins.ConceptManager.MorphoLabel;
 import de.julielab.neo4j.plugins.ConceptManager.TermLabel;
-import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.constants.semedico.MorphoConstants;
 import de.julielab.neo4j.plugins.constants.semedico.NodeIDPrefixConstants;
@@ -71,10 +68,10 @@ public class TraversalTest {
 
 		tm.addWritingVariants(graphDb, null, JsonSerializer.toJson(acronyms));
 
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> acronymsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
+		try (Transaction tx = graphDb.beginTx();
+				ResourceIterator<Node> acronymsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
+				ResourceIterator<Node> acronymNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYM)) {
 			assertTrue(acronymsNodes.hasNext());
-			ResourceIterator<Node> acronymNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYM);
 			assertTrue(acronymNodes.hasNext());
 
 			Node term0 = graphDb.findNode(TermLabel.TERM, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);
@@ -112,10 +109,11 @@ public class TraversalTest {
 
 		tm.addWritingVariants(graphDb, JsonSerializer.toJson(variants), null);
 
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> variantsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);
+		try (Transaction tx = graphDb.beginTx();
+				ResourceIterator<Node> variantsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);
+				ResourceIterator<Node> variantNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANT);
+			) {
 			assertTrue(variantsNodes.hasNext());
-			ResourceIterator<Node> variantNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANT);
 			assertTrue(variantNodes.hasNext());
 
 			Node term0 = graphDb.findNode(TermLabel.TERM, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);

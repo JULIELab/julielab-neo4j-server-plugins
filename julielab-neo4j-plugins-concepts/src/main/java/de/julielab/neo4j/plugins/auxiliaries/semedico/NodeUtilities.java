@@ -105,60 +105,61 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 	}
 
 	public static Node mergeConceptNodesWithUniqueSourceId(String srcId, Index<Node> termIndex, List<Node> obsoleteNodes) {
-		IndexHits<Node> conceptNodes = termIndex.get(PROP_SRC_IDS, srcId);
-		Node firstNode = null;
-		for (Node conceptNode : conceptNodes) {
-			if (firstNode == null) {
-				firstNode = conceptNode;
-				continue;
-			}
-			
-			// ----- setting preferred name
-			String firstNodePrefName = (String) firstNode.getProperty(PROP_PREF_NAME);
-			String conceptPrefName = (String) conceptNode.getProperty(PROP_PREF_NAME);
-			boolean addConceptPrefToSynonyms = !firstNodePrefName.equals(conceptPrefName);
-			
-			// ----- merging of general properties
-			PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_GENERAL_LABELS,
-					PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, PROP_COORDINATES, PARENT_COORDINATES);
-			
-			// ----- merging of source IDs and sources
-			// we merge the coordinates (source ID, source) that do not yet exist in first node
-			String[] conceptSrcIds = (String[]) conceptNode.getProperty(PROP_SRC_IDS);
-			String[] conceptSources = (String[]) conceptNode.getProperty(PROP_SOURCES);
-			boolean[] conceptUniqueMarkers = (boolean[]) conceptNode.getProperty(PROP_UNIQUE_SRC_ID);
-			for (int i = 0; i < conceptSrcIds.length; i++) {
-				String conceptSrcId = conceptSrcIds[i];
-				String conceptSource = conceptSources[i];
-				boolean conceptUniqueSrcId = conceptUniqueMarkers[i];
-				int idIndex = findFirstValueInArrayProperty(firstNode, PROP_SRC_IDS, conceptSrcId);
-				int sourceIndex = findFirstValueInArrayProperty(firstNode, PROP_SOURCES, conceptSource);
-				// (sourceID, source) coordinate has not been found, create it
-				if (!StringUtils.isBlank(srcId) && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
-					addToArrayProperty(firstNode, PROP_SRC_IDS, conceptSrcId, true);
-					addToArrayProperty(firstNode, PROP_SOURCES, conceptSource, true);
-					addToArrayProperty(firstNode, PROP_UNIQUE_SRC_ID, conceptUniqueSrcId, true);
+		try (IndexHits<Node> conceptNodes = termIndex.get(PROP_SRC_IDS, srcId)) {
+			Node firstNode = null;
+			for (Node conceptNode : conceptNodes) {
+				if (firstNode == null) {
+					firstNode = conceptNode;
+					continue;
 				}
+				
+				// ----- setting preferred name
+				String firstNodePrefName = (String) firstNode.getProperty(PROP_PREF_NAME);
+				String conceptPrefName = (String) conceptNode.getProperty(PROP_PREF_NAME);
+				boolean addConceptPrefToSynonyms = !firstNodePrefName.equals(conceptPrefName);
+				
+				// ----- merging of general properties
+				PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_GENERAL_LABELS,
+						PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, PROP_COORDINATES, PARENT_COORDINATES);
+				
+				// ----- merging of source IDs and sources
+				// we merge the coordinates (source ID, source) that do not yet exist in first node
+				String[] conceptSrcIds = (String[]) conceptNode.getProperty(PROP_SRC_IDS);
+				String[] conceptSources = (String[]) conceptNode.getProperty(PROP_SOURCES);
+				boolean[] conceptUniqueMarkers = (boolean[]) conceptNode.getProperty(PROP_UNIQUE_SRC_ID);
+				for (int i = 0; i < conceptSrcIds.length; i++) {
+					String conceptSrcId = conceptSrcIds[i];
+					String conceptSource = conceptSources[i];
+					boolean conceptUniqueSrcId = conceptUniqueMarkers[i];
+					int idIndex = findFirstValueInArrayProperty(firstNode, PROP_SRC_IDS, conceptSrcId);
+					int sourceIndex = findFirstValueInArrayProperty(firstNode, PROP_SOURCES, conceptSource);
+					// (sourceID, source) coordinate has not been found, create it
+					if (!StringUtils.isBlank(srcId) && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
+						addToArrayProperty(firstNode, PROP_SRC_IDS, conceptSrcId, true);
+						addToArrayProperty(firstNode, PROP_SOURCES, conceptSource, true);
+						addToArrayProperty(firstNode, PROP_UNIQUE_SRC_ID, conceptUniqueSrcId, true);
+					}
+				}
+				
+				// ----- merging of synonyms
+				String[] conceptSynonyms = (String[]) conceptNode.getProperty(PROP_SYNONYMS);
+				mergeArrayProperty(firstNode, ConceptConstants.PROP_SYNONYMS, conceptSynonyms);
+				if (addConceptPrefToSynonyms)
+					addToArrayProperty(firstNode, PROP_SYNONYMS, conceptPrefName);
+				
+				// ----- merging of facets
+				String[] conceptFacets = (String[]) conceptNode.getProperty(PROP_FACETS);
+				mergeArrayProperty(firstNode, PROP_FACETS, conceptFacets);
+	
+				// ----- merging labels
+				Iterable<Label> labels = conceptNode.getLabels();
+				for (Label label : labels)
+					firstNode.addLabel(label);
+				
+				obsoleteNodes.add(conceptNode);
 			}
-			
-			// ----- merging of synonyms
-			String[] conceptSynonyms = (String[]) conceptNode.getProperty(PROP_SYNONYMS);
-			mergeArrayProperty(firstNode, ConceptConstants.PROP_SYNONYMS, conceptSynonyms);
-			if (addConceptPrefToSynonyms)
-				addToArrayProperty(firstNode, PROP_SYNONYMS, conceptPrefName);
-			
-			// ----- merging of facets
-			String[] conceptFacets = (String[]) conceptNode.getProperty(PROP_FACETS);
-			mergeArrayProperty(firstNode, PROP_FACETS, conceptFacets);
-
-			// ----- merging labels
-			Iterable<Label> labels = conceptNode.getLabels();
-			for (Label label : labels)
-				firstNode.addLabel(label);
-			
-			obsoleteNodes.add(conceptNode);
+			return firstNode;
 		}
-		return firstNode;
 	}
 
 }

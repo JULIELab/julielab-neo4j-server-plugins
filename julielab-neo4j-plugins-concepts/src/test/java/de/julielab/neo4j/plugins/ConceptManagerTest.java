@@ -315,8 +315,9 @@ public class ConceptManagerTest {
 
 			// Are the term Properties correct?
 			Index<Node> termIdIndex = im.forNodes(ConceptConstants.INDEX_NAME);
-			IndexHits<Node> terms = termIdIndex.query(PROP_ID, "tid*");
-			assertEquals(4, terms.size());
+			try (IndexHits<Node> terms = termIdIndex.query(PROP_ID, "tid*")) {
+				assertEquals(4, terms.size());
+			}
 
 			Node term1 = termIdIndex.get(PROP_ID, "tid0").getSingle();
 			assertEquals("prefname1", term1.getProperty(PROP_PREF_NAME));
@@ -516,8 +517,9 @@ public class ConceptManagerTest {
 		try (Transaction tx = graphDb.beginTx()) {
 			IndexManager im = graphDb.index();
 			Index<Node> termIdIndex = im.forNodes(ConceptConstants.INDEX_NAME);
-			IndexHits<Node> terms = termIdIndex.query(PROP_ID, "tid*");
-			assertEquals(1, terms.size());
+			try (IndexHits<Node> terms = termIdIndex.query(PROP_ID, "tid*")) {
+				assertEquals(1, terms.size());
+			}
 			// We only have one term, thus tid0.
 			Node term = termIdIndex.get(PROP_ID, "tid0").getSingle();
 
@@ -758,8 +760,8 @@ public class ConceptManagerTest {
 		ftm.pushTermsToSet(graphDb, JsonSerializer.toJson(cmd), -1);
 
 		// And check whether they have been successfully added to the set.
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> it = graphDb.findNodes(Label.label(setName));
+		try (Transaction tx = graphDb.beginTx();
+			ResourceIterator<Node> it = graphDb.findNodes(Label.label(setName))) {
 			assertFalse("There should be no nodes with the label", it.hasNext());
 			tx.success();
 		}
@@ -939,8 +941,8 @@ public class ConceptManagerTest {
 
 		// Insert the first half of terms.
 		ftt.insertFacetTerms(graphDb, gson.toJson(firstTerms));
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.TermLabel.TERM);
+		try (Transaction tx = graphDb.beginTx();
+			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.TermLabel.TERM)) {
 			int nodeCount = 0;
 			while (nodesIt.hasNext()) {
 				Node node = nodesIt.next();
@@ -958,8 +960,8 @@ public class ConceptManagerTest {
 		// terms, but non of them should be
 		// hollow and all should have an ID, a facet and a description.
 		ftt.insertFacetTerms(graphDb, gson.toJson(secondTerms));
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.TermLabel.TERM);
+		try (Transaction tx = graphDb.beginTx();
+			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.TermLabel.TERM)) {
 			while (nodesIt.hasNext()) {
 				Node node = nodesIt.next();
 				System.out.println(NodeUtilities.getNodePropertiesAsString(node));
@@ -1072,8 +1074,8 @@ public class ConceptManagerTest {
 		assertEquals("Number of actual terms", 5, countNodesWithLabel(ConceptManager.TermLabel.TERM));
 		assertEquals("Number of aggregate terms", 1, countNodesWithLabel(ConceptManager.TermLabel.AGGREGATE));
 
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> aggregateIt = graphDb.findNodes(ConceptManager.TermLabel.AGGREGATE);
+		try (Transaction tx = graphDb.beginTx();
+				ResourceIterator<Node> aggregateIt = graphDb.findNodes(ConceptManager.TermLabel.AGGREGATE)) {
 			assertTrue("There is at least one aggregate term", aggregateIt.hasNext());
 			Node aggregate = aggregateIt.next();
 			assertFalse("There is no second aggregate term", aggregateIt.hasNext());
@@ -1921,10 +1923,11 @@ public class ConceptManagerTest {
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		// Test the success of the merging.
-		try (Transaction tx = graphDb.beginTx()) {
-			// See that we really only have a single facet, we havn't added a
-			// second one.
-			ResourceIterator<Node> facets = graphDb.findNodes(FacetManager.FacetLabel.FACET);
+		try (Transaction tx = graphDb.beginTx();
+			// See that we really only have a single facet, we haven't added a
+			// second one.				
+			ResourceIterator<Node> facets = graphDb.findNodes(FacetManager.FacetLabel.FACET);) {
+
 			int facetCounter = 0;
 			for (@SuppressWarnings("unused")
 			Node facet : (Iterable<Node>)() -> facets) {

@@ -860,16 +860,16 @@ public class ConceptManager extends ServerPlugin {
 
 			Index<Node> termIndex = graphDb.index().forNodes(INDEX_NAME);
 			IndexHits<Node> indexHits = termIndex.query(termQuery);
-			ResourceIterator<Node> startNodeIterator = indexHits.iterator();
 			Node[] startNodes = new Node[indexHits.size()];
-			for (int i = 0; i < indexHits.size(); i++) {
-				if (startNodeIterator.hasNext()) {
-					startNodes[i] = startNodeIterator.next();
-				} else
-					throw new IllegalStateException(indexHits.size()
-							+ " index hits for start nodes expected but iterator expired unexpectedly.");
+			try (ResourceIterator<Node> startNodeIterator = indexHits.iterator()) {
+				for (int i = 0; i < indexHits.size(); i++) {
+					if (startNodeIterator.hasNext()) {
+						startNodes[i] = startNodeIterator.next();
+					} else
+						throw new IllegalStateException(indexHits.size()
+								+ " index hits for start nodes expected but iterator expired unexpectedly.");
+				}
 			}
-
 			Traverser traverse = td.traverse(startNodes);
 			List<String[]> pathsTermIds = new ArrayList<>();
 			int c = 0;
@@ -1632,16 +1632,16 @@ public class ConceptManager extends ServerPlugin {
 					throw new IllegalArgumentException("The facet with ID \"" + facetId
 							+ "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
 			} else if (null != jsonFacet && jsonFacet.has(FacetConstants.PROP_NAME)) {
-				ResourceIterator<Node> facetIterator = graphDb.findNodes(FacetLabel.FACET);
-				while (facetIterator.hasNext()) {
-					facet = facetIterator.next();
-					log.warn("Facet " + facet.getAllProperties().toString());
-					if (facet.getProperty(FacetConstants.PROP_NAME)
-							.equals(jsonFacet.getString(FacetConstants.PROP_NAME)))
-						break;
-					facet = null;
+				try (ResourceIterator<Node> facetIterator = graphDb.findNodes(FacetLabel.FACET)) {
+					while (facetIterator.hasNext()) {
+						facet = facetIterator.next();
+						log.warn("Facet " + facet.getAllProperties().toString());
+						if (facet.getProperty(FacetConstants.PROP_NAME)
+								.equals(jsonFacet.getString(FacetConstants.PROP_NAME)))
+							break;
+						facet = null;
+					}
 				}
-
 			}
 			if (null != jsonFacet && null == facet) {
 				// No existing ID is given, create a new facet.
@@ -1775,52 +1775,54 @@ public class ConceptManager extends ServerPlugin {
 	private Node lookupTermBySourceId(String srcId, String source, boolean uniqueSourceId,
 			Index<Node> termIndex, Log log) {
 		log.debug("Trying to look up existing term by source ID and source (" + srcId + ", " + source + ")");
-		IndexHits<Node> indexHits = termIndex.get(PROP_SRC_IDS, srcId);
-		if (!indexHits.hasNext())
-			log.debug("    Did not find any term with source ID " + srcId);
-
-		Node soughtConcept = null;
-		boolean uniqueSourceIdNodeFound = false;
-
-		while (indexHits.hasNext()) {
-			Node conceptNode = indexHits.next();
-			if (null != conceptNode) {
-				// The rule goes as follows: Two concepts that share a source ID
-				// which is marked as being unique on both terms are equal. If
-				// on at least one concept the source ID is not marked as
-				// unique, the concepts are different.
-				if (uniqueSourceId) {
-					boolean uniqueOnConceptNode = NodeUtilities.isSourceUnique(conceptNode, srcId);
-					if (uniqueOnConceptNode) {
-						if (soughtConcept == null)
-							soughtConcept = conceptNode;
-						else if (uniqueSourceIdNodeFound == true)
-							throw new IllegalStateException("There are multiple concept nodes with unique source ID "
-									+ srcId
-									+ ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
-						log.debug("    Found existing term with unique source ID " + srcId
-								+ " which matches given unique source ID");
-						uniqueSourceIdNodeFound = true;
-					}
-				}
-
-				Set<String> sources = NodeUtilities.getSourcesForSourceId(conceptNode, srcId);
-				if (!sources.contains(source)) {
-					log.debug("    Did not find a match for source ID " + srcId + " and source " + source);
-					conceptNode = null;
-				} else {
-					log.debug("    Found existing term for source ID " + srcId + " and source " + source);
-				}
-				if (soughtConcept == null)
-					soughtConcept = conceptNode;
-				// if soughtConcept is not null, we already found a matching
-				// concept in the last iteration
-				else if (!uniqueSourceIdNodeFound)
-					throw new IllegalStateException(
-							"There are multiple concept nodes with source ID " + srcId + " and source " + source);
+		try (IndexHits<Node> indexHits = termIndex.get(PROP_SRC_IDS, srcId)) {
+			if (!indexHits.hasNext()) {
+				log.debug("    Did not find any term with source ID " + srcId);
 			}
+	
+			Node soughtConcept = null;
+			boolean uniqueSourceIdNodeFound = false;
+	
+			while (indexHits.hasNext()) {
+				Node conceptNode = indexHits.next();
+				if (null != conceptNode) {
+					// The rule goes as follows: Two concepts that share a source ID
+					// which is marked as being unique on both terms are equal. If
+					// on at least one concept the source ID is not marked as
+					// unique, the concepts are different.
+					if (uniqueSourceId) {
+						boolean uniqueOnConceptNode = NodeUtilities.isSourceUnique(conceptNode, srcId);
+						if (uniqueOnConceptNode) {
+							if (soughtConcept == null)
+								soughtConcept = conceptNode;
+							else if (uniqueSourceIdNodeFound == true)
+								throw new IllegalStateException("There are multiple concept nodes with unique source ID "
+										+ srcId
+										+ ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
+							log.debug("    Found existing term with unique source ID " + srcId
+									+ " which matches given unique source ID");
+							uniqueSourceIdNodeFound = true;
+						}
+					}
+	
+					Set<String> sources = NodeUtilities.getSourcesForSourceId(conceptNode, srcId);
+					if (!sources.contains(source)) {
+						log.debug("    Did not find a match for source ID " + srcId + " and source " + source);
+						conceptNode = null;
+					} else {
+						log.debug("    Found existing term for source ID " + srcId + " and source " + source);
+					}
+					if (soughtConcept == null)
+						soughtConcept = conceptNode;
+					// if soughtConcept is not null, we already found a matching
+					// concept in the last iteration
+					else if (!uniqueSourceIdNodeFound)
+						throw new IllegalStateException(
+								"There are multiple concept nodes with source ID " + srcId + " and source " + source);
+				}
+			}
+			return soughtConcept;
 		}
-		return soughtConcept;
 	}
 
 	@Name(POP_TERMS_FROM_SET)
@@ -1901,63 +1903,64 @@ public class ConceptManager extends ServerPlugin {
 			Label eligibleTermLabel = TermLabel.TERM;
 			if (null != eligibleTermDefinition && !StringUtils.isBlank(eligibleTermDefinition.termLabel))
 				eligibleTermLabel = Label.label(eligibleTermDefinition.termLabel);
-			ResourceIterator<Node> termIt = graphDb.findNodes(eligibleTermLabel);
-			while (termIt.hasNext() && numberOfTermsAdded < numberOfTermsToAdd) {
-
-				// Since Neo4j 2.0.0M6 it is not really possible to do this in a
-				// batch manner because the term iterator
-				// access must happen inside a transaction.
-				// try (Transaction tx = graphDb.beginTx()) {
-				for (int i = 0; termIt.hasNext() && i < TERM_INSERT_BATCH_SIZE
-						&& numberOfTermsAdded < numberOfTermsToAdd; i++) {
-					Node term = termIt.next();
-
-					if (null != excludeDefinition) {
-						boolean exclude = false;
-						String termPropertyKey = excludeDefinition.termPropertyKey;
-						String termPropertyValue = excludeDefinition.termPropertyValue;
-						Label termLabel = excludeDefinition.termLabel == null ? null
-								: Label.label(excludeDefinition.termLabel);
-						if (term.hasProperty(termPropertyKey)) {
-							Object property = term.getProperty(termPropertyKey);
-							if (property.getClass().isArray()) {
-								Object[] propertyArray = (Object[]) property;
-								for (Object o : propertyArray) {
-									if (o.equals(termPropertyValue)) {
-										exclude = true;
-										break;
+			try (ResourceIterator<Node> termIt = graphDb.findNodes(eligibleTermLabel)) {
+				while (termIt.hasNext() && numberOfTermsAdded < numberOfTermsToAdd) {
+	
+					// Since Neo4j 2.0.0M6 it is not really possible to do this in a
+					// batch manner because the term iterator
+					// access must happen inside a transaction.
+					// try (Transaction tx = graphDb.beginTx()) {
+					for (int i = 0; termIt.hasNext() && i < TERM_INSERT_BATCH_SIZE
+							&& numberOfTermsAdded < numberOfTermsToAdd; i++) {
+						Node term = termIt.next();
+	
+						if (null != excludeDefinition) {
+							boolean exclude = false;
+							String termPropertyKey = excludeDefinition.termPropertyKey;
+							String termPropertyValue = excludeDefinition.termPropertyValue;
+							Label termLabel = excludeDefinition.termLabel == null ? null
+									: Label.label(excludeDefinition.termLabel);
+							if (term.hasProperty(termPropertyKey)) {
+								Object property = term.getProperty(termPropertyKey);
+								if (property.getClass().isArray()) {
+									Object[] propertyArray = (Object[]) property;
+									for (Object o : propertyArray) {
+										if (o.equals(termPropertyValue)) {
+											exclude = true;
+											break;
+										}
 									}
+								} else {
+									if (property.equals(termPropertyValue))
+										exclude = true;
 								}
-							} else {
-								if (property.equals(termPropertyValue))
-									exclude = true;
+							}
+							if (term.hasLabel(termLabel))
+								exclude = true;
+							if (exclude)
+								continue;
+						}
+	
+						boolean hasFacetWithCorrectGeneralLabel = false;
+						if (null != eligibleTermDefinition) {
+							if (term.hasLabel(TermLabel.HOLLOW))
+								continue;
+							if (!term.hasProperty(PROP_FACETS)) {
+								log.warn("Term with internal ID " + term.getId() + " has no facets property.");
+								continue;
+							}
+							String[] facetIds = (String[]) term.getProperty(PROP_FACETS);
+							for (String facetId : facetIds) {
+								if (facetsWithSpecifiedGeneralLabel.contains(facetId)) {
+									hasFacetWithCorrectGeneralLabel = true;
+									break;
+								}
 							}
 						}
-						if (term.hasLabel(termLabel))
-							exclude = true;
-						if (exclude)
-							continue;
-					}
-
-					boolean hasFacetWithCorrectGeneralLabel = false;
-					if (null != eligibleTermDefinition) {
-						if (term.hasLabel(TermLabel.HOLLOW))
-							continue;
-						if (!term.hasProperty(PROP_FACETS)) {
-							log.warn("Term with internal ID " + term.getId() + " has no facets property.");
-							continue;
+						if (hasFacetWithCorrectGeneralLabel || null == eligibleTermDefinition) {
+							term.addLabel(setLabel);
+							numberOfTermsAdded++;
 						}
-						String[] facetIds = (String[]) term.getProperty(PROP_FACETS);
-						for (String facetId : facetIds) {
-							if (facetsWithSpecifiedGeneralLabel.contains(facetId)) {
-								hasFacetWithCorrectGeneralLabel = true;
-								break;
-							}
-						}
-					}
-					if (hasFacetWithCorrectGeneralLabel || null == eligibleTermDefinition) {
-						term.addLabel(setLabel);
-						numberOfTermsAdded++;
 					}
 				}
 			}
@@ -1974,8 +1977,8 @@ public class ConceptManager extends ServerPlugin {
 			+ " the term in question has children in the facet it is shown in or not.")
 	@PluginTarget(GraphDatabaseService.class)
 	public String updateChildrenInformation(@Source GraphDatabaseService graphDb) {
-		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> termIt = graphDb.findNodes(TermLabel.TERM);
+		try (Transaction tx = graphDb.beginTx();
+				ResourceIterator<Node> termIt = graphDb.findNodes(TermLabel.TERM)) {
 			while (termIt.hasNext()) {
 				Node term = termIt.next();
 				Iterator<Relationship> relIt = term.getRelationships(Direction.OUTGOING).iterator();
@@ -2118,20 +2121,21 @@ public class ConceptManager extends ServerPlugin {
 
 				Node n1 = nodesBySrcId.get(id1);
 				if (null == n1) {
-					IndexHits<Node> indexHits = termIndex.get(PROP_SRC_IDS, id1);
-					if (indexHits.size() > 1) {
-						log.error("More than one node for source ID " + id1);
-						for (Node n : indexHits)
-							log.error(NodeUtilities.getNodePropertiesAsString(n));
-						throw new IllegalStateException("More than one node for source ID " + id1);
+					try (IndexHits<Node> indexHits = termIndex.get(PROP_SRC_IDS, id1)) {
+						if (indexHits.size() > 1) {
+							log.error("More than one node for source ID " + id1);
+							for (Node n : indexHits)
+								log.error(NodeUtilities.getNodePropertiesAsString(n));
+							throw new IllegalStateException("More than one node for source ID " + id1);
+						}
+						n1 = indexHits.getSingle();
+						if (null == n1) {
+							log.warn("There is no term with source ID \"" + id1 + "\" as required by the mapping "
+									+ "\"" + mapping + "\" Mapping is skipped.");
+							continue;
+						}
+						nodesBySrcId.put(id1, n1);
 					}
-					n1 = indexHits.getSingle();
-					if (null == n1) {
-						log.warn("There is no term with source ID \"" + id1 + "\" as required by the mapping "
-								+ "\"" + mapping + "\" Mapping is skipped.");
-						continue;
-					}
-					nodesBySrcId.put(id1, n1);
 				}
 				Node n2 = nodesBySrcId.get(id2);
 				if (null == n2) {
@@ -2310,143 +2314,142 @@ public class ConceptManager extends ServerPlugin {
 			variantRelationshipType = EdgeTypes.HAS_ACRONYMS;
 		} else
 			throw new IllegalArgumentException("Unknown lexico-morphological type \"" + type + "\".");
-		try (StringReader stringReader = new StringReader(termVariants)) {
-			JsonReader jsonReader = new JsonReader(stringReader);
-			try (Transaction tx = graphDb.beginTx()) {
-				// object holding the term IDs mapped to their respective
-				// writing variant object
+		try (StringReader stringReader = new StringReader(termVariants);
+				JsonReader jsonReader = new JsonReader(stringReader);
+				Transaction tx = graphDb.beginTx()) {
+			// object holding the term IDs mapped to their respective
+			// writing variant object
+			jsonReader.beginObject();
+			while (jsonReader.hasNext()) {
+				String termId = jsonReader.nextName();
+				// Conceptually, this is a "Map<DocId, Map<Variants,
+				// Count>>"
+				Map<String, Map<String, Integer>> variantCountsInDocs = new HashMap<>();
+				// object mapping document IDs to variant count objects
 				jsonReader.beginObject();
 				while (jsonReader.hasNext()) {
-					String termId = jsonReader.nextName();
-					// Conceptually, this is a "Map<DocId, Map<Variants,
-					// Count>>"
-					Map<String, Map<String, Integer>> variantCountsInDocs = new HashMap<>();
-					// object mapping document IDs to variant count objects
-					jsonReader.beginObject();
-					while (jsonReader.hasNext()) {
-						String docId = jsonReader.nextName();
+					String docId = jsonReader.nextName();
 
-						// object mapping variants to counts
-						jsonReader.beginObject();
-						TreeMap<String, Integer> variantCounts = new TreeMap<>(new TermVariantComparator());
-						while (jsonReader.hasNext()) {
-							String variant = jsonReader.nextName();
-							int count = jsonReader.nextInt();
-							if (variantCounts.containsKey(variant)) {
-								// may happen if the tree map comparator deems
-								// the
-								// variant equal to another variant (most
-								// probably
-								// due to case normalization)
-								// add the count of the two variants deemed to
-								// be
-								// "equal"
-								Integer currentCount = variantCounts.get(variant);
-								variantCounts.put(variant, currentCount + count);
-							} else {
-								variantCounts.put(variant, count);
-							}
+					// object mapping variants to counts
+					jsonReader.beginObject();
+					TreeMap<String, Integer> variantCounts = new TreeMap<>(new TermVariantComparator());
+					while (jsonReader.hasNext()) {
+						String variant = jsonReader.nextName();
+						int count = jsonReader.nextInt();
+						if (variantCounts.containsKey(variant)) {
+							// may happen if the tree map comparator deems
+							// the
+							// variant equal to another variant (most
+							// probably
+							// due to case normalization)
+							// add the count of the two variants deemed to
+							// be
+							// "equal"
+							Integer currentCount = variantCounts.get(variant);
+							variantCounts.put(variant, currentCount + count);
+						} else {
+							variantCounts.put(variant, count);
 						}
-						jsonReader.endObject();
-						variantCountsInDocs.put(docId, variantCounts);
 					}
 					jsonReader.endObject();
+					variantCountsInDocs.put(docId, variantCounts);
+				}
+				jsonReader.endObject();
 
-					if (variantCountsInDocs.isEmpty()) {
-						log.debug("Term with ID " + termId + " has no writing variants / acronyms attached.");
-						continue;
-					}
-					Node term = graphDb.findNode(TermLabel.TERM, PROP_ID, termId);
-					if (null == term) {
-						log.warn("Term with ID " + termId + " was not found, cannot add writing variants / acronyms.");
-						continue;
-					}
+				if (variantCountsInDocs.isEmpty()) {
+					log.debug("Term with ID " + termId + " has no writing variants / acronyms attached.");
+					continue;
+				}
+				Node term = graphDb.findNode(TermLabel.TERM, PROP_ID, termId);
+				if (null == term) {
+					log.warn("Term with ID " + termId + " was not found, cannot add writing variants / acronyms.");
+					continue;
+				}
 
-					// If we are this far, we actually got new variants.
-					// Get or create a new node representing the variants for
-					// the current term. We need this since we want to store the
-					// variants as well as their counts.
-					Relationship hasVariantsRel = term.getSingleRelationship(variantRelationshipType,
-							Direction.OUTGOING);
-					if (null == hasVariantsRel) {
-						Node variantsNode = graphDb.createNode(variantsAggregationLabel);
-						hasVariantsRel = term.createRelationshipTo(variantsNode, variantRelationshipType);
-					}
-					Node variantsNode = hasVariantsRel.getEndNode();
-					for (String docId : variantCountsInDocs.keySet()) {
-						Map<String, Integer> variantCounts = variantCountsInDocs.get(docId);
-						for (String variant : variantCounts.keySet()) {
-							String normalizedVariant = TermVariantComparator.normalizeVariant(variant);
-							Node variantNode = graphDb.findNode(variantNodeLabel, MorphoConstants.PROP_ID,
-									normalizedVariant);
-							if (null == variantNode) {
-								variantNode = graphDb.createNode(variantNodeLabel);
-								variantNode.setProperty(NodeConstants.PROP_ID, normalizedVariant);
-								variantNode.setProperty(MorphoConstants.PROP_NAME, variant);
+				// If we are this far, we actually got new variants.
+				// Get or create a new node representing the variants for
+				// the current term. We need this since we want to store the
+				// variants as well as their counts.
+				Relationship hasVariantsRel = term.getSingleRelationship(variantRelationshipType,
+						Direction.OUTGOING);
+				if (null == hasVariantsRel) {
+					Node variantsNode = graphDb.createNode(variantsAggregationLabel);
+					hasVariantsRel = term.createRelationshipTo(variantsNode, variantRelationshipType);
+				}
+				Node variantsNode = hasVariantsRel.getEndNode();
+				for (String docId : variantCountsInDocs.keySet()) {
+					Map<String, Integer> variantCounts = variantCountsInDocs.get(docId);
+					for (String variant : variantCounts.keySet()) {
+						String normalizedVariant = TermVariantComparator.normalizeVariant(variant);
+						Node variantNode = graphDb.findNode(variantNodeLabel, MorphoConstants.PROP_ID,
+								normalizedVariant);
+						if (null == variantNode) {
+							variantNode = graphDb.createNode(variantNodeLabel);
+							variantNode.setProperty(NodeConstants.PROP_ID, normalizedVariant);
+							variantNode.setProperty(MorphoConstants.PROP_NAME, variant);
+						}
+						// with 'specific' we mean the exact relationship
+						// connecting the variant with the variants node
+						// belonging to the current term (and no other term
+						// -
+						// ambiguity!)
+						Relationship specificElementRel = null;
+						for (Relationship elementRel : variantNode.getRelationships(Direction.INCOMING,
+								EdgeTypes.HAS_ELEMENT)) {
+							if (elementRel.getStartNode().equals(variantsNode)
+									&& elementRel.getEndNode().equals(variantNode)) {
+								specificElementRel = elementRel;
+								break;
 							}
-							// with 'specific' we mean the exact relationship
-							// connecting the variant with the variants node
-							// belonging to the current term (and no other term
-							// -
-							// ambiguity!)
-							Relationship specificElementRel = null;
-							for (Relationship elementRel : variantNode.getRelationships(Direction.INCOMING,
-									EdgeTypes.HAS_ELEMENT)) {
-								if (elementRel.getStartNode().equals(variantsNode)
-										&& elementRel.getEndNode().equals(variantNode)) {
-									specificElementRel = elementRel;
-									break;
-								}
-							}
-							if (null == specificElementRel) {
-								specificElementRel = variantsNode.createRelationshipTo(variantNode,
-										EdgeTypes.HAS_ELEMENT);
-								specificElementRel.setProperty(MorphoRelationConstants.PROP_DOCS, new String[0]);
-								specificElementRel.setProperty(MorphoRelationConstants.PROP_COUNTS, new int[0]);
-							}
-							String[] documents = (String[]) specificElementRel
-									.getProperty(MorphoRelationConstants.PROP_DOCS);
-							int[] counts = (int[]) specificElementRel.getProperty(MorphoRelationConstants.PROP_COUNTS);
-							int docIndex = Arrays.binarySearch(documents, docId);
-							Integer count = variantCounts.get(variant);
+						}
+						if (null == specificElementRel) {
+							specificElementRel = variantsNode.createRelationshipTo(variantNode,
+									EdgeTypes.HAS_ELEMENT);
+							specificElementRel.setProperty(MorphoRelationConstants.PROP_DOCS, new String[0]);
+							specificElementRel.setProperty(MorphoRelationConstants.PROP_COUNTS, new int[0]);
+						}
+						String[] documents = (String[]) specificElementRel
+								.getProperty(MorphoRelationConstants.PROP_DOCS);
+						int[] counts = (int[]) specificElementRel.getProperty(MorphoRelationConstants.PROP_COUNTS);
+						int docIndex = Arrays.binarySearch(documents, docId);
+						Integer count = variantCounts.get(variant);
 
-							// found the document, we can just set the new value
-							if (docIndex >= 0) {
-								counts[docIndex] = count;
-							} else {
-								int insertionPoint = -1 * (docIndex + 1);
-								// we don't have a record for this document
-								String[] newDocuments = new String[documents.length + 1];
-								int[] newCounts = new int[newDocuments.length];
+						// found the document, we can just set the new value
+						if (docIndex >= 0) {
+							counts[docIndex] = count;
+						} else {
+							int insertionPoint = -1 * (docIndex + 1);
+							// we don't have a record for this document
+							String[] newDocuments = new String[documents.length + 1];
+							int[] newCounts = new int[newDocuments.length];
 
-								if (insertionPoint > 0) {
-									// copy existing values before the new
-									// documents entry
-									System.arraycopy(documents, 0, newDocuments, 0, insertionPoint);
-									System.arraycopy(counts, 0, newCounts, 0, insertionPoint);
-								}
-								newDocuments[insertionPoint] = docId;
-								newCounts[insertionPoint] = count;
-								if (insertionPoint < documents.length) {
-									// copy existing values after the new
-									// document entry
-									System.arraycopy(documents, insertionPoint, newDocuments, insertionPoint + 1,
-											documents.length - insertionPoint);
-									System.arraycopy(counts, insertionPoint, newCounts, insertionPoint + 1,
-											counts.length - insertionPoint);
-								}
-								specificElementRel.setProperty(MorphoRelationConstants.PROP_DOCS, newDocuments);
-								specificElementRel.setProperty(MorphoRelationConstants.PROP_COUNTS, newCounts);
+							if (insertionPoint > 0) {
+								// copy existing values before the new
+								// documents entry
+								System.arraycopy(documents, 0, newDocuments, 0, insertionPoint);
+								System.arraycopy(counts, 0, newCounts, 0, insertionPoint);
 							}
+							newDocuments[insertionPoint] = docId;
+							newCounts[insertionPoint] = count;
+							if (insertionPoint < documents.length) {
+								// copy existing values after the new
+								// document entry
+								System.arraycopy(documents, insertionPoint, newDocuments, insertionPoint + 1,
+										documents.length - insertionPoint);
+								System.arraycopy(counts, insertionPoint, newCounts, insertionPoint + 1,
+										counts.length - insertionPoint);
+							}
+							specificElementRel.setProperty(MorphoRelationConstants.PROP_DOCS, newDocuments);
+							specificElementRel.setProperty(MorphoRelationConstants.PROP_COUNTS, newCounts);
 						}
 					}
 				}
-				jsonReader.endObject();
-				jsonReader.close();
-				tx.success();
-			} catch (IOException e) {
-				throw new RuntimeException(e);
 			}
+			jsonReader.endObject();
+			jsonReader.close();
+			tx.success();
+		} catch (IOException e) {
+			throw new RuntimeException(e);
 		}
 	}
 

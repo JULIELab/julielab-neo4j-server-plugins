@@ -505,13 +505,13 @@ public class Export extends ServerPlugin {
 	private ByteArrayOutputStream createElementAggregateIdMapping(GraphDatabaseService graphDb,
 			JSONArray aggLabelsArray) throws IOException, JSONException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
-		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
-			try (Transaction tx = graphDb.beginTx()) {
-				Map<String, String> ele2Agg = new HashMap<>();
-				Set<String> visitedAggregates = new HashSet<>();
-				for (int i = 0; i < aggLabelsArray.length(); ++i) {
-					Label label = Label.label(aggLabelsArray.getString(i));
-					ResourceIterator<Node> aggregates = graphDb.findNodes(label);
+		try (GZIPOutputStream os = new GZIPOutputStream(baos);
+			Transaction tx = graphDb.beginTx()) {
+			Map<String, String> ele2Agg = new HashMap<>();
+			Set<String> visitedAggregates = new HashSet<>();
+			for (int i = 0; i < aggLabelsArray.length(); ++i) {
+				Label label = Label.label(aggLabelsArray.getString(i));
+				try (ResourceIterator<Node> aggregates = graphDb.findNodes(label)) {
 					TraversalDescription td = PredefinedTraversals.getNonAggregateAggregateElements(graphDb);
 					while (aggregates.hasNext()) {
 						Node aggregate = aggregates.next();
@@ -537,15 +537,15 @@ public class Export extends ServerPlugin {
 
 					}
 				}
-				int numWritten = 0;
-				for (String elementId : ele2Agg.keySet()) {
-					String aggregateId = ele2Agg.get(elementId);
-					IOUtils.write(elementId + "\t" + aggregateId + "\n", os, "UTF-8");
-					numWritten++;
-				}
-				log.info("Num written: " + numWritten);
-				tx.success();
 			}
+			int numWritten = 0;
+			for (String elementId : ele2Agg.keySet()) {
+				String aggregateId = ele2Agg.get(elementId);
+				IOUtils.write(elementId + "\t" + aggregateId + "\n", os, "UTF-8");
+				numWritten++;
+			}
+			log.info("Num written: " + numWritten);
+			tx.success();
 		}
 		return baos;
 	}

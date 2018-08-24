@@ -79,8 +79,8 @@ public class ExportTest {
 		tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
 
 		// Assure we have two facets.
-		try (Transaction tx = graphDb.beginTx()){
-			ResourceIterator<Node> allNodesWithLabel = graphDb.findNodes(FacetManager.FacetLabel.FACET);
+		try (Transaction tx = graphDb.beginTx();
+				ResourceIterator<Node> allNodesWithLabel = graphDb.findNodes(FacetManager.FacetLabel.FACET)){
 			int facetCount = 0;
 			while (allNodesWithLabel.hasNext()) {
 				Node facet = allNodesWithLabel.next();
@@ -95,41 +95,38 @@ public class ExportTest {
 		method.setAccessible(true);
 		Export export = new Export();
 		JSONArray labelsArray = new JSONArray(Lists.newArrayList("TESTLABEL"));
-		ByteArrayOutputStream baos;
-		byte[] byteArray;
-		ByteArrayInputStream bais;
-		GZIPInputStream gzis;
-		String fileContent;
-
+		
 		// create mapping file contents for sourceIDs
-		baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "sourceIds", labelsArray);
-		byteArray = baos.toByteArray();
-		bais = new ByteArrayInputStream(byteArray);
-		gzis = new GZIPInputStream(bais);
-		fileContent = IOUtils.toString(gzis, "UTF-8");
-
-		// We have inserted 15 terms
-		long numTerms = tm.getNumTerms(graphDb);
-		assertEquals(15, numTerms);
-		int countMatches = StringUtils.countMatches(fileContent, "\n");
-		// All terms have a source ID, in the test case one term has two source IDs, thus we should have 11 mapping
-		// lines.
-		assertEquals(11, countMatches);
+		try (ByteArrayOutputStream baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "sourceIds", labelsArray)) {
+			byte[] byteArray = baos.toByteArray();
+			ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
+			GZIPInputStream gzis = new GZIPInputStream(bais);
+			String fileContent = IOUtils.toString(gzis, "UTF-8");
+	
+			// We have inserted 15 terms
+			long numTerms = tm.getNumTerms(graphDb);
+			assertEquals(15, numTerms);
+			int countMatches = StringUtils.countMatches(fileContent, "\n");
+			// All terms have a source ID, in the test case one term has two source IDs, thus we should have 11 mapping
+			// lines.
+			assertEquals(11, countMatches);
+		}
 
 		// NEXT TEST
 		// create mapping file contents for original Ids
-		baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "originalId", labelsArray);
-		byteArray = baos.toByteArray();
-		bais = new ByteArrayInputStream(byteArray);
-		gzis = new GZIPInputStream(bais);
-		fileContent = IOUtils.toString(gzis, "UTF-8");
-
-		// We have inserted 15 terms
-		numTerms = tm.getNumTerms(graphDb);
-		assertEquals(15, numTerms);
-		countMatches = StringUtils.countMatches(fileContent, "\n");
-		// only three terms have an original ID. No term can have more than one original ID.
-		assertEquals(3, countMatches);
+		try (ByteArrayOutputStream baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "originalId", labelsArray)) {
+			byte[] byteArray = baos.toByteArray();
+			ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
+			GZIPInputStream gzis = new GZIPInputStream(bais);
+			String fileContent = IOUtils.toString(gzis, "UTF-8");
+	
+			// We have inserted 15 terms
+			long numTerms = tm.getNumTerms(graphDb);
+			assertEquals(15, numTerms);
+			int countMatches = StringUtils.countMatches(fileContent, "\n");
+			// only three terms have an original ID. No term can have more than one original ID.
+			assertEquals(3, countMatches);
+		}
 	}
 
 	@Test
@@ -159,25 +156,21 @@ public class ExportTest {
 		method.setAccessible(true);
 		Export export = new Export();
 		JSONArray labelsArray = new JSONArray(Lists.newArrayList("TESTLABEL"));
-		ByteArrayOutputStream baos;
-		byte[] byteArray;
-		ByteArrayInputStream bais;
-		GZIPInputStream gzis;
-		String fileContent;
 
 		// create mapping file contents for original Ids
-		baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "originalId", labelsArray);
-		byteArray = baos.toByteArray();
-		bais = new ByteArrayInputStream(byteArray);
-		gzis = new GZIPInputStream(bais);
-		fileContent = IOUtils.toString(gzis, "UTF-8");
-
-		// We have inserted 10 terms
-		long numTerms = tm.getNumTerms(graphDb);
-		assertEquals(10, numTerms);
-		int countMatches = StringUtils.countMatches(fileContent, "\n");
-		// only three terms have an original ID. No term can have more than one original ID.
-		assertEquals(3, countMatches);
+		try (ByteArrayOutputStream baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "originalId", labelsArray)) {
+			byte[] byteArray = baos.toByteArray();
+			ByteArrayInputStream bais = new ByteArrayInputStream(byteArray);
+			GZIPInputStream gzis = new GZIPInputStream(bais);
+			String fileContent = IOUtils.toString(gzis, "UTF-8");
+	
+			// We have inserted 10 terms
+			long numTerms = tm.getNumTerms(graphDb);
+			assertEquals(10, numTerms);
+			int countMatches = StringUtils.countMatches(fileContent, "\n");
+			// only three terms have an original ID. No term can have more than one original ID.
+			assertEquals(3, countMatches);
+		}
 	}
 
 }
