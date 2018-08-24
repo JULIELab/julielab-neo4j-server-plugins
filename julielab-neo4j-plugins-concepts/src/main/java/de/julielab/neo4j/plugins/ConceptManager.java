@@ -67,8 +67,9 @@ import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.shell.util.json.JSONArray;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.neo4j.logging.Log;
+import org.neo4j.kernel.impl.logging.LogService;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
@@ -261,7 +262,6 @@ public class ConceptManager extends ServerPlugin {
 	public static final String KEY_TERMS = "terms";
 	public static final String KEY_TIME = "time";
 	public static final String KEY_MAPPINGS = "mappings";
-	private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
 	public static final String POP_TERMS_FROM_SET = "pop_terms_from_set";
 	public static final String PUSH_TERMS_TO_SET = "push_terms_to_set";
 	public static final String RET_KEY_CHILDREN = "children";
@@ -285,6 +285,7 @@ public class ConceptManager extends ServerPlugin {
 	private static final int TERM_INSERT_BATCH_SIZE = 10000;
 
 	public static final String UPDATE_CHILDREN_INFORMATION = "update_children_information";
+	
 
 	@Name(BUILD_AGGREGATES_BY_MAPPINGS)
 	@Description("Creates term aggregates with respect to 'IS_MAPPED_TO' relationships.")
@@ -296,6 +297,8 @@ public class ConceptManager extends ServerPlugin {
 					+ " (with the label TERM) that are not an element of an aggregate.") @Parameter(name = KEY_AGGREGATED_LABEL) String aggregatedTermsLabelString,
 			@Description("Label to restrict the terms to that are considered for aggregation creation.") @Parameter(name = KEY_LABEL, optional = true) String allowedTermLabelString)
 			throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		JSONArray allowedMappingTypesJson = new JSONArray(allowedMappingTypesArray);
 		Set<String> allowedMappingTypes = new HashSet<>();
 		for (int i = 0; i < allowedMappingTypesJson.length(); i++) {
@@ -381,6 +384,8 @@ public class ConceptManager extends ServerPlugin {
 	private void createRelationships(GraphDatabaseService graphDb, JSONArray jsonTerms, Node facet,
 			CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport)
 			throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		log.info("Creating relationship between inserted terms.");
 		Index<Node> idIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
 		String facetId = null;
@@ -560,7 +565,7 @@ public class ConceptManager extends ServerPlugin {
 						String targetSrcId = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_SRC_ID);
 						String targetSource = JSON.getString(jsonRelationship, ConceptConstants.RS_TARGET_SRC);
 						Node target = lookupTerm(new ConceptCoordinates(targetSrcId, targetSource, targetOrgId,
-								targetOrgSource, JSON.getBoolean(jsonTerm, PROP_UNIQUE_SRC_ID, false)), idIndex);
+								targetOrgSource, JSON.getBoolean(jsonTerm, PROP_UNIQUE_SRC_ID, false)), idIndex, log);
 						if (null == target) {
 							log.debug("Creating hollow relationship target with orig Id/orig source (" + targetOrgId
 									+ "," + targetOrgSource + ") and source Id/source : (" + targetSrcId + ", "
@@ -599,10 +604,10 @@ public class ConceptManager extends ServerPlugin {
 			}
 			totalTime += System.currentTimeMillis() - time;
 			if (i >= numQuarter * quarter) {
-				log.info("Finished {}% of terms for relationship creation.", (25 * numQuarter));
-				log.info("Relationship creation took {} ms.", relCreationTime);
-				log.info("Total time consumption for creation of {}"
-						+ " relationships until now: {} ms.", insertionReport.numRelationships, totalTime);
+				log.info("Finished " + (25 * numQuarter) + "% of terms for relationship creation.");
+				log.info("Relationship creation took " + relCreationTime + " ms.");
+				log.info("Total time consumption for creation of " + insertionReport.numRelationships
+						+ " relationships until now: " + totalTime + " ms.");
 				numQuarter++;
 			}
 		}
@@ -617,6 +622,8 @@ public class ConceptManager extends ServerPlugin {
 	 * @param label
 	 */
 	private void createIndexIfAbsent(GraphDatabaseService graphDb, Label label, String key, boolean unique) {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		try (Transaction tx = graphDb.beginTx()) {
 			Schema schema = graphDb.schema();
 			boolean indexExists = false;
@@ -627,7 +634,7 @@ public class ConceptManager extends ServerPlugin {
 				}
 			}
 			if (!indexExists) {
-				log.info("Creating index for label {} on property {} (unique: {}).", label, key, unique);
+				log.info("Creating index for label " + label + " on property " + key + " (unique: " + unique + ").");
 				// IndexDefinition indexDefinition;
 				// indexDefinition = schema.indexFor(label).on(key).create();
 				schema.constraintFor(label).assertPropertyIsUnique(key).create();
@@ -809,6 +816,8 @@ public class ConceptManager extends ServerPlugin {
 			@Description("TODO") @Parameter(name = KEY_ID_TYPE) String idType,
 			@Description("TODO") @Parameter(name = KEY_SORT_RESULT) boolean sort,
 			@Description("TODO") @Parameter(name = KEY_FACET_ID) final String facetId) throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		JSONArray termIds = new JSONArray(termIdsJsonString);
 
 		Evaluator rootTermEvaluator = new Evaluator() {
@@ -865,7 +874,7 @@ public class ConceptManager extends ServerPlugin {
 			List<String[]> pathsTermIds = new ArrayList<>();
 			int c = 0;
 			for (Path p : traverse) {
-				log.info("Path nr. {}:{}", c++, p);
+				log.info("Path nr. " + c++ + ":" + p);
 				// The length of paths is measured in the number of edges, not
 				// nodes, in Neo4j.
 				String[] pathTermIds = new String[p.length() + 1];
@@ -878,9 +887,8 @@ public class ConceptManager extends ServerPlugin {
 					else
 						throw new IllegalStateException("Length of path wrong, more nodes expected.");
 					if (!n.hasProperty(PROP_ID)) {
-						log.warn("Came across the term {} ({}"
-								+ ") when computing root paths. But this term does not have an ID.",
-								n, NodeUtilities.getNodePropertiesAsString(n));
+						log.warn("Came across the term " + n + " (" + NodeUtilities.getNodePropertiesAsString(n) +
+								") when computing root paths. But this term does not have an ID.");
 						error = true;
 						break;
 					}
@@ -936,6 +944,8 @@ public class ConceptManager extends ServerPlugin {
 	private void insertAggregateTerm(GraphDatabaseService graphDb, Index<Node> termIndex, JSONObject jsonTerm,
 			CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
 			throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		JSONObject aggCoordinates = jsonTerm.has(PROP_COORDINATES) ? jsonTerm.getJSONObject(PROP_COORDINATES)
 				: new JSONObject();
 		String aggOrgId = JSON.getString(aggCoordinates, CoordinateConstants.ORIGINAL_ID);
@@ -944,14 +954,14 @@ public class ConceptManager extends ServerPlugin {
 		String aggSource = JSON.getString(aggCoordinates, CoordinateConstants.SOURCE);
 		if (null == aggSource)
 			aggSource = UNKNOWN_TERM_SOURCE;
-		log.debug("Looking up aggregate ({}, {}) / ({}, {}"
-				+ "), original/source coordinates.", aggOrgId, aggOrgSource, aggSrcId, aggSource);
-		Node aggregate = lookupTerm(new ConceptCoordinates(aggCoordinates, false), termIndex);
+		log.debug("Looking up aggregate (" + aggOrgId + ", " + aggOrgSource + ") / (" + aggSrcId + ", " +
+			aggSource + "), original/source coordinates.");
+		Node aggregate = lookupTerm(new ConceptCoordinates(aggCoordinates, false), termIndex, log);
 		if (null != aggregate) {
 			String isHollowMessage = "";
 			if (aggregate.hasLabel(TermLabel.HOLLOW))
 				isHollowMessage = ", however it is hollow and its properties will be set now.";
-			log.debug("    aggregate does already exist{}", isHollowMessage);
+			log.debug("    aggregate does already exist" + isHollowMessage);
 			if (!aggregate.hasLabel(TermLabel.HOLLOW))
 				return;
 			// remove the HOLLOW label, we have to aggregate information now and
@@ -994,11 +1004,12 @@ public class ConceptManager extends ServerPlugin {
 						break;
 				}
 				if (null != element)
-					log.debug("\tFound element with source ID and source ({}, {}"
-							+ ") in in-memory map.", elementSrcId, elementSource);
+					log.debug("\tFound element with source ID and source (" + elementSrcId + ", " + elementSource +
+								") in in-memory map.");
 			}
-			if (null == element)
-				element = lookupTermBySourceId(elementSrcId, elementSource, false, termIndex);
+			if (null == element) {
+				element = lookupTermBySourceId(elementSrcId, elementSource, false, termIndex, log);
+			}
 			// this is just a filter; if no sources to filter have been
 			// specified, all terms are eligible
 			// if (null != sources) {
@@ -1069,6 +1080,8 @@ public class ConceptManager extends ServerPlugin {
 	private void insertFacetTerm(GraphDatabaseService graphDb, String facetId, Index<Node> termIndex,
 			JSONObject jsonTerm, CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
 			ImportOptions importOptions) throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		// Name is mandatory, thus we don't use the
 		// null-convenience method here.
 		String prefName = JSON.getString(jsonTerm, PROP_PREF_NAME);
@@ -1145,7 +1158,7 @@ public class ConceptManager extends ServerPlugin {
 		// }
 		// else
 		if (term.hasLabel(TermLabel.HOLLOW)) {
-			log.debug("Got HOLLOW concept node with coordinates {} and will create full concept.", coordinatesJson);
+			log.debug("Got HOLLOW concept node with coordinates " + coordinatesJson + " and will create full concept.");
 			// The term could already exist as a hollow node, e.g. because it
 			// was the
 			// target of a relationship of another
@@ -1378,6 +1391,8 @@ public class ConceptManager extends ServerPlugin {
 	 */
 	private InsertionReport insertFacetTerms(GraphDatabaseService graphDb, JSONArray jsonTerms, String facetId,
 			CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		long time = System.currentTimeMillis();
 		InsertionReport insertionReport = new InsertionReport();
 		// Idea: First create all nodes and just store which Node has which
@@ -1404,7 +1419,7 @@ public class ConceptManager extends ServerPlugin {
 					for (int j = 0; j < parentCoordinatesArray.length(); j++) {
 						ConceptCoordinates parentCoordinates = new ConceptCoordinates(
 								parentCoordinatesArray.getJSONObject(j));
-						Node parentNode = lookupTerm(parentCoordinates, termIndex);
+						Node parentNode = lookupTerm(parentCoordinates, termIndex, log);
 						if (parentNode != null) {
 							insertionReport.addExistingTerm(parentNode);
 							nodesByCoordinates.put(parentCoordinates, parentNode);
@@ -1445,7 +1460,7 @@ public class ConceptManager extends ServerPlugin {
 			// above
 			if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
 				continue;
-			Node conceptNode = lookupTerm(coordinates, termIndex);
+			Node conceptNode = lookupTerm(coordinates, termIndex, log);
 			if (conceptNode != null) {
 				insertionReport.addExistingTerm(conceptNode);
 				nodesByCoordinates.put(coordinates, conceptNode);
@@ -1490,14 +1505,13 @@ public class ConceptManager extends ServerPlugin {
 			nodesByCoordinates.put(coordinates, conceptNode);
 		}
 
-		log.info("removing {} input concepts that should be omitted "
-				+ "because we are merging and don't have them in the database",
-				importConceptsToRemove.size());
+		log.info("removing " + importConceptsToRemove.size() + " input concepts that should be omitted "
+				+ "because we are merging and don't have them in the database");
 		for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
 			jsonTerms.remove(importConceptsToRemove.get(index));
 		importConceptsToRemove = null;
 
-		log.info("Starting to insert {} terms.", jsonTerms.length());
+		log.info("Starting to insert " + jsonTerms.length() + " terms.");
 		for (int i = 0; i < jsonTerms.length(); i++) {
 			JSONObject jsonTerm = jsonTerms.getJSONObject(i);
 			boolean isAggregate = JSON.getBoolean(jsonTerm, ConceptConstants.AGGREGATE);
@@ -1508,10 +1522,10 @@ public class ConceptManager extends ServerPlugin {
 						importOptions);
 			}
 		}
-		log.debug("{} terms inserted.", jsonTerms.length());
+		log.debug(jsonTerms.length() + " terms inserted.");
 		time = System.currentTimeMillis() - time;
-		log.info("{} new terms - but not yet relationships - have been inserted. This took "
-				+ "{} ms ({} s)", insertionReport.numTerms, time, time / 1000);
+		log.info(insertionReport.numTerms + " new terms - but not yet relationships - have been inserted. This took "
+				+ time + " ms (" + time / 1000 + " s)");
 		return insertionReport;
 	}
 
@@ -1526,12 +1540,14 @@ public class ConceptManager extends ServerPlugin {
 	 */
 	private Node registerNewHollowConceptNode(GraphDatabaseService graphDb, ConceptCoordinates coordinates,
 			Index<Node> termIndex, Label... additionalLabels) {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		Node node = graphDb.createNode(TermLabel.HOLLOW);
 		for (int i = 0; i < additionalLabels.length; i++) {
 			Label label = additionalLabels[i];
 			node.addLabel(label);
 		}
-		log.debug("Created new HOLLOW concept node for coordinates {}", coordinates);
+		log.debug("Created new HOLLOW concept node for coordinates " + coordinates);
 		if (!StringUtils.isBlank(coordinates.originalId)) {
 			node.setProperty(PROP_ORG_ID, coordinates.originalId);
 			node.setProperty(PROP_ORG_SRC, coordinates.originalSource);
@@ -1567,7 +1583,9 @@ public class ConceptManager extends ServerPlugin {
 			@Description("TODO") @Parameter(name = KEY_TERMS, optional = true) String termsJson,
 			@Description("TODO") @Parameter(name = KEY_IMPORT_OPTIONS, optional = true) String importOptionsJsonString)
 			throws JSONException {
-		log.info("{} was called", INSERT_TERMS);
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
+		log.info(INSERT_TERMS + " was called");
 		long time = System.currentTimeMillis();
 		// Data incoming, create indexes if not present.
 		// No, don't. The unique constraint slows things painfully down.
@@ -1581,7 +1599,7 @@ public class ConceptManager extends ServerPlugin {
 		jsonFacet = !StringUtils.isEmpty(facetJson) ? new JSONObject(facetJson) : null;
 		if (null != termsJson) {
 			jsonTerms = new JSONArray(termsJson);
-			log.info("Got {} input concepts for import.", jsonTerms.length());
+			log.info("Got " + jsonTerms.length() + " input concepts for import.");
 		} else {
 			log.info("Got 0 input concepts for import.");
 		}
@@ -1604,7 +1622,7 @@ public class ConceptManager extends ServerPlugin {
 			log.debug("Handling import of facet.");
 			if (null != jsonFacet && jsonFacet.has(PROP_ID)) {
 				facetId = jsonFacet.getString(PROP_ID);
-				log.info("Facet ID {} has been given to add the terms to.", facetId);
+				log.info("Facet ID " + facetId + " has been given to add the terms to.");
 				boolean isNoFacet = JSON.getBoolean(jsonFacet, FacetConstants.NO_FACET);
 				if (isNoFacet)
 					facet = FacetManager.getNoFacet(graphDb, facetId);
@@ -1617,6 +1635,7 @@ public class ConceptManager extends ServerPlugin {
 				ResourceIterator<Node> facetIterator = graphDb.findNodes(FacetLabel.FACET);
 				while (facetIterator.hasNext()) {
 					facet = facetIterator.next();
+					log.warn("Facet " + facet.getAllProperties().toString());
 					if (facet.getProperty(FacetConstants.PROP_NAME)
 							.equals(jsonFacet.getString(FacetConstants.PROP_NAME)))
 						break;
@@ -1630,7 +1649,7 @@ public class ConceptManager extends ServerPlugin {
 			}
 			if (null != facet) {
 				facetId = (String) facet.getProperty(PROP_ID);
-				log.debug("Facet {} was successfully created or determined by ID.", facetId);
+				log.debug("Facet " + facetId + " was successfully created or determined by ID.");
 			} else {
 				log.debug(
 						"No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
@@ -1679,14 +1698,14 @@ public class ConceptManager extends ServerPlugin {
 	 * @param termIndex
 	 * @return
 	 */
-	private Node lookupTerm(ConceptCoordinates coordinates, Index<Node> termIndex) {
+	private Node lookupTerm(ConceptCoordinates coordinates, Index<Node> termIndex, Log log) {
 		String orgId = coordinates.originalId;
 		String orgSource = coordinates.originalSource;
 		String srcId = coordinates.sourceId;
 		String source = coordinates.source;
 		boolean uniqueSourceId = coordinates.uniqueSourceId;
-		log.debug("Looking up term via original ID and source ({}, {}) and source ID and source ({}, {}).",
-				new Object[] { orgId, orgSource, srcId, source });
+		log.debug("Looking up term via original ID and source (" + orgId + ", " + orgSource +
+				") and source ID and source (" + srcId + ", " + source + ").");
 		if ((null == orgId || null == orgSource) && (null == srcId || null == source)) {
 			// no source information is complete, per definition we cannot find
 			// an equal term
@@ -1697,22 +1716,22 @@ public class ConceptManager extends ServerPlugin {
 		// Do we know the original ID?
 		term = null != orgId ? termIndex.get(PROP_ORG_ID, orgId).getSingle() : null;
 		if (term != null)
-			log.debug("Found term by original ID {}", orgId);
+			log.debug("Found term by original ID " + orgId);
 		// 1. Check if there is a term with the given original ID and a matching
 		// original source.
 		if (null != term) {
 			if (!PropertyUtilities.hasSamePropertyValue(term, PROP_ORG_SRC, orgSource)) {
-				log.debug("Original source doesn't match; requested: {}, found term has: {}",
-						orgSource, NodeUtilities.getString(term, PROP_ORG_SRC));
+				log.debug("Original source doesn't match; requested: " + orgSource + ", found term has: " + 
+						NodeUtilities.getString(term, PROP_ORG_SRC));
 				term = null;
 			} else {
-				log.debug("Found existing term for original ID {} and original source {}", orgId, orgSource);
+				log.debug("Found existing term for original ID " + orgId + " and original source " + orgSource);
 			}
 		}
 		// 2. If there was no original ID, check for a term with the same source
 		// ID and source and a non-contradicting original ID.
 		if (null == term && null != srcId) {
-			term = lookupTermBySourceId(srcId, source, uniqueSourceId, termIndex);
+			term = lookupTermBySourceId(srcId, source, uniqueSourceId, termIndex, log);
 			if (null != term) {
 				// check for an original ID contradiction
 				Object existingOrgId = NodeUtilities.getNonNullNodeProperty(term, PROP_ORG_ID);
@@ -1731,8 +1750,8 @@ public class ConceptManager extends ServerPlugin {
 		}
 		if (null == term)
 			log.debug(
-					"    Did not find an existing term with original ID and source ({}, {}) or source ID and source ({}, {}).",
-					new Object[] { orgId, orgSource, srcId, source });
+					"    Did not find an existing term with original ID and source (" + orgId + ", " + 
+			orgSource + ") or source ID and source (" + srcId + ", " + source + ").");
 		return term;
 	}
 
@@ -1753,11 +1772,12 @@ public class ConceptManager extends ServerPlugin {
 	 * @return The requested concept node or <tt>null</tt> if no such node is
 	 *         found.
 	 */
-	private Node lookupTermBySourceId(String srcId, String source, boolean uniqueSourceId, Index<Node> termIndex) {
-		log.debug("Trying to look up existing term by source ID and source ({}, {})", srcId, source);
+	private Node lookupTermBySourceId(String srcId, String source, boolean uniqueSourceId,
+			Index<Node> termIndex, Log log) {
+		log.debug("Trying to look up existing term by source ID and source (" + srcId + ", " + source + ")");
 		IndexHits<Node> indexHits = termIndex.get(PROP_SRC_IDS, srcId);
 		if (!indexHits.hasNext())
-			log.debug("    Did not find any term with source ID {}", srcId);
+			log.debug("    Did not find any term with source ID " + srcId);
 
 		Node soughtConcept = null;
 		boolean uniqueSourceIdNodeFound = false;
@@ -1778,18 +1798,18 @@ public class ConceptManager extends ServerPlugin {
 							throw new IllegalStateException("There are multiple concept nodes with unique source ID "
 									+ srcId
 									+ ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
-						log.debug("    Found existing term with unique source ID {}"
-								+ " which matches given unique source ID", srcId);
+						log.debug("    Found existing term with unique source ID " + srcId
+								+ " which matches given unique source ID");
 						uniqueSourceIdNodeFound = true;
 					}
 				}
 
 				Set<String> sources = NodeUtilities.getSourcesForSourceId(conceptNode, srcId);
 				if (!sources.contains(source)) {
-					log.debug("    Did not find a match for source ID {} and source {}", srcId, source);
+					log.debug("    Did not find a match for source ID " + srcId + " and source " + source);
 					conceptNode = null;
 				} else {
-					log.debug("    Found existing term for source ID {} and source {}", srcId, source);
+					log.debug("    Found existing term for source ID " + srcId + " and source " + source);
 				}
 				if (soughtConcept == null)
 					soughtConcept = conceptNode;
@@ -1843,6 +1863,8 @@ public class ConceptManager extends ServerPlugin {
 	public long pushTermsToSet(@Source GraphDatabaseService graphDb,
 			@Description("TODO") @Parameter(name = KEY_TERM_PUSH_CMD) String termPushCommandString,
 			@Description("The amount of terms to push into the set. If equal or less than zero or omitted, all terms will be pushed.") @Parameter(name = KEY_AMOUNT, optional = true) Integer amount) {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		Gson gson = new Gson();
 		PushTermsToSetCommand cmd = gson.fromJson(termPushCommandString, PushTermsToSetCommand.class);
 		Label setLabel = Label.label(cmd.setName);
@@ -1871,7 +1893,7 @@ public class ConceptManager extends ServerPlugin {
 			tx.success();
 		}
 
-		log.info("Determined {} facets with given restrictions.", facetsWithSpecifiedGeneralLabel.size());
+		log.info("Determined " + facetsWithSpecifiedGeneralLabel.size() + " facets with given restrictions.");
 
 		long numberOfTermsAdded = 0;
 		long numberOfTermsToAdd = null != amount && amount > 0 ? amount : Long.MAX_VALUE;
@@ -1922,7 +1944,7 @@ public class ConceptManager extends ServerPlugin {
 						if (term.hasLabel(TermLabel.HOLLOW))
 							continue;
 						if (!term.hasProperty(PROP_FACETS)) {
-							log.warn("Term with internal ID {} has no facets property.", term.getId());
+							log.warn("Term with internal ID " + term.getId() + " has no facets property.");
 							continue;
 						}
 						String[] facetIds = (String[]) term.getProperty(PROP_FACETS);
@@ -1941,7 +1963,7 @@ public class ConceptManager extends ServerPlugin {
 			}
 			tx.success();
 		}
-		log.info("Finished pushing {} terms to set \"{}\".", numberOfTermsAdded, cmd.setName);
+		log.info("Finished pushing " + numberOfTermsAdded + " terms to set \"" + cmd.setName + "\".");
 		return numberOfTermsAdded;
 	}
 
@@ -1985,6 +2007,8 @@ public class ConceptManager extends ServerPlugin {
 	@Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
 	@PluginTarget(GraphDatabaseService.class)
 	public void includeTerms(@Source GraphDatabaseService graphDb) {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		Label includeLabel = Label.label("INCLUDE");
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterable<Node> terms = () -> graphDb.findNodes(includeLabel);
@@ -2002,14 +2026,14 @@ public class ConceptManager extends ServerPlugin {
 				Node facetNode = path.endNode();
 				facetIds.add((String) facetNode.getProperty(FacetConstants.PROP_ID));
 			}
-			log.info("Including terms from facets {}", facetIds);
+			log.info("Including terms from facets " + facetIds);
 			tx.success();
 		}
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterable<Node> terms = () -> graphDb.findNodes(TermLabel.TERM);
 			for (Node term : terms) {
 				if (!term.hasProperty(PROP_FACETS)) {
-					log.info("Doesnt have facets: {}", PropertyUtilities.getNodePropertiesAsString(term));
+					log.info("Doesnt have facets: " + PropertyUtilities.getNodePropertiesAsString(term));
 					continue;
 				}
 				String[] facets = (String[]) term.getProperty(PROP_FACETS);
@@ -2068,8 +2092,10 @@ public class ConceptManager extends ServerPlugin {
 	public int insertMappings(@Source GraphDatabaseService graphDb,
 			@Description("An array of mappings in JSON format. Each mapping is an object with the keys for \"id1\", \"id2\" and \"mappingType\", respectively.") @Parameter(name = KEY_MAPPINGS) String mappingsJson)
 			throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		JSONArray mappings = new JSONArray(mappingsJson);
-		log.info("Starting to insert {} mappings.", mappings.length());
+		log.info("Starting to insert " + mappings.length() + " mappings.");
 		try (Transaction tx = graphDb.beginTx()) {
 			Index<Node> termIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
 			Map<String, Node> nodesBySrcId = new HashMap<>(mappings.length());
@@ -2081,7 +2107,7 @@ public class ConceptManager extends ServerPlugin {
 				String id2 = mapping.getString("id2");
 				String mappingType = mapping.getString("mappingType");
 
-				log.debug("Inserting mapping {} -{}- {}", id1, mappingType, id2);
+				log.debug("Inserting mapping " + id1 + " -" + mappingType + "- " + id2);
 
 				if (StringUtils.isBlank(id1))
 					throw new IllegalArgumentException("id1 in mapping \"" + mapping + "\" is missing.");
@@ -2094,15 +2120,15 @@ public class ConceptManager extends ServerPlugin {
 				if (null == n1) {
 					IndexHits<Node> indexHits = termIndex.get(PROP_SRC_IDS, id1);
 					if (indexHits.size() > 1) {
-						log.error("More than one node for source ID {}", id1);
+						log.error("More than one node for source ID " + id1);
 						for (Node n : indexHits)
 							log.error(NodeUtilities.getNodePropertiesAsString(n));
 						throw new IllegalStateException("More than one node for source ID " + id1);
 					}
 					n1 = indexHits.getSingle();
 					if (null == n1) {
-						log.warn("There is no term with source ID \"{}\" as required by the mapping "
-								+ "\"{}\" Mapping is skipped.", id1, mapping);
+						log.warn("There is no term with source ID \"" + id1 + "\" as required by the mapping "
+								+ "\"" + mapping + "\" Mapping is skipped.");
 						continue;
 					}
 					nodesBySrcId.put(id1, n1);
@@ -2111,8 +2137,8 @@ public class ConceptManager extends ServerPlugin {
 				if (null == n2) {
 					n2 = termIndex.get(PROP_SRC_IDS, id2).getSingle();
 					if (null == n2) {
-						log.warn("There is no term with source ID \"{}\" as required by the mapping "
-								+ "\"{}\" Mapping is skipped.", id2, mapping);
+						log.warn("There is no term with source ID \"" + id2 + "\" as required by the mapping "
+								+ "\"" + mapping + "\" Mapping is skipped.");
 						continue;
 					}
 					nodesBySrcId.put(id2, n2);
@@ -2148,8 +2174,7 @@ public class ConceptManager extends ServerPlugin {
 						ConceptRelationConstants.PROP_MAPPING_TYPE, new String[] { mappingType });
 			}
 			tx.success();
-			log.info("{} of {} new mappings successfully added.",
-					insertionReport.numRelationships, mappings.length());
+			log.info(insertionReport.numRelationships + " of " + mappings.length() + " new mappings successfully added.");
 			return insertionReport.numRelationships;
 		}
 	}
@@ -2162,6 +2187,8 @@ public class ConceptManager extends ServerPlugin {
 			@Description("An array of term IDs to restrict the retrieval to.") @Parameter(name = KEY_TERM_IDS, optional = true) String termIdsJson,
 			@Description("Restricts the facets to those that have at most the specified number of roots.") @Parameter(name = KEY_MAX_ROOTS, optional = true) long maxRoots)
 			throws JSONException {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		Map<String, Object> facetRoots = new HashMap<>();
 
 		JSONArray facetIdsArray = new JSONArray(facetIdsJson);
@@ -2185,7 +2212,7 @@ public class ConceptManager extends ServerPlugin {
 		}
 
 		try (Transaction tx = graphDb.beginTx()) {
-			log.info("Returning roots for facets {}", requestedFacetIds);
+			log.info("Returning roots for facets " + requestedFacetIds);
 			Node facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
 			TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(graphDb, null, null);
 			Traverser traverse = facetTraversal.traverse(facetGroupsNode);
@@ -2194,8 +2221,8 @@ public class ConceptManager extends ServerPlugin {
 				String facetId = (String) facetNode.getProperty(FacetConstants.PROP_ID);
 				if (maxRoots > 0 && facetNode.hasProperty(FacetConstants.PROP_NUM_ROOT_TERMS)
 						&& (long) facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) > maxRoots) {
-					log.info("Skipping facet with ID {} because it has more than {} root terms ({}).",
-							facetId, maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
+					log.info("Skipping facet with ID " + facetId + " because it has more than " + maxRoots + 
+							" root terms (" + facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) + ").");
 				}
 				Set<String> requestedIdSet = null;
 				if (null != requestedTermIds)
@@ -2218,8 +2245,8 @@ public class ConceptManager extends ServerPlugin {
 					if (!roots.isEmpty() && (maxRoots <= 0 || roots.size() <= maxRoots))
 						facetRoots.put(facetId, roots);
 					else
-						log.info("Skipping facet with ID {} because it has more than {}"
-								+ " root terms ({}).", facetId, maxRoots, roots.size());
+						log.info("Skipping facet with ID " + facetId + " because it has more than " + maxRoots
+								+ " root terms (" + roots.size() + ").");
 				}
 			}
 			tx.success();
@@ -2267,6 +2294,8 @@ public class ConceptManager extends ServerPlugin {
 	 * @param type
 	 */
 	private void addConceptVariant(GraphDatabaseService graphDb, String termVariants, String type) {
+		LogService logService = ((GraphDatabaseAPI)graphDb).getDependencyResolver().resolveDependency(LogService.class);
+	    Log log = logService.getUserLog(getClass());
 		Label variantsAggregationLabel;
 		Label variantNodeLabel;
 
@@ -2324,12 +2353,12 @@ public class ConceptManager extends ServerPlugin {
 					jsonReader.endObject();
 
 					if (variantCountsInDocs.isEmpty()) {
-						log.debug("Term with ID {} has no writing variants / acronyms attached.", termId);
+						log.debug("Term with ID " + termId + " has no writing variants / acronyms attached.");
 						continue;
 					}
 					Node term = graphDb.findNode(TermLabel.TERM, PROP_ID, termId);
 					if (null == term) {
-						log.warn("Term with ID {} was not found, cannot add writing variants / acronyms.", termId);
+						log.warn("Term with ID " + termId + " was not found, cannot add writing variants / acronyms.");
 						continue;
 					}
 
