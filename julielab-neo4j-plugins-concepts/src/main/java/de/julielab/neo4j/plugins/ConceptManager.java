@@ -1505,8 +1505,10 @@ public class ConceptManager extends ServerPlugin {
 			nodesByCoordinates.put(coordinates, conceptNode);
 		}
 
+		if (importConceptsToRemove.size() > 0) {
 		log.info("removing " + importConceptsToRemove.size() + " input concepts that should be omitted "
 				+ "because we are merging and don't have them in the database");
+		}
 		for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
 			jsonTerms.remove(importConceptsToRemove.get(index));
 		importConceptsToRemove = null;
@@ -1635,7 +1637,6 @@ public class ConceptManager extends ServerPlugin {
 				try (ResourceIterator<Node> facetIterator = graphDb.findNodes(FacetLabel.FACET)) {
 					while (facetIterator.hasNext()) {
 						facet = facetIterator.next();
-						log.warn("Facet " + facet.getAllProperties().toString());
 						if (facet.getProperty(FacetConstants.PROP_NAME)
 								.equals(jsonFacet.getString(FacetConstants.PROP_NAME)))
 							break;
