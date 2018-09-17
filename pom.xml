@@ -7,7 +7,7 @@
 		<version>2.0.1</version>
 	</parent>
 	<artifactId>julielab-neo4j-server-plugins</artifactId>
-	<version>1.8.1</version>
+	<version>1.9.0</version>
 	<name>JULIE Lab Neo4j Server Plugins</name>
 	<build>
 		<pluginManagement>
@@ -89,7 +89,7 @@
 	</dependencies>
 	<description>This project contains Neo4j server plugins used by the Julie Lab team.</description>
 	<properties>
-		<neo4j-release-version>3.3.1</neo4j-release-version>
+		<neo4j-release-version>3.4.7</neo4j-release-version>
 		<jackson-release-version>2.9.6</jackson-release-version>
 	</properties>
 	<packaging>pom</packaging>
