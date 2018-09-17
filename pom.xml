@@ -7,7 +7,7 @@
 		<version>2.0.1</version>
 	</parent>
 	<artifactId>julielab-neo4j-server-plugins</artifactId>
-	<version>1.8.0</version>
+	<version>1.8.1</version>
 	<name>JULIE Lab Neo4j Server Plugins</name>
 	<build>
 		<pluginManagement>
@@ -90,7 +90,7 @@
 	<description>This project contains Neo4j server plugins used by the Julie Lab team.</description>
 	<properties>
 		<neo4j-release-version>3.3.1</neo4j-release-version>
-		<jackson-release-version>2.9.2</jackson-release-version>
+		<jackson-release-version>2.9.6</jackson-release-version>
 	</properties>
 	<packaging>pom</packaging>
 	<modules>
@@ -106,7 +106,7 @@
 			<dependency>
 				<groupId>com.fasterxml.jackson.core</groupId>
 				<artifactId>jackson-databind</artifactId>
-				<version>2.9.2</version>
+				<version>2.9.6</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
