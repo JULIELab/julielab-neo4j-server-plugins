@@ -94,7 +94,7 @@
 	</dependencies>
 	<description>This project contains Neo4j server plugins used by the Julie Lab team.</description>
 	<properties>
-		<neo4j-release-version>3.2.3</neo4j-release-version>
+		<neo4j-release-version>3.4.7</neo4j-release-version>
 	</properties>
 	<packaging>pom</packaging>
 	<modules>
