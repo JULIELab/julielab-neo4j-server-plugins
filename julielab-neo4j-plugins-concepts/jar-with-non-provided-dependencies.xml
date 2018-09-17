@@ -21,6 +21,7 @@
 				<include>org.apache.commons:commons-lang3</include>
 				<include>com.google.guava:guava</include>
 				<include>de.julielab:julielab-neo4j-plugins-utilities</include>
+				<include>com.ibm.icu:icu4j</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
