@@ -37,4 +37,8 @@ public class CoordinatesMap {
 	public boolean isEmpty() {
 		return keys.isEmpty();
 	}
+	
+	public CoordinatesSet keySet() {
+		return keys;
+	}
 }
