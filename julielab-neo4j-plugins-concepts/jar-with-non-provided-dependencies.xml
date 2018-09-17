@@ -23,6 +23,11 @@
 				<include>org.apache.commons:commons-lang3</include>
 				<include>com.google.guava:guava</include>
 				<include>de.julielab:julielab-neo4j-plugins-utilities</include>
+				<include>com.ibm.icu:icu4j</include>
+				<include>com.fasterxml.jackson.core:jackson-databind</include>
+				<include>com.fasterxml.jackson.core:jackson-core</include>
+				<include>com.fasterxml.jackson.core:jackson-annotations</include>
+				<include>com.fasterxml.jackson.datatype:jackson-datatype-jdk8</include>
 			</includes>
 		</dependencySet>
 	</dependencySets>
