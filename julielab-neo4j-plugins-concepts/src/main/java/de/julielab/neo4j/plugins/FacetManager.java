@@ -72,11 +72,11 @@ public class FacetManager extends ServerPlugin {
 	public static final String PARAM_RETURN_HOLLOW_FACETS = "returnHollowFacets";
 	private static final Logger log = Logger.getLogger(FacetManager.class.getName());
 
-	public static enum EdgeTypes implements RelationshipType {
+	public enum EdgeTypes implements RelationshipType {
 		HAS_FACET_GROUP, HAS_FACET
 	}
 
-	public static enum FacetLabel implements Label {
+	public enum FacetLabel implements Label {
 		FACET, NO_FACET
 	}
 

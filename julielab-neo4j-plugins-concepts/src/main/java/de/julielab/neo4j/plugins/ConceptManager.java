@@ -106,7 +106,7 @@ public class ConceptManager extends ServerPlugin {
 
 	private static final String UNKNOWN_TERM_SOURCE = "<unknown>";
 
-	public static enum EdgeTypes implements RelationshipType {
+	public enum EdgeTypes implements RelationshipType {
 		/**
 		 * Relationship type for connecting aggregate classes with their element
 		 * terms.
@@ -190,7 +190,7 @@ public class ConceptManager extends ServerPlugin {
 		}
 	}
 
-	public static enum TermLabel implements Label {
+	public enum TermLabel implements Label {
 		/**
 		 * Label to indicate a node is not an actual term but an aggregate term.
 		 * Such terms have {@link EdgeTypes#HAS_ELEMENT} relationships to terms,
@@ -218,7 +218,7 @@ public class ConceptManager extends ServerPlugin {
 	 * Labels for nodes representing lexico-morphological variations of terms.
 	 *
 	 */
-	public static enum MorphoLabel implements Label {
+	public enum MorphoLabel implements Label {
 		WRITING_VARIANTS, ACRONYMS, WRITING_VARIANT, ACRONYM
 	}
 
