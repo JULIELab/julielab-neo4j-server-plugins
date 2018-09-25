@@ -21,7 +21,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
@@ -282,14 +281,14 @@ public class FacetManager extends ServerPlugin {
 			if (null != generalLabels) {
 				for (int i = 0; i < generalLabels.length(); i++) {
 					String labelString = generalLabels.getString(i);
-					Label label = DynamicLabel.label(labelString);
+					Label label = Label.label(labelString);
 					facet.addLabel(label);
 				}
 			}
 			if (null != uniqueLabels) {
 				for (int i = 0; i < uniqueLabels.length(); i++) {
 					String labelString = uniqueLabels.getString(i);
-					Label label = DynamicLabel.label(labelString);
+					Label label = Label.label(labelString);
 					facet.addLabel(label);
 				}
 			}
@@ -392,7 +391,7 @@ public class FacetManager extends ServerPlugin {
 		if (null != labels) {
 			for (int i = 0; i < labels.length(); i++) {
 				String labelString = labels.getString(i);
-				Label label = DynamicLabel.label(labelString);
+				Label label = Label.label(labelString);
 				facetGroupNode.addLabel(label);
 			}
 		}

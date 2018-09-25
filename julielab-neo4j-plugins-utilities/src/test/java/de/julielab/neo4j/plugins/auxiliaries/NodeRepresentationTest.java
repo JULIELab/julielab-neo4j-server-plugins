@@ -10,7 +10,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.graphdb.DynamicLabel;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
@@ -36,7 +36,7 @@ public class NodeRepresentationTest {
 	@Test
 	public void testNodeRepresentation() {
 		try (Transaction tx = graphDb.beginTx()){
-			Node node = graphDb.createNode(DynamicLabel.label("label1"), DynamicLabel.label("label2"));
+			Node node = graphDb.createNode(Label.label("label1"), Label.label("label2"));
 			node.setProperty("property", "value");
 			NodeRepresentation nodeRepresentation = new NodeRepresentation(node);
 			Map<String, Object> map = nodeRepresentation.getUnderlyingMap();

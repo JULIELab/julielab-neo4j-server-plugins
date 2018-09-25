@@ -32,7 +32,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
+import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
@@ -114,8 +114,8 @@ public class FacetManagerTest {
 			// .getProperty(FacetGroupConstants.PROP_GENERAL_LABELS));
 			// assertTrue(properties.contains("showForBTerms"));
 			// assertFalse(properties.contains("showForSearch"));
-			assertTrue(facetGroupNode.hasLabel(DynamicLabel.label("showForBTerms")));
-			assertFalse(facetGroupNode.hasLabel(DynamicLabel.label("showForSearch")));
+			assertTrue(facetGroupNode.hasLabel(Label.label("showForBTerms")));
+			assertFalse(facetGroupNode.hasLabel(Label.label("showForSearch")));
 
 			Node facetGroupNode2 = (Node) createFacetGroupMethod.invoke(fm, graphDb,
 					facetGroupsNode, jsonFacetGroup2);
@@ -127,8 +127,8 @@ public class FacetManagerTest {
 			// .getProperty(FacetGroupConstants.PROP_GENERAL_LABELS));
 			// assertFalse(properties2.contains("showForBTerms"));
 			// assertTrue(properties2.contains("showForSearch"));
-			assertFalse(facetGroupNode2.hasLabel(DynamicLabel.label("showForBTerms")));
-			assertTrue(facetGroupNode2.hasLabel(DynamicLabel.label("showForSearch")));
+			assertFalse(facetGroupNode2.hasLabel(Label.label("showForBTerms")));
+			assertTrue(facetGroupNode2.hasLabel(Label.label("showForSearch")));
 
 			// Check whether the new facet group node is correctly connected. It
 			// should be:
@@ -268,9 +268,9 @@ public class FacetManagerTest {
 					.getProperty(PROP_FILTER_FIELD_NAMES));
 			assertTrue(filterFields.contains("ff11"));
 			assertTrue(filterFields.contains("ff21"));
-			assertTrue(facet.hasLabel(DynamicLabel.label("hidden")));
-			assertTrue(facet.hasLabel(DynamicLabel.label("uniqueLabel1")));
-			assertTrue(facet.hasLabel(DynamicLabel.label("uniqueLabel2")));
+			assertTrue(facet.hasLabel(Label.label("hidden")));
+			assertTrue(facet.hasLabel(Label.label("uniqueLabel1")));
+			assertTrue(facet.hasLabel(Label.label("uniqueLabel2")));
 
 			// Check whether the connection to the facet group node is as
 			// expected.
@@ -279,7 +279,7 @@ public class FacetManagerTest {
 			Node facetGroupNode = hasFacetRel.getStartNode();
 			assertEquals("facetGroup1", facetGroupNode.getProperty(PROP_NAME));
 			assertEquals(1, facetGroupNode.getProperty(FacetGroupConstants.PROP_POSITION));
-			assertTrue(facetGroupNode.hasLabel(DynamicLabel.label("showForSearch")));
+			assertTrue(facetGroupNode.hasLabel(Label.label("showForSearch")));
 			Relationship hasFacetGroupRel = facetGroupNode.getSingleRelationship(
 					FacetManager.EdgeTypes.HAS_FACET_GROUP, Direction.INCOMING);
 			Node facetGroupsNode = hasFacetGroupRel.getStartNode();
