@@ -1796,10 +1796,11 @@ public class ConceptManager extends ServerPlugin {
 						if (uniqueOnConceptNode) {
 							if (soughtConcept == null)
 								soughtConcept = conceptNode;
-							else if (uniqueSourceIdNodeFound == true)
+							else if (uniqueSourceIdNodeFound) {
 								throw new IllegalStateException("There are multiple concept nodes with unique source ID "
 										+ srcId
 										+ ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
+							}
 							log.debug("    Found existing term with unique source ID " + srcId
 									+ " which matches given unique source ID");
 							uniqueSourceIdNodeFound = true;
