@@ -2447,7 +2447,6 @@ public class ConceptManager extends ServerPlugin {
 				}
 			}
 			jsonReader.endObject();
-			jsonReader.close();
 			tx.success();
 		} catch (IOException e) {
 			throw new RuntimeException(e);
