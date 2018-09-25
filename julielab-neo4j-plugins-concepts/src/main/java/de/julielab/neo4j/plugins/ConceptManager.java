@@ -1480,7 +1480,6 @@ public class ConceptManager extends ServerPlugin {
 				// database; mark it for removal from the input data and
 				// continue
 				importConceptsToRemove.add(i);
-				continue;
 			}
 
 			// if (!StringUtils.isBlank(coordinates.originalId) &&
