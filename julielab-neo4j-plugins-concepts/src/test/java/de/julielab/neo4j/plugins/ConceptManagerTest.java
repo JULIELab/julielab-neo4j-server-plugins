@@ -37,7 +37,7 @@ import org.junit.Test;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicRelationshipType;
+import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -365,7 +365,7 @@ public class ConceptManagerTest {
 			// Besides the default taxonomic relationships, there should be
 			// specific relationships only valid for the
 			// current facet.
-			DynamicRelationshipType relBroaderThenInFacet = DynamicRelationshipType
+			RelationshipType relBroaderThenInFacet = RelationshipType
 					.withName(EdgeTypes.IS_BROADER_THAN.toString() + "_fid0");
 			assertEquals(term1, term2.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());
 			assertEquals(term1, term3.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());

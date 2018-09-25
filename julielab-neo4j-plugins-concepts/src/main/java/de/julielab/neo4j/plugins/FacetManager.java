@@ -21,7 +21,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicRelationshipType;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
@@ -306,7 +305,7 @@ public class FacetManager extends ServerPlugin {
 			// every facet
 			// they need to be created dynamically because it makes no sense to
 			// store all of them beforehand
-			RelationshipType dynRel = DynamicRelationshipType.withName("IS_BROADER_THAN_" + fid);
+			RelationshipType dynRel = RelationshipType.withName("IS_BROADER_THAN_" + fid);
 			Node node = getFacetNode(graphDb, fid);
 
 			Traverser traverser = graphDb.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
