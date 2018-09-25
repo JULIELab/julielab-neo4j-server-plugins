@@ -94,7 +94,7 @@ public class FacetManager extends ServerPlugin {
 	@PluginTarget(GraphDatabaseService.class)
 	public ListRepresentation insertFacets(@Source GraphDatabaseService graphDb,
 			@Description("TODO") @Parameter(name = KEY_FACETS) String facetList) throws JSONException {
-		JSONArray input = new JSONArray(new String(facetList));
+		JSONArray input = new JSONArray(facetList);
 		List<Node> facets = new ArrayList<>();
 		for (int i = 0; i < input.length(); i++) {
 			JSONObject jsonFacet = input.getJSONObject(i);
