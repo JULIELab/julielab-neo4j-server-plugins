@@ -472,8 +472,10 @@ public class Export extends ServerPlugin {
 	}
 
 	@Name(ELEMENT_TO_AGGREGATE_ID_MAPPING)
-	@Description("Creates a mapping file from aggregate element IDs to their respective aggregate ID."
-			+ " Currently, only non-aggregate elements are eligible.")
+	@Description("WARN: This method is easily replaceable with a Cypher query and might me removed in the future. " +
+            "Creates a mapping file from aggregate element IDs to their respective aggregate ID."
+			+ " Currently, only non-aggregate elements are eligible. Also, this works only correctly if each element has" +
+			" exactly one aggregate. If there are multiple aggregates, only one mapping will be returned.")
 	@PluginTarget(GraphDatabaseService.class)
 	public String exportElementToAggregateIdMapping(@Source GraphDatabaseService graphDb,
 			@Parameter(name = PARAM_LABELS) @Description("The aggregate labels for which to create the mapping") String aggLabelStrings)
