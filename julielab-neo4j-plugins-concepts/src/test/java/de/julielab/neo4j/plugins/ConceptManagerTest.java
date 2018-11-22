@@ -1,63 +1,7 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_DESCRIPTIONS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_ORG_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_ORG_SRC;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SOURCES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.apache.commons.lang.StringUtils;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.neo4j.graphalgo.GraphAlgoFactory;
-import org.neo4j.graphalgo.PathFinder;
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicRelationshipType;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.PathExpanders;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.ResourceIterable;
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.index.Index;
-import org.neo4j.graphdb.index.IndexHits;
-import org.neo4j.graphdb.index.IndexManager;
-import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
-import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.shell.util.json.JSONObject;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.ConceptManager.MorphoLabel;
@@ -66,28 +10,36 @@ import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.TermNameAndSynonymComparator;
-import de.julielab.neo4j.plugins.datarepresentation.AddToNonFacetGroupCommand;
-import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
-import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
-import de.julielab.neo4j.plugins.datarepresentation.ImportFacetTermRelationship;
-import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
-import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
-import de.julielab.neo4j.plugins.datarepresentation.PushConceptsToSetCommand;
-import de.julielab.neo4j.plugins.datarepresentation.TermCoordinates;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.CoordinateConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoRelationConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.*;
+import de.julielab.neo4j.plugins.datarepresentation.constants.*;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
+import org.apache.commons.lang.StringUtils;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import org.neo4j.graphalgo.GraphAlgoFactory;
+import org.neo4j.graphalgo.PathFinder;
+import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.index.Index;
+import org.neo4j.graphdb.index.IndexHits;
+import org.neo4j.graphdb.index.IndexManager;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
+import org.neo4j.shell.util.json.JSONException;
+import org.neo4j.shell.util.json.JSONObject;
+
+import java.util.*;
+import java.util.stream.Stream;
+
+import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static org.junit.Assert.*;
 
 public class ConceptManagerTest {
 
@@ -99,7 +51,7 @@ public class ConceptManagerTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest()  {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 
@@ -144,6 +96,7 @@ public class ConceptManagerTest {
 			String[] sources = (String[]) term.getProperty(ConceptConstants.PROP_SOURCES);
 			assertArrayEquals(new String[] { "src1", "src2", "<unknown>" }, sources);
 			assertArrayEquals(new String[] { "CONCEPT0", "CONCEPT0", "CONCEPT42" }, sourceIds);
+            tx.success();
 		}
 
 	}
@@ -168,6 +121,7 @@ public class ConceptManagerTest {
 					PROP_ID, NodeIDPrefixConstants.TERM + 0);
 			assertNotNull(term);
 			assertFalse(term.hasProperty(PROP_DESCRIPTIONS));
+            tx.success();
 		}
 
 		// Now add a description, only by knowing the term's original ID.
@@ -188,6 +142,7 @@ public class ConceptManagerTest {
 			assertTrue(term.hasProperty(PROP_DESCRIPTIONS));
 			assertArrayEquals(new String[] { "desc" }, (String[]) term.getProperty(PROP_DESCRIPTIONS));
 			assertArrayEquals(new String[] { "someSource" }, (String[]) term.getProperty(PROP_SOURCES));
+            tx.success();
 		}
 
 	}
@@ -228,6 +183,7 @@ public class ConceptManagerTest {
 			// There should be two terms even though they have the same original
 			// id
 			assertEquals(2, counter);
+            tx.success();
 		}
 
 	}
@@ -237,16 +193,11 @@ public class ConceptManagerTest {
 	 * definition. The facet should be created and the terms be created and
 	 * connected to it.
 	 * 
-	 * @throws JSONException
-	 * @throws IllegalAccessException
-	 * @throws NoSuchFieldException
-	 * @throws IllegalArgumentException
-	 * @throws SecurityException
-	 * @throws ConceptInsertionException 
+	 *
 	 */
 	@Test
 	public void testImportConceptsWithFacetDefinition() throws JSONException, SecurityException,
-			IllegalArgumentException, NoSuchFieldException, IllegalAccessException, ConceptInsertionException {
+			IllegalArgumentException, ConceptInsertionException {
 		testTermImportWithOrWithoutFacetDefinition(true);
 	}
 
@@ -296,7 +247,7 @@ public class ConceptManagerTest {
 		termList.add(new ImportConcept("prefname3", coord3, coord1));
 		termList.add(new ImportConcept("prefname4", coord4, coord2));
 
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("concepts", termList);
 
@@ -365,7 +316,7 @@ public class ConceptManagerTest {
 			// Besides the default taxonomic relationships, there should be
 			// specific relationships only valid for the
 			// current facet.
-			DynamicRelationshipType relBroaderThenInFacet = DynamicRelationshipType
+			RelationshipType relBroaderThenInFacet = RelationshipType
 					.withName(EdgeTypes.IS_BROADER_THAN.toString() + "_fid0");
 			assertEquals(term1, term2.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());
 			assertEquals(term1, term3.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());
@@ -380,6 +331,7 @@ public class ConceptManagerTest {
 			path = pathFinder.findSinglePath(facetGroupsNode, term3);
 			assertNotNull(path);
 			path = pathFinder.findSinglePath(facetGroupsNode, term4);
+            assertNotNull(path);
 
 			tx.success();
 		}
@@ -400,7 +352,7 @@ public class ConceptManagerTest {
 		// -------- SEND CONCEPT WITH FACET DEFINITION ------
 		ConceptManager ftm = new ConceptManager();
 
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("concepts", termList);
 		String termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
@@ -463,6 +415,8 @@ public class ConceptManagerTest {
 				rootCount++;
 			}
 			assertEquals("Wrong number of roots for the facet: ", new Integer(5), new Integer(rootCount));
+
+            tx.success();
 		}
 	}
 
@@ -496,7 +450,7 @@ public class ConceptManagerTest {
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 3 ---------------
-		concept = new ImportConcept("prefname2", Arrays.asList("syn1"),
+		concept = new ImportConcept("prefname2", Collections.singletonList("syn1"),
 				new ConceptCoordinates("CONCEPT2", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
@@ -504,7 +458,7 @@ public class ConceptManagerTest {
 		ftm.insertConcepts(graphDb, termsAndFacetJson);
 
 		// ------------ INSERT 4 ---------------
-		concept = new ImportConcept("prefname3", Arrays.asList("syn2"), "description2",
+		concept = new ImportConcept("prefname3", Collections.singletonList("syn2"), "description2",
 				new ConceptCoordinates("CONCEPT3", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
@@ -579,6 +533,7 @@ public class ConceptManagerTest {
 				++counter;
 			}
 			assertEquals(1, counter);
+            tx.success();
 		}
 	}
 
@@ -604,6 +559,8 @@ public class ConceptManagerTest {
 			// Would throw an exception if there were multiple terms found.
 			index.get(PROP_SRC_IDS, "source0").getSingle();
 			index.get(PROP_SRC_IDS, "source1").getSingle();
+			tx.success();
+
 		}
 	}
 
@@ -642,6 +599,7 @@ public class ConceptManagerTest {
 					PROP_ID, NodeIDPrefixConstants.TERM + 1);
 			Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
 			assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
+            tx.success();
 		}
 
 		terms.clear();
@@ -655,6 +613,7 @@ public class ConceptManagerTest {
 					PROP_ID, NodeIDPrefixConstants.TERM + 1);
 			Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
 			assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
+            tx.success();
 		}
 
 	}
@@ -920,16 +879,16 @@ public class ConceptManagerTest {
 		// 1 3
 		// Note that the test uses "CONCEPT<number>" for source IDs and that we
 		// have to define the relationships via source
-		// IDs (we don't know the ultimate term IDs yet).
+		// IDs (we don't know the ultimate concept IDs yet).
 		String termSource = terms.get(0).coordinates.originalSource;
-		terms.get(0).addRelationship(new ImportFacetTermRelationship("CONCEPT" + 1, termSource,
-				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE));
-		terms.get(0).addRelationship(new ImportFacetTermRelationship("CONCEPT" + 3, termSource,
-				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE));
-		terms.get(1).addRelationship(new ImportFacetTermRelationship("CONCEPT" + 2, termSource,
-				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE));
-		terms.get(2).addRelationship(new ImportFacetTermRelationship("CONCEPT" + 3, termSource,
-				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE));
+		terms.get(0).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource,false),
+				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+		terms.get(0).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 3, termSource,false),
+				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+		terms.get(1).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 2, termSource, false),
+				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+		terms.get(2).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 3, termSource, false),
+				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
 
 		// Now we split the terms in two lists in order to check the behavior of
 		// the "hollow" label assignment.
@@ -941,8 +900,9 @@ public class ConceptManagerTest {
 		// Insert the first half of terms.
 		ftt.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(firstTerms));
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> nodesIt = graphDb.findNodes(ConceptManager.ConceptLabel.CONCEPT);
-			int nodeCount = 0;
+            final Iterator<Node> nodesIt = Stream.concat(graphDb.findNodes(ConceptLabel.CONCEPT).stream(), graphDb.findNodes(ConceptLabel.HOLLOW).stream()).iterator();
+
+            int nodeCount = 0;
 			while (nodesIt.hasNext()) {
 				Node node = nodesIt.next();
 				// Only the real terms have gotten an ID.
@@ -953,6 +913,7 @@ public class ConceptManagerTest {
 				nodeCount++;
 			}
 			assertEquals("Number of terms", 4, nodeCount);
+            tx.success();
 		}
 
 		// Now insert the other half of terms. After this we should still have 4
@@ -1016,12 +977,12 @@ public class ConceptManagerTest {
 		ImportConcepts testTermsAndFacet = getTestTerms(4);
 		List<ImportConcept> terms = testTermsAndFacet.getConceptsAsList();
 		String termSource = terms.get(0).coordinates.originalSource;
-		ImportFacetTermRelationship rel1 = new ImportFacetTermRelationship("CONCEPT" + 1, termSource,
-				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE);
+		ImportConceptRelationship rel1 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, true),
+				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name());
 		rel1.addProperty("prop1", "value1");
 		rel1.addProperty("prop2", "value2");
-		ImportFacetTermRelationship rel2 = new ImportFacetTermRelationship("CONCEPT" + 1, termSource,
-				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name(), ConceptConstants.IdType.ORIGINAL_SOURCE);
+		ImportConceptRelationship rel2 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource,true),
+				ConceptManager.EdgeTypes.HAS_SAME_NAMES.name());
 		rel2.addProperty("prop1", "value1");
 		rel2.addProperty("prop3", "value3");
 		terms.get(0).addRelationship(rel1);
@@ -1057,11 +1018,11 @@ public class ConceptManagerTest {
 		List<String> aggregateElementSrcIds = Lists.newArrayList("CONCEPT" + 0, "CONCEPT" + 1, "CONCEPT" + 2, "CONCEPT" + 3);
 		List<String> aggregateElementSources = Lists.newArrayList(terms.get(0).coordinates.source,
 				terms.get(1).coordinates.source, terms.get(2).coordinates.source, terms.get(3).coordinates.source);
-		List<TermCoordinates> aggregateElementCoords = new ArrayList<>();
+		List<ConceptCoordinates> aggregateElementCoords = new ArrayList<>();
 		for (int i = 0; i < aggregateElementSrcIds.size(); i++) {
 			String id = aggregateElementSrcIds.get(i);
 			String source = aggregateElementSources.get(i);
-			aggregateElementCoords.add(new TermCoordinates(id, source));
+			aggregateElementCoords.add(new ConceptCoordinates(id, source, true));
 		}
 		terms.add(new ImportConcept(aggregateElementCoords,
 				Lists.newArrayList(PROP_PREF_NAME, PROP_SYNONYMS, PROP_DESCRIPTIONS)));
@@ -1118,15 +1079,13 @@ public class ConceptManagerTest {
 
 		ImportConcepts testTerms = getTestTerms(2);
 		ImportConcept aggregate = new ImportConcept(
-				Arrays.asList(new TermCoordinates("CONCEPT0", "TEST_DATA"), new TermCoordinates("CONCEPT1", "TEST_DATA")),
-				Arrays.asList(PROP_PREF_NAME));
+				Arrays.asList(new ConceptCoordinates("CONCEPT0", "TEST_DATA", true), new ConceptCoordinates("CONCEPT1", "TEST_DATA", true)),
+                Collections.singletonList(PROP_PREF_NAME));
 		aggregate.coordinates = new ConceptCoordinates("testagg", "TEST_DATA", SRC);
 		aggregate.aggregateIncludeInHierarchy = true;
 		testTerms.getConceptsAsList().add(aggregate);
-		testTerms.getConceptsAsList().get(0).parentCoordinates = Arrays
-				.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
-		testTerms.getConceptsAsList().get(1).parentCoordinates = Arrays
-				.asList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(0).parentCoordinates = Collections.singletonList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
+		testTerms.getConceptsAsList().get(1).parentCoordinates = Collections.singletonList(new ConceptCoordinates("testagg", "TEST_DATA", SRC));
 
 		ConceptManager ftm = new ConceptManager();
 		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
@@ -1157,7 +1116,7 @@ public class ConceptManagerTest {
 
 		ImportConcepts testTerms = getTestTerms(2);
 		ImportConcept aggregate = new ImportConcept(
-				Arrays.asList(new TermCoordinates("CONCEPT0", "TEST_DATA"), new TermCoordinates("CONCEPT1", "TEST_DATA")),
+				Arrays.asList(new ConceptCoordinates("CONCEPT0", "TEST_DATA", true), new ConceptCoordinates("CONCEPT1", "TEST_DATA", true)),
 				Arrays.asList(PROP_PREF_NAME));
 		aggregate.coordinates = new ConceptCoordinates("testagg", "TEST_CONCEPT", SRC);
 		aggregate.aggregateIncludeInHierarchy = true;
@@ -1570,7 +1529,7 @@ public class ConceptManagerTest {
 			if (path.length == 1)
 				assertEquals(NodeIDPrefixConstants.TERM + 0, path[0]);
 			else {
-				assertTrue(path.length == 2);
+                assertEquals(2, path.length);
 				// First element is one of the roots
 				assertTrue(path[0].equals(NodeIDPrefixConstants.TERM + 0)
 						|| path[0].equals(NodeIDPrefixConstants.TERM + 1));
@@ -1843,6 +1802,7 @@ public class ConceptManagerTest {
 				relCounter++;
 			}
 			assertEquals(1, relCounter);
+            tx.success();
 		}
 
 		// Check that there are no duplicates created.
@@ -1993,7 +1953,7 @@ public class ConceptManagerTest {
 		Map<String, String> coordinates = new HashMap<>();
 		coordinates.put(CoordinateConstants.SOURCE_ID, "testSrcId");
 		coordinates.put(CoordinateConstants.SOURCE, "TEST_SOURCE");
-		term.put(ConceptConstants.PROP_COORDINATES, coordinates);
+		term.put(ConceptConstants.COORDINATES, coordinates);
 		terms.add(term);
 
 		Map<String, Object> termsMap = new HashMap<>();

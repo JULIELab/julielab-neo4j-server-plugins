@@ -82,7 +82,7 @@ public class ImportConcept {
 	 *            The properties that should be copied from elements to the
 	 *            aggregates.
 	 */
-	public ImportConcept(List<TermCoordinates> elementCoords, List<String> copyProperties) {
+	public ImportConcept(List<ConceptCoordinates> elementCoords, List<String> copyProperties) {
 		this.elementCoordinates = elementCoords;
 		this.copyProperties = copyProperties;
 		this.aggregate = true;
@@ -103,12 +103,12 @@ public class ImportConcept {
 	public List<String> synonyms;
 	@JsonProperty(ConceptConstants.PROP_WRITING_VARIANTS)
 	public List<String> writingVariants;
-	@JsonProperty(ConceptConstants.PROP_COORDINATES)
+	@JsonProperty(ConceptConstants.COORDINATES)
 	public ConceptCoordinates coordinates;
 	@JsonProperty(ConceptConstants.PARENT_COORDINATES)
 	public List<ConceptCoordinates> parentCoordinates;
 	@JsonProperty(ConceptConstants.RELATIONSHIPS)
-	public List<ImportFacetTermRelationship> relationships;
+	public List<ImportConceptRelationship> relationships;
 	@JsonProperty(ConceptConstants.PROP_LABELS)
 	public List<String> generalLabels;
 	@JsonProperty(ConceptConstants.PROP_DISPLAY_NAME)
@@ -126,7 +126,7 @@ public class ImportConcept {
 	@Deprecated
 	public List<String> elementSources;
 	@JsonProperty(ConceptConstants.ELEMENT_COORDINATES)
-	public List<TermCoordinates> elementCoordinates;
+	public List<ConceptCoordinates> elementCoordinates;
 	@JsonProperty(ConceptConstants.PROP_COPY_PROPERTIES)
 	public List<String> copyProperties;
 	@JsonProperty(ConceptConstants.AGGREGATE_SOURCES)
@@ -135,7 +135,7 @@ public class ImportConcept {
 	@JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
 	public Boolean aggregateIncludeInHierarchy;
 
-	public void addRelationship(ImportFacetTermRelationship relationship) {
+	public void addRelationship(ImportConceptRelationship relationship) {
 		if (null == relationships)
 			relationships = new ArrayList<>();
 		relationships.add(relationship);

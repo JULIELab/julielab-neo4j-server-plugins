@@ -1,63 +1,32 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.SRC_TYPE_HIERARCHICAL;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import com.google.common.collect.Lists;
+import com.google.gson.Gson;
+import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
+import de.julielab.neo4j.plugins.datarepresentation.*;
+import de.julielab.neo4j.plugins.datarepresentation.constants.*;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
+import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.*;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.neo4j.shell.util.json.JSONException;
 import org.neo4j.shell.util.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-import com.google.gson.Gson;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.*;
 
-import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
-import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
-import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
-import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
-import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
-import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
-import de.julielab.neo4j.plugins.test.TestUtilities;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static org.junit.Assert.*;
 
 public class FacetManagerTest {
 	
@@ -85,7 +54,6 @@ public class FacetManagerTest {
 		facetGroupMap1.put(FacetGroupConstants.PROP_POSITION, 1);
 		facetGroupMap1.put(FacetGroupConstants.PROP_LABELS,
 				Lists.newArrayList("showForBTerms"));
-		// facetGroupMap1.put(FacetGroupConstants.PROP_SHOW_FOR_SEARCH, false);
 		String facetGroupJsonString1 = gson.toJson(facetGroupMap1);
 		JSONObject jsonFacetGroup1 = new JSONObject(facetGroupJsonString1);
 
@@ -109,26 +77,16 @@ public class FacetManagerTest {
 			assertEquals("Test Facet Group",
 					facetGroupNode.getProperty(FacetGroupConstants.PROP_NAME));
 			assertEquals(1, facetGroupNode.getProperty(FacetGroupConstants.PROP_POSITION));
-			// List<String> properties = Lists.newArrayList((String[])
-			// facetGroupNode
-			// .getProperty(FacetGroupConstants.PROP_GENERAL_LABELS));
-			// assertTrue(properties.contains("showForBTerms"));
-			// assertFalse(properties.contains("showForSearch"));
-			assertTrue(facetGroupNode.hasLabel(DynamicLabel.label("showForBTerms")));
-			assertFalse(facetGroupNode.hasLabel(DynamicLabel.label("showForSearch")));
+			assertTrue(facetGroupNode.hasLabel(Label.label("showForBTerms")));
+			assertFalse(facetGroupNode.hasLabel(Label.label("showForSearch")));
 
 			Node facetGroupNode2 = (Node) createFacetGroupMethod.invoke(fm, graphDb,
 					facetGroupsNode, jsonFacetGroup2);
 			assertEquals("fgid1", facetGroupNode2.getProperty(ConceptConstants.PROP_ID));
 			assertEquals("Test Facet Group 2", facetGroupNode2.getProperty(ConceptConstants.PROP_NAME));
 			assertEquals(2, facetGroupNode2.getProperty(FacetGroupConstants.PROP_POSITION));
-			// List<String> properties2 = Lists.newArrayList((String[])
-			// facetGroupNode2
-			// .getProperty(FacetGroupConstants.PROP_GENERAL_LABELS));
-			// assertFalse(properties2.contains("showForBTerms"));
-			// assertTrue(properties2.contains("showForSearch"));
-			assertFalse(facetGroupNode2.hasLabel(DynamicLabel.label("showForBTerms")));
-			assertTrue(facetGroupNode2.hasLabel(DynamicLabel.label("showForSearch")));
+			assertFalse(facetGroupNode2.hasLabel(Label.label("showForBTerms")));
+			assertTrue(facetGroupNode2.hasLabel(Label.label("showForSearch")));
 
 			// Check whether the new facet group node is correctly connected. It
 			// should be:
@@ -156,16 +114,7 @@ public class FacetManagerTest {
 			facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
 			facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb,
 					NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
-			// graphDb.index().forNodes(NodeConstants.INDEX_ROOT_NODES)
-			// .get(PROP_NAME, FacetConstants.NAME_FACET_GROUPS).getSingle();
 			assertNotNull("There is one facet groups node", facetGroupsNode);
-			// it =
-			// graphDb.findNodesByLabelAndProperty(NodeConstants.Labels.UNIQUE,
-			// PROP_NAME, FacetConstants.NAME_FACET_GROUPS).iterator();
-			// assertTrue("There is one facet groups node", it.hasNext());
-			// it.next();
-			// assertFalse("There are no more than one facet groups nodes",
-			// it.hasNext());
 			tx.success();
 		}
 	}
@@ -224,8 +173,8 @@ public class FacetManagerTest {
 		Node facet = FacetManager.createFacet(graphDb, jsonFacet);
 		try (Transaction tx = graphDb.beginTx()) {
 			assertEquals("testfacet1", facet.getProperty(PROP_NAME));
-			assertTrue(facet.hasLabel(DynamicLabel.label("uniqueLabel1")));
-			assertTrue(facet.hasLabel(DynamicLabel.label("uniqueLabel2")));
+			assertTrue(facet.hasLabel(Label.label("uniqueLabel1")));
+			assertTrue(facet.hasLabel(Label.label("uniqueLabel2")));
 
 			// Check whether the connection to the facet group node is as
 			// expected.
@@ -234,7 +183,7 @@ public class FacetManagerTest {
 			Node facetGroupNode = hasFacetRel.getStartNode();
 			assertEquals("facetGroup1", facetGroupNode.getProperty(PROP_NAME));
 			assertEquals(1, facetGroupNode.getProperty(FacetGroupConstants.PROP_POSITION));
-			assertTrue(facetGroupNode.hasLabel(DynamicLabel.label("showForSearch")));
+			assertTrue(facetGroupNode.hasLabel(Label.label("showForSearch")));
 			Relationship hasFacetGroupRel = facetGroupNode.getSingleRelationship(
 					FacetManager.EdgeTypes.HAS_FACET_GROUP, Direction.INCOMING);
 			Node facetGroupsNode = hasFacetGroupRel.getStartNode();
@@ -276,8 +225,6 @@ public class FacetManagerTest {
 	public void testInsertFacets() throws JSONException, SecurityException, NoSuchFieldException,
 			IllegalArgumentException, IllegalAccessException {
 		List<ImportFacet> jsonFacets = new ArrayList<>();
-		// List<Map<String, Object>> jsonFacets = new ArrayList<Map<String,
-		// Object>>();
 		ImportFacet facetMap = getTestFacetMap(1);
 		jsonFacets.add(facetMap);
 

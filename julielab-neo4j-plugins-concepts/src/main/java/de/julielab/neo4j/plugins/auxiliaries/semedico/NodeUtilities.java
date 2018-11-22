@@ -1,7 +1,7 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PARENT_COORDINATES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_COORDINATES;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.COORDINATES;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_FACETS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_PREF_NAME;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SOURCES;
@@ -120,7 +120,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 			
 			// ----- merging of general properties
 			PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_LABELS,
-					PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, PROP_COORDINATES, PARENT_COORDINATES);
+					PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, COORDINATES, PARENT_COORDINATES);
 			
 			// ----- merging of source IDs and sources
 			// we merge the coordinates (source ID, source) that do not yet exist in first node
