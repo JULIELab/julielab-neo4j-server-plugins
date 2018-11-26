@@ -79,37 +79,13 @@ public class ConceptConstants extends NodeConstants {
      * instance.
      */
     public static final String AGGREGATE = "aggregate";
-    /**
-     * Field in the input data format. Indicates for aggregate terms (i.e.
-     * import data objects where the property {@link #AGGREGATE} is set to
-     * <tt>true</tt>) which term sources (NOT original source) are eligible as
-     * elements for this aggregate.
-     */
-    @Deprecated
-    public static final String AGGREGATE_SOURCES = "aggregateSources";
+
     /**
      * Applies to aggregate terms which are explicitly imported. If set to
      * <tt>true</tt>, they may be nodes embedded into a hierarchy and thus be
      * 'broader than' other terms and be root terms of facets.
      */
     public static final String AGGREGATE_INCLUDE_IN_HIERARCHY = "aggregateIncludeInHierarchy";
-    /**
-     * Field in the input data format of aggregate terms. Specifies the source
-     * ID of the elements aggregated by this aggregate node.
-     *
-     * @deprecated use {@link #ELEMENT_COORDINATES} instead
-     */
-    @Deprecated
-    public static final String ELEMENT_SRC_IDS = "elementSrcIds";
-    /**
-     * Field in the input data format of aggregate terms. Specifies for each -
-     * or none - of the elements their respective source. Null values are
-     * allowed but for each source ID there must be one source or none at all.
-     *
-     * @deprecated use {@link #ELEMENT_COORDINATES} instead
-     */
-    @Deprecated
-    public static final String ELEMENT_SOURCES = "elementSources";
     /**
      * Field in the input data format of aggregate terms. Specifies the term
      * source coordinates - source ID and source - of element terms.
@@ -120,24 +96,6 @@ public class ConceptConstants extends NodeConstants {
      * copied from element terms.
      */
     public static final String PROP_COPY_PROPERTIES = "copyProperties";
-    /**
-     * Property disposing for which <tt>specificType</tt> - e.g.
-     * <tt>phosphorylation</tt> or <tt>regulation</tt> - the respective term is
-     * an event term. This property is exactly the <tt>specificType</tt> that is
-     * stored in the UIMA <tt>EventMention</tt>, created by <tt>JReX</tt> for
-     * example.
-     */
-    @Deprecated
-    public static final String PROP_SPECIFIC_EVENT_TYPE = "specificEventType";
-    /**
-     * Property determining how many arguments the event, this term is
-     * representing, can take. This is an array property, allowing multiple
-     * values since, for example, an event can be unary and binary, depending on
-     * the textual context.
-     */
-    @Deprecated
-    public static final String PROP_EVENT_VALENCE = "eventValence";
-
     /**
      * Property for aggregates. The value of the property exposes information
      * about the exact set of mapping types allowed to create the aggregate.

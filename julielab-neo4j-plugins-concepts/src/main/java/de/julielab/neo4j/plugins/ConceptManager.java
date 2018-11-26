@@ -2174,12 +2174,7 @@ public class ConceptManager extends ServerPlugin {
          * made un-HOLLOW as soon at a concept with this source ID occurs in imported
          * data.
          */
-        HOLLOW, CONCEPT,
-        /**
-         * @deprecated It doesn't seem this label is required or used anywhere
-         */
-        @Deprecated
-        AGGREGATE_ELEMENT
+        HOLLOW, CONCEPT
     }
 
     /**

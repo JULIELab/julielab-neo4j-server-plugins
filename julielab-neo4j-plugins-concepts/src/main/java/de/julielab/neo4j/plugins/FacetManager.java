@@ -1,50 +1,5 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NO_FACET;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_UNIQUE_LABELS;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.DynamicLabel;
-import org.neo4j.graphdb.DynamicRelationshipType;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.traversal.TraversalDescription;
-import org.neo4j.graphdb.traversal.TraversalMetadata;
-import org.neo4j.graphdb.traversal.Traverser;
-import org.neo4j.graphdb.traversal.Uniqueness;
-import org.neo4j.server.plugins.Description;
-import org.neo4j.server.plugins.Name;
-import org.neo4j.server.plugins.Parameter;
-import org.neo4j.server.plugins.PluginTarget;
-import org.neo4j.server.plugins.ServerPlugin;
-import org.neo4j.server.plugins.Source;
-import org.neo4j.server.rest.repr.ListRepresentation;
-import org.neo4j.server.rest.repr.MappingRepresentation;
-import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
-import org.neo4j.server.rest.repr.Representation;
-import org.neo4j.shell.util.json.JSONArray;
-import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.shell.util.json.JSONObject;
-
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
@@ -56,6 +11,28 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.traversal.TraversalDescription;
+import org.neo4j.graphdb.traversal.TraversalMetadata;
+import org.neo4j.graphdb.traversal.Traverser;
+import org.neo4j.graphdb.traversal.Uniqueness;
+import org.neo4j.server.plugins.*;
+import org.neo4j.server.rest.repr.ListRepresentation;
+import org.neo4j.server.rest.repr.MappingRepresentation;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
+import org.neo4j.server.rest.repr.Representation;
+import org.neo4j.shell.util.json.JSONArray;
+import org.neo4j.shell.util.json.JSONException;
+import org.neo4j.shell.util.json.JSONObject;
+
+import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 @Description("This plugin offers access to facets for Semedico.")
 public class FacetManager extends ServerPlugin {
@@ -232,7 +209,6 @@ public class FacetManager extends ServerPlugin {
 		log.info("Creating facet with the following data: " + jsonFacet);
 
 		JSONArray generalLabels = JSON.getJSONArray(jsonFacet, PROP_LABELS);
-		JSONArray uniqueLabels = JSON.getJSONArray(jsonFacet, PROP_UNIQUE_LABELS);
 		boolean isNoFacet = JSON.getBoolean(jsonFacet, NO_FACET);
 
 		JSONObject jsonFacetGroup = jsonFacet.getJSONObject(FACET_GROUP);
@@ -248,7 +224,7 @@ public class FacetManager extends ServerPlugin {
 			// Create the actual facet node and populate it with data.
 			Node facet = graphDb.createNode(FacetLabel.FACET);
 			PropertyUtilities.copyJSONObjectToPropertyContainer(jsonFacet, facet, NO_FACET, PROP_LABELS,
-					PROP_UNIQUE_LABELS, FACET_GROUP);
+					FACET_GROUP);
 
 			// If everything is alright, get an ID for the facet.
 			String facetId = NodeIDPrefixConstants.FACET
@@ -258,14 +234,7 @@ public class FacetManager extends ServerPlugin {
 			if (null != generalLabels) {
 				for (int i = 0; i < generalLabels.length(); i++) {
 					String labelString = generalLabels.getString(i);
-					Label label = DynamicLabel.label(labelString);
-					facet.addLabel(label);
-				}
-			}
-			if (null != uniqueLabels) {
-				for (int i = 0; i < uniqueLabels.length(); i++) {
-					String labelString = uniqueLabels.getString(i);
-					Label label = DynamicLabel.label(labelString);
+					Label label = Label.label(labelString);
 					facet.addLabel(label);
 				}
 			}
@@ -283,7 +252,7 @@ public class FacetManager extends ServerPlugin {
 			// every facet
 			// they need to be created dynamically because it makes no sense to
 			// store all of them beforehand
-			RelationshipType dynRel = DynamicRelationshipType.withName("IS_BROADER_THAN_" + fid);
+			RelationshipType dynRel = RelationshipType.withName("IS_BROADER_THAN_" + fid);
 			Node node = getFacetNode(graphDb, fid);
 
 			Traverser traverser = graphDb.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
@@ -364,7 +333,7 @@ public class FacetManager extends ServerPlugin {
 		if (null != labels) {
 			for (int i = 0; i < labels.length(); i++) {
 				String labelString = labels.getString(i);
-				Label label = DynamicLabel.label(labelString);
+				Label label = Label.label(labelString);
 				facetGroupNode.addLabel(label);
 			}
 		}
@@ -392,7 +361,7 @@ public class FacetManager extends ServerPlugin {
 	}
 
 	public static Node getNoFacetGroupsNode(GraphDatabaseService graphDb) {
-		Node facetGroupsNode = null;
+		Node facetGroupsNode;
 		try (Transaction tx = graphDb.beginTx()) {
 			facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, NodeConstants.Labels.ROOT,
 					PROP_NAME, NAME_NO_FACET_GROUPS);

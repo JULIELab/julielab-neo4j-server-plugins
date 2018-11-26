@@ -1,15 +1,9 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+
+import java.util.*;
 
 public class ImportConcept {
 
@@ -53,23 +47,31 @@ public class ImportConcept {
 	public ImportConcept(String preferredName, List<String> synonyms, List<String> descriptions,
 			ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
 		this(preferredName, synonyms, descriptions, coordinates);
+        if (parentCoordinates == null)
+            throw new IllegalArgumentException("The passed parent coordinates are null which is invalid (pass an empty list instead).");
 		this.parentCoordinates = Arrays.asList(parentCoordinates);
 	}
 
 	public ImportConcept(String preferredName, List<String> synonyms, List<String> descriptions,
 			ConceptCoordinates coordinates, List<ConceptCoordinates> parentCoordinates) {
 		this(preferredName, synonyms, descriptions, coordinates);
+        if (parentCoordinates == null)
+            throw new IllegalArgumentException("The passed parent coordinates are null which is invalid (pass an empty list instead).");
 		this.parentCoordinates = parentCoordinates;
 	}
 
 	public ImportConcept(String preferredName, ConceptCoordinates coordinates, ConceptCoordinates parentCoordinates) {
 		this(preferredName, coordinates);
+        if (parentCoordinates == null)
+            throw new IllegalArgumentException("The passed parent coordinates are null which is invalid (pass an empty list instead).");
 		this.parentCoordinates = Arrays.asList(parentCoordinates);
 	}
 
 	public ImportConcept(String preferredName, ConceptCoordinates coordinates,
 			List<ConceptCoordinates> parentCoordinates) {
 		this(preferredName, coordinates);
+		if (parentCoordinates == null)
+			throw new IllegalArgumentException("The passed parent coordinates are null which is invalid (pass an empty list instead).");
 		this.parentCoordinates = parentCoordinates;
 	}
 
@@ -98,51 +100,42 @@ public class ImportConcept {
 	@JsonProperty(ConceptConstants.PROP_PREF_NAME)
 	public String prefName;
 	@JsonProperty(ConceptConstants.PROP_DESCRIPTIONS)
-	public List<String> descriptions;
+	public List<String> descriptions = Collections.emptyList();
 	@JsonProperty(ConceptConstants.PROP_SYNONYMS)
-	public List<String> synonyms;
+	public List<String> synonyms = Collections.emptyList();
 	@JsonProperty(ConceptConstants.PROP_WRITING_VARIANTS)
-	public List<String> writingVariants;
+	public List<String> writingVariants = Collections.emptyList();
 	@JsonProperty(ConceptConstants.COORDINATES)
 	public ConceptCoordinates coordinates;
 	@JsonProperty(ConceptConstants.PARENT_COORDINATES)
-	public List<ConceptCoordinates> parentCoordinates;
+	public List<ConceptCoordinates> parentCoordinates = Collections.emptyList();
 	@JsonProperty(ConceptConstants.RELATIONSHIPS)
-	public List<ImportConceptRelationship> relationships;
+	public List<ImportConceptRelationship> relationships = Collections.emptyList();
 	@JsonProperty(ConceptConstants.PROP_LABELS)
-	public List<String> generalLabels;
+	public List<String> generalLabels = Collections.emptyList();
 	@JsonProperty(ConceptConstants.PROP_DISPLAY_NAME)
 	public String displayName;
 	@JsonProperty(ConceptConstants.PROP_QUALIFIERS)
-	public List<String> qualifiers;
+	public List<String> qualifiers = Collections.emptyList();
 
 	// ------------- for aggregates -----------------
 	@JsonProperty(ConceptConstants.AGGREGATE)
 	public Boolean aggregate;
-	@JsonProperty(ConceptConstants.ELEMENT_SRC_IDS)
-	@Deprecated
-	public List<String> elementSrcIds;
-	@JsonProperty(ConceptConstants.ELEMENT_SOURCES)
-	@Deprecated
-	public List<String> elementSources;
 	@JsonProperty(ConceptConstants.ELEMENT_COORDINATES)
-	public List<ConceptCoordinates> elementCoordinates;
+	public List<ConceptCoordinates> elementCoordinates = Collections.emptyList();
 	@JsonProperty(ConceptConstants.PROP_COPY_PROPERTIES)
-	public List<String> copyProperties;
-	@JsonProperty(ConceptConstants.AGGREGATE_SOURCES)
-	@Deprecated
-	public List<String> aggregateSources;
+	public List<String> copyProperties = Collections.emptyList();
 	@JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
 	public Boolean aggregateIncludeInHierarchy;
 
 	public void addRelationship(ImportConceptRelationship relationship) {
-		if (null == relationships)
+		if (relationships.isEmpty())
 			relationships = new ArrayList<>();
 		relationships.add(relationship);
 	}
 
 	public void addGeneralLabel(String... labels) {
-		if (null == generalLabels)
+		if (generalLabels.isEmpty())
 			generalLabels = new ArrayList<>();
 		try {
 			for (int i = 0; i < labels.length; i++) {
@@ -155,26 +148,20 @@ public class ImportConcept {
 		}
 	}
 
-	public void addElementSourceId(String sourceId) {
-		if (null == elementSrcIds)
-			elementSrcIds = new ArrayList<>();
-		elementSrcIds.add(sourceId);
-	}
-
 	public void addCopyProperty(String property) {
-		if (null == copyProperties)
+		if (copyProperties.isEmpty())
 			copyProperties = new ArrayList<>();
 		copyProperties.add(property);
 	}
 
 	public void addQualifier(String speciesQualifier) {
-		if (null == qualifiers)
+		if (qualifiers.isEmpty())
 			qualifiers = new ArrayList<>();
 		qualifiers.add(speciesQualifier);
 	}
 
 	public void removeGeneralLabel(String... labels) {
-		if (null == generalLabels || generalLabels.isEmpty())
+		if (generalLabels.isEmpty())
 			return;
 		Set<String> removeLabels = new HashSet<>(labels.length);
 		for (int i = 0; i < labels.length; i++) {
@@ -191,18 +178,18 @@ public class ImportConcept {
 	}
 
 	public void addParent(ConceptCoordinates parentCoordinates) {
-		if (this.parentCoordinates == null)
+		if (this.parentCoordinates.isEmpty())
 			this.parentCoordinates = new ArrayList<>();
 		this.parentCoordinates.add(parentCoordinates);
 	}
 	
 	public void addParentIfNotExists(ConceptCoordinates parentCoordinates) {
-		if (this.parentCoordinates == null || this.parentCoordinates.isEmpty() || !this.parentCoordinates.contains(parentCoordinates))
+		if (this.parentCoordinates.isEmpty() || !this.parentCoordinates.contains(parentCoordinates))
 			addParent(parentCoordinates);
 	}
 	
 	public boolean hasParents() {
-		return parentCoordinates != null && !parentCoordinates.isEmpty();
+		return !parentCoordinates.isEmpty();
 	}
 
 	
