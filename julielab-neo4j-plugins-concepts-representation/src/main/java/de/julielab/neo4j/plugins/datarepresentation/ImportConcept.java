@@ -170,7 +170,7 @@ public class ImportConcept {
 		}
 		Iterator<String> existingLabels = generalLabels.iterator();
 		while (existingLabels.hasNext()) {
-			String existingLabel = (String) existingLabels.next();
+			String existingLabel = existingLabels.next();
 			if (removeLabels.contains(existingLabel))
 				existingLabels.remove();
 		}
