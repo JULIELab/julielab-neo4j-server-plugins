@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>de.julielab</groupId>
 		<artifactId>julielab-neo4j-server-plugins</artifactId>
-		<version>1.7.4</version>
+		<version>1.7.5</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<artifactId>julielab-neo4j-plugins-concepts</artifactId>
@@ -26,7 +26,7 @@
 			<dependency>
 			<groupId>com.ibm.icu</groupId>
 			<artifactId>icu4j</artifactId>
-			<version>62.1</version>
+			<version>63.1</version>
 		</dependency>
 			<dependency>
 				<groupId>ch.qos.logback</groupId>
@@ -36,7 +36,7 @@
 			<dependency>
 				<groupId>commons-io</groupId>
 				<artifactId>commons-io</artifactId>
-				<version>2.4</version>
+				<version>2.6</version>
 				<scope>provided</scope>
 			</dependency>
 	</dependencies>
