@@ -108,6 +108,6 @@
 	</dependencyManagement>
 	<properties>
 		<neo4j-release-version>3.4.10</neo4j-release-version>
-		<jackson-release-version>2.9.7</jackson-release-version>
+		<jackson-release-version>2.9.9</jackson-release-version>
 	</properties>
 </project>
