@@ -15,15 +15,12 @@ import org.neo4j.graphdb.*;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
-import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.shell.util.json.JSONObject;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.SRC_TYPE_HIERARCHICAL;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 import static org.junit.Assert.*;
@@ -44,35 +41,23 @@ public class FacetManagerTest {
 	}
 
 	@Test
-	public void testCreateFacetGroup() throws SecurityException, NoSuchMethodException,
-			IllegalArgumentException, IllegalAccessException, InvocationTargetException,
-			JSONException {
-		Gson gson = new Gson();
+	public void testCreateFacetGroup() throws Exception {
+		ImportFacetGroup facetGroupMap1 = new ImportFacetGroup("Test Facet Group");
+		facetGroupMap1.position = 1;
+		facetGroupMap1.labels = Lists.newArrayList("showForBTerms");
 
-		Map<String, Object> facetGroupMap1 = new HashMap<String, Object>();
-		facetGroupMap1.put(FacetGroupConstants.PROP_NAME, "Test Facet Group");
-		facetGroupMap1.put(FacetGroupConstants.PROP_POSITION, 1);
-		facetGroupMap1.put(FacetGroupConstants.PROP_LABELS,
-				Lists.newArrayList("showForBTerms"));
-		String facetGroupJsonString1 = gson.toJson(facetGroupMap1);
-		JSONObject jsonFacetGroup1 = new JSONObject(facetGroupJsonString1);
-
-		Map<String, Object> facetGroupMap2 = new HashMap<String, Object>();
-		facetGroupMap2.put(FacetGroupConstants.PROP_NAME, "Test Facet Group 2");
-		facetGroupMap2.put(FacetGroupConstants.PROP_POSITION, 2);
-		facetGroupMap2.put(FacetGroupConstants.PROP_LABELS,
-				Lists.newArrayList("showForSearch"));
-		String facetGroupJsonString2 = gson.toJson(facetGroupMap2);
-		JSONObject jsonFacetGroup2 = new JSONObject(facetGroupJsonString2);
+		ImportFacetGroup facetGroupMap2 = new ImportFacetGroup("Test Facet Group 2");
+		facetGroupMap2.position = 2;
+		facetGroupMap2.labels = Lists.newArrayList("showForSearch");
 
 		FacetManager fm = new FacetManager();
 		Method createFacetGroupMethod = FacetManager.class.getDeclaredMethod("createFacetGroup",
-				GraphDatabaseService.class, Node.class, JSONObject.class);
+				GraphDatabaseService.class, Node.class, ImportFacetGroup.class);
 		createFacetGroupMethod.setAccessible(true);
 		try (Transaction tx = graphDb.beginTx()) {
 			Node facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
 			Node facetGroupNode = (Node) createFacetGroupMethod.invoke(fm, graphDb,
-					facetGroupsNode, jsonFacetGroup1);
+					facetGroupsNode, facetGroupMap1);
 			assertEquals("fgid0", facetGroupNode.getProperty(FacetGroupConstants.PROP_ID));
 			assertEquals("Test Facet Group",
 					facetGroupNode.getProperty(FacetGroupConstants.PROP_NAME));
@@ -81,7 +66,7 @@ public class FacetManagerTest {
 			assertFalse(facetGroupNode.hasLabel(Label.label("showForSearch")));
 
 			Node facetGroupNode2 = (Node) createFacetGroupMethod.invoke(fm, graphDb,
-					facetGroupsNode, jsonFacetGroup2);
+					facetGroupsNode, facetGroupMap2);
 			assertEquals("fgid1", facetGroupNode2.getProperty(ConceptConstants.PROP_ID));
 			assertEquals("Test Facet Group 2", facetGroupNode2.getProperty(ConceptConstants.PROP_NAME));
 			assertEquals(2, facetGroupNode2.getProperty(FacetGroupConstants.PROP_POSITION));
@@ -120,57 +105,24 @@ public class FacetManagerTest {
 	}
 
 	@Test
-	public void testCreateMinimalFacet() throws JSONException {
-		Map<String, Object> facetGroupMap = new HashMap<String, Object>();
-		facetGroupMap.put(FacetGroupConstants.PROP_NAME, "facetGroup1");
-		facetGroupMap.put(FacetGroupConstants.PROP_POSITION, 1);
-		facetGroupMap.put(FacetGroupConstants.PROP_LABELS,
-				Lists.newArrayList("showForSearch"));
+	public void testCreateMinimalFacet(){
+        ImportFacetGroup facetGroupMap = new ImportFacetGroup("facetGroup1");
+        facetGroupMap.position = 1;
+        facetGroupMap.labels = Lists.newArrayList("showForSearch");
 
-		Map<String, Object> facetMap = new HashMap<String, Object>();
-		facetMap.put(PROP_NAME, "testfacet1");
-		facetMap.put("cssId", "cssid1");
-		facetMap.put(PROP_SOURCE_TYPE, SRC_TYPE_HIERARCHICAL);
-		facetMap.put("searchFieldNames", new String[] { "sf1", "sf2" });
-		facetMap.put("position", 1);
-		facetMap.put(FACET_GROUP, facetGroupMap);
+        ImportFacet facetMap = new ImportFacet(facetGroupMap, null, "testfacet1", null, SRC_TYPE_HIERARCHICAL);
 
-		Gson gson = new Gson();
-		String jsonFacetString = gson.toJson(facetMap);
-		JSONObject jsonFacet = new JSONObject(jsonFacetString);
-
-		Node facet = FacetManager.createFacet(graphDb, jsonFacet);
+		Node facet = FacetManager.createFacet(graphDb, facetMap);
 		assertNotNull(facet);
 	}
 
 	@Test
-	public void testCreateFacetWithSourceName() throws JSONException {
-		ImportFacet facetMap = getImportFacet();
-
-		Gson gson = new Gson();
-		String jsonFacetString = gson.toJson(facetMap);
-		JSONObject jsonFacet = new JSONObject(jsonFacetString);
-		jsonFacet.put("sourceName", "facetTermsAuthors");
-
-		Node facet = FacetManager.createFacet(graphDb, jsonFacet);
-		try (Transaction tx = graphDb.beginTx()) {
-			assertNotNull(facet);
-			assertEquals("Facet source name", "facetTermsAuthors",
-					facet.getProperty("sourceName"));
-			tx.success();
-		}
-	}
-
-	@Test
-	public void testCreateFacet() throws JSONException {
+	public void testCreateFacet() {
 		ImportFacet facetMap = getTestFacetMap(1);
 		facetMap.setLabels(Lists.newArrayList("uniqueLabel1", "uniqueLabel2"));
-		Gson gson = new Gson();
-		String jsonFacetString = gson.toJson(facetMap);
-		JSONObject jsonFacet = new JSONObject(jsonFacetString);
 
 		// Check whether the facet itself has been created correctly.
-		Node facet = FacetManager.createFacet(graphDb, jsonFacet);
+		Node facet = FacetManager.createFacet(graphDb, facetMap);
 		try (Transaction tx = graphDb.beginTx()) {
 			assertEquals("testfacet1", facet.getProperty(PROP_NAME));
 			assertTrue(facet.hasLabel(Label.label("uniqueLabel1")));
@@ -194,9 +146,7 @@ public class FacetManagerTest {
 		// Let's see what happens when we create a second facet. There should be
 		// two facets connected to a single facetGroups node.
 		facetMap = getTestFacetMap(2);
-		jsonFacetString = gson.toJson(facetMap);
-		jsonFacet = new JSONObject(jsonFacetString);
-		FacetManager.createFacet(graphDb, jsonFacet);
+		FacetManager.createFacet(graphDb, facetMap);
 		try (Transaction tx = graphDb.beginTx()) {
 			Node facetGroups = FacetManager.getFacetGroupsNode(graphDb);
 			Node facetGroup1 = facetGroups.getSingleRelationship(
@@ -222,7 +172,7 @@ public class FacetManagerTest {
 	}
 
 	@Test
-	public void testInsertFacets() throws JSONException, SecurityException, NoSuchFieldException,
+	public void testInsertFacets() throws Exception,
 			IllegalArgumentException, IllegalAccessException {
 		List<ImportFacet> jsonFacets = new ArrayList<>();
 		ImportFacet facetMap = getTestFacetMap(1);

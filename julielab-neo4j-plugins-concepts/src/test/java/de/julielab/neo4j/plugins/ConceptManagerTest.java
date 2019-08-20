@@ -28,9 +28,8 @@ import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
-import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.shell.util.json.JSONObject;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -196,8 +195,8 @@ public class ConceptManagerTest {
 	 *
 	 */
 	@Test
-	public void testImportConceptsWithFacetDefinition() throws JSONException, SecurityException,
-			IllegalArgumentException, ConceptInsertionException {
+	public void testImportConceptsWithFacetDefinition() throws SecurityException,
+			IllegalArgumentException, ConceptInsertionException, IOException {
 		testTermImportWithOrWithoutFacetDefinition(true);
 	}
 
@@ -208,14 +207,13 @@ public class ConceptManagerTest {
 		// one facet, so its fid0...)
 		ImportFacet facetMap = FacetManagerTest.getImportFacet();
 
-		String jsonFacet = ConceptsJsonSerializer.toJson(facetMap);
-		FacetManager.createFacet(graphDb, new JSONObject(jsonFacet));
+		FacetManager.createFacet(graphDb, facetMap);
 
 		// Do the term import and tests.
 		testTermImportWithOrWithoutFacetDefinition(false);
 	}
 
-	private void testTermImportWithOrWithoutFacetDefinition(boolean withFacetDefinition) throws JSONException, ConceptInsertionException {
+	private void testTermImportWithOrWithoutFacetDefinition(boolean withFacetDefinition) throws ConceptInsertionException, IOException {
 		// ----------- THE FACET --------------
 		ImportFacet facetMap;
 		if (withFacetDefinition) {
@@ -360,8 +358,7 @@ public class ConceptManagerTest {
 
 		// Create the 2nd facet separately.
 		facetMap = FacetManagerTest.getTestFacetMap(2);
-		String jsonFacet = ConceptsJsonSerializer.toJson(facetMap);
-		FacetManager.createFacet(graphDb, new JSONObject(jsonFacet));
+		FacetManager.createFacet(graphDb, facetMap);
 
 		// ---------- SEND CONCEPT ONLY WITH FACET ID --------
 		facetMap = new ImportFacet("fid1");
@@ -622,8 +619,7 @@ public class ConceptManagerTest {
 	 * "Matching facet" means that in this test, there is a facet - and the test
 	 * terms belong to that facet - that has the label "USE_FOR_SUGGESTIONS".
 	 * 
-	 * @throws JSONException
-	 * @throws AggregateConceptInsertionException 
+	 * @throws AggregateConceptInsertionException
 	 */
 	@Test
 	public void testPushAllTermsToSetMatchingFacet() throws Exception {
@@ -694,8 +690,7 @@ public class ConceptManagerTest {
 	 * property "general labels" with the value "USE_FOR_SUGGESTIONS". Thus, no
 	 * terms should be pushed into the set.
 	 * 
-	 * @throws JSONException
-	 * @throws AggregateConceptInsertionException 
+	 * @throws AggregateConceptInsertionException
 	 */
 	@Test
 	public void testPushAllTermstoSetNoMatchingFacet() throws Exception {
