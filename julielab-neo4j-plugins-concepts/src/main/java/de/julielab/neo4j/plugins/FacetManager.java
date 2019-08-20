@@ -7,6 +7,7 @@ import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
+import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
@@ -205,7 +206,7 @@ public class FacetManager extends ServerPlugin {
 		return facetGroupsRep;
 	}
 
-	public static Node createFacet(GraphDatabaseService graphDb, JSONObject jsonFacet) throws JSONException {
+	public static Node createFacet(GraphDatabaseService graphDb, ImportFacet jsonFacet)  {
 		log.info("Creating facet with the following data: " + jsonFacet);
 
 		JSONArray generalLabels = JSON.getJSONArray(jsonFacet, PROP_LABELS);

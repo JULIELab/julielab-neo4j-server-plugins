@@ -6,7 +6,6 @@ import com.google.common.collect.Multiset.Entry;
 import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
-import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
@@ -16,8 +15,6 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationCon
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.Index;
-import org.neo4j.shell.util.json.JSONArray;
-import org.neo4j.shell.util.json.JSONException;
 
 import java.util.*;
 import java.util.logging.Logger;
@@ -38,10 +35,9 @@ public class ConceptAggregateBuilder {
      * @param graphDb         The graph database to work on.
      * @param termPropertyKey actually not clear right now ;-)
      * @param propertyValues  The properties to merge for aggregated nodes.
-     * @throws JSONException If <tt>propertyValues</tt> is not a valid JSON string.
      */
     public static void buildAggregatesForEqualNames(GraphDatabaseService graphDb, String termPropertyKey,
-                                                    JSONArray propertyValues) throws JSONException {
+                                                    String[] propertyValues) {
         TermNameAndSynonymComparator nameAndSynonymComparator = new TermNameAndSynonymComparator();
         try (Transaction tx = graphDb.beginTx()) {
             Index<Node> termIndex = graphDb.index().forNodes(INDEX_NAME);
@@ -75,8 +71,7 @@ public class ConceptAggregateBuilder {
                             new String[]{ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()}, termIndex,
                             ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
                     for (Node equalNameTerm : equalNameTerms)
-                        NodeUtilities.mergeArrayProperty(equalNameTerm, termPropertyKey,
-                                JSON.json2JavaArray(propertyValues));
+                        NodeUtilities.mergeArrayProperty(equalNameTerm, termPropertyKey, propertyValues);
                     equalNameTerms.clear();
                     equalNameTerms.add(term);
                 } else {
@@ -89,7 +84,7 @@ public class ConceptAggregateBuilder {
                         new String[]{ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()}, termIndex,
                         ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
             for (Node term : equalNameTerms)
-                NodeUtilities.mergeArrayProperty(term, termPropertyKey, JSON.json2JavaArray(propertyValues));
+                NodeUtilities.mergeArrayProperty(term, termPropertyKey, propertyValues);
 
             tx.success();
         }
