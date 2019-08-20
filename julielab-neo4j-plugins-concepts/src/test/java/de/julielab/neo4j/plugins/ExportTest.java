@@ -1,13 +1,12 @@
 package de.julielab.neo4j.plugins;
 
-import static org.junit.Assert.assertEquals;
-
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.zip.GZIPInputStream;
-
+import com.google.common.collect.Lists;
+import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
+import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.junit.AfterClass;
@@ -20,14 +19,13 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.shell.util.json.JSONArray;
 
-import com.google.common.collect.Lists;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
+import java.util.zip.GZIPInputStream;
 
-import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
-import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
-import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
-import de.julielab.neo4j.plugins.test.TestUtilities;
+import static org.junit.Assert.assertEquals;
 
 public class ExportTest {
 	

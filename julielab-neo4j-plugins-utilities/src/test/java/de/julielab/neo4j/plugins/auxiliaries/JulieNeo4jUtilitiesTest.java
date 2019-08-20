@@ -1,10 +1,8 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
-import static org.junit.Assert.*;
-
-import java.util.Arrays;
-
 import org.junit.Test;
+
+import static org.junit.Assert.assertEquals;
 
 public class JulieNeo4jUtilitiesTest {
 	

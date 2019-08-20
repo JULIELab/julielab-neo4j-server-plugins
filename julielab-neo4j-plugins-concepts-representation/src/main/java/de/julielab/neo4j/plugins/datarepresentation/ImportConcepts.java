@@ -1,11 +1,11 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 public class ImportConcepts {
 	private Stream<ImportConcept> concepts;

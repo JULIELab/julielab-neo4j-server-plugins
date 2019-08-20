@@ -1,16 +1,15 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
+import de.julielab.neo4j.plugins.constants.NodeConstants;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
-import de.julielab.neo4j.plugins.constants.NodeConstants;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class NodeRepresentation extends RecursiveMappingRepresentation {
 	public NodeRepresentation(Node node) {

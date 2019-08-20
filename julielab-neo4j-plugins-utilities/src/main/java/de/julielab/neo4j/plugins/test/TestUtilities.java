@@ -1,13 +1,5 @@
 package de.julielab.neo4j.plugins.test;
 
-import static org.junit.Assert.assertFalse;
-
-import java.io.File;
-import java.lang.reflect.Field;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
-
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
@@ -18,6 +10,14 @@ import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.Representation;
+
+import java.io.File;
+import java.lang.reflect.Field;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Random;
+
+import static org.junit.Assert.assertFalse;
 
 public class TestUtilities {
 

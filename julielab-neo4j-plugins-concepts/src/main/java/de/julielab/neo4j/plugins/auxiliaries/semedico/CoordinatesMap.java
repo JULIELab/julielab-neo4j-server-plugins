@@ -1,11 +1,10 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import org.neo4j.graphdb.Node;
 
-import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+import java.util.HashMap;
+import java.util.Map;
 
 public class CoordinatesMap {
 	private CoordinatesSet keys = new CoordinatesSet();

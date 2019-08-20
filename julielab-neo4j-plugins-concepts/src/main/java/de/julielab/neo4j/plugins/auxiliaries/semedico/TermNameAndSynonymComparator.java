@@ -1,17 +1,15 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
+import com.ibm.icu.text.Collator;
+import com.ibm.icu.text.RuleBasedCollator;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import org.apache.commons.lang.StringUtils;
+import org.neo4j.graphdb.Node;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-
-import org.apache.commons.lang.StringUtils;
-import org.neo4j.graphdb.Node;
-
-import com.ibm.icu.text.Collator;
-import com.ibm.icu.text.RuleBasedCollator;
-
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
 /**
  * This comparator can be used to sort nodes according to their similarity in preferred name and synonyms. The

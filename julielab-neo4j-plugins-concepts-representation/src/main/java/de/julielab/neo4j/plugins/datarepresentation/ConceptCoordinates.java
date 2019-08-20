@@ -1,11 +1,5 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import org.neo4j.shell.util.json.JSONException;
-import org.neo4j.shell.util.json.JSONObject;
-
-import de.julielab.neo4j.plugins.auxiliaries.JSON;
-import de.julielab.neo4j.plugins.datarepresentation.constants.CoordinateConstants;
-
 public class ConceptCoordinates implements Cloneable {
 
 	public String sourceId;
@@ -47,30 +41,6 @@ public class ConceptCoordinates implements Cloneable {
 			break;
 		}
 	}
-
-	public ConceptCoordinates(JSONObject jsonObject) throws JSONException {
-		this(jsonObject, true);
-	}
-
-	public ConceptCoordinates(JSONObject jsonObject, boolean checkConsistency) throws JSONException {
-		sourceId = JSON.getString(jsonObject, CoordinateConstants.SOURCE_ID);
-		source = JSON.getString(jsonObject, CoordinateConstants.SOURCE);
-		originalId = JSON.getString(jsonObject, CoordinateConstants.ORIGINAL_ID);
-		originalSource = JSON.getString(jsonObject, CoordinateConstants.ORIGINAL_SOURCE);
-		uniqueSourceId = JSON.getBoolean(jsonObject, CoordinateConstants.UNIQUE_SOURCE_ID);
-
-		if (checkConsistency) {
-			if (sourceId == null && source == null && originalId == null && originalSource == null)
-				throw new CoordinatesInvalidException(
-						"The passed concept coordinates JSON object did not specify any IDs or sources");
-
-			if (originalId == null ^ originalSource == null)
-				throw new CoordinatesInvalidException(
-						"Coordinates JSON specifies originalId / original source of (" + originalId + ", "
-								+ originalSource + ") but when one is not null, the other must be given, too.");
-		}
-	}
-
 
 
 	public ConceptCoordinates(ConceptCoordinates coordinates) {

@@ -1,16 +1,15 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 
 import java.util.ArrayList;
 import java.util.Collection;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.FACET_GROUP;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.PROP_SOURCE_TYPE;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 public class ImportFacet {
 	/**

@@ -1,13 +1,11 @@
 package de.julielab.neo4j.plugins;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
-import de.julielab.neo4j.plugins.auxiliaries.JSON;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.*;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder.CopyAggregatePropertiesStatistics;
@@ -32,7 +30,6 @@ import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.reflect.internal.Trees;
 
 import java.io.IOException;
 import java.io.StringReader;

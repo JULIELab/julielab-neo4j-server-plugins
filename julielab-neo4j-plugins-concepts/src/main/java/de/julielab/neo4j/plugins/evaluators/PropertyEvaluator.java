@@ -1,12 +1,12 @@
 package de.julielab.neo4j.plugins.evaluators;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * An Evaluator that returns {@link Evaluation#INCLUDE_AND_CONTINUE} if the evaluated node has the given property key
