@@ -12,43 +12,47 @@ import java.util.*;
 
 public class PropertyUtilities {
 
-    public static void copyJSONObjectToPropertyContainer(Object object, PropertyContainer node) throws IllegalAccessException {
-        copyJSONObjectToPropertyContainer(object, node, (Set<String>) null);
+    public static void copyObjectToPropertyContainer(Object object, PropertyContainer node) {
+        copyObjectToPropertyContainer(object, node, (Set<String>) null);
     }
 
-    public static void copyJSONObjectToPropertyContainer(Object object, PropertyContainer node,
-                                                         String... exclusions) throws IllegalAccessException {
+    public static void copyObjectToPropertyContainer(Object object, PropertyContainer node,
+                                                     String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
         for (int i = 0; i < exclusions.length; i++) {
             String exclusion = exclusions[i];
             exclusionSet.add(exclusion);
         }
-        copyJSONObjectToPropertyContainer(object, node, exclusionSet);
+        copyObjectToPropertyContainer(object, node, exclusionSet);
     }
 
-    public static void copyJSONObjectToPropertyContainer(Object object, PropertyContainer node,
-                                                         Set<String> exclusions) throws IllegalAccessException {
+    public static void copyObjectToPropertyContainer(Object object, PropertyContainer node,
+                                                     Set<String> exclusions) {
 
-        final Field[] fields = object.getClass().getFields();
-        for (Field field : fields) {
-            String key = field.getName();
-            // Check if the field is annotated to give it another name
-            final JsonProperty[] jsonProperties = field.getAnnotationsByType(JsonProperty.class);
-            if (jsonProperties != null && jsonProperties[0].value() != null) {
-                key = jsonProperties[0].value();
-            }
-            if ((Modifier.PUBLIC & field.getModifiers()) != 0 && (exclusions == null || !exclusions.contains(key))) {
-                Object value = field.get(object);
-                if (List.class.isAssignableFrom(value.getClass())) {
-                    value = ((List<?>) value).toArray();
+        try {
+            final Field[] fields = object.getClass().getFields();
+            for (Field field : fields) {
+                String key = field.getName();
+                // Check if the field is annotated to give it another name
+                final JsonProperty[] jsonProperties = field.getAnnotationsByType(JsonProperty.class);
+                if (jsonProperties != null && jsonProperties[0].value() != null) {
+                    key = jsonProperties[0].value();
                 }
-                node.setProperty(key, value);
+                if ((Modifier.PUBLIC & field.getModifiers()) != 0 && (exclusions == null || !exclusions.contains(key))) {
+                    Object value = field.get(object);
+                    if (List.class.isAssignableFrom(value.getClass())) {
+                        value = ((List<?>) value).toArray();
+                    }
+                    node.setProperty(key, value);
+                }
             }
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 
     public static void mergeObjectIntoPropertyContainer(Object object, PropertyContainer node,
-                                                        String... exclusions) throws IllegalAccessException {
+                                                        String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
         for (int i = 0; i < exclusions.length; i++) {
             String exclusion = exclusions[i];
@@ -58,25 +62,29 @@ public class PropertyUtilities {
     }
 
     public static void mergeObjectIntoPropertyContainer(Object object, PropertyContainer node,
-                                                        Set<String> exclusions) throws IllegalAccessException {
-        final Field[] fields = object.getClass().getFields();
-        for (Field field : fields) {
-            String key = field.getName();
-            // Check if the field is annotated to give it another name
-            final JsonProperty[] jsonProperties = field.getAnnotationsByType(JsonProperty.class);
-            if (jsonProperties != null && jsonProperties[0].value() != null) {
-                key = jsonProperties[0].value();
-            }
-            if ((Modifier.PUBLIC & field.getModifiers()) != 0 && (exclusions == null || !exclusions.contains(key))) {
-                final Object value = field.get(object);
-                if (value.getClass().isArray()) {
-                    mergeArrayProperty(node, key, (Object[]) value);
-                } else if (List.class.isAssignableFrom(value.getClass())) {
-                    mergeArrayProperty(node, key, ((List<?>) value).toArray());
-                } else {
-                    setNonNullNodeProperty(node, key, value);
+                                                        Set<String> exclusions) {
+        try {
+            final Field[] fields = object.getClass().getFields();
+            for (Field field : fields) {
+                String key = field.getName();
+                // Check if the field is annotated to give it another name
+                final JsonProperty[] jsonProperties = field.getAnnotationsByType(JsonProperty.class);
+                if (jsonProperties != null && jsonProperties[0].value() != null) {
+                    key = jsonProperties[0].value();
+                }
+                if ((Modifier.PUBLIC & field.getModifiers()) != 0 && (exclusions == null || !exclusions.contains(key))) {
+                    final Object value = field.get(object);
+                    if (value.getClass().isArray()) {
+                        mergeArrayProperty(node, key, (Object[]) value);
+                    } else if (List.class.isAssignableFrom(value.getClass())) {
+                        mergeArrayProperty(node, key, ((List<?>) value).toArray());
+                    } else {
+                        setNonNullNodeProperty(node, key, value);
+                    }
                 }
             }
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 

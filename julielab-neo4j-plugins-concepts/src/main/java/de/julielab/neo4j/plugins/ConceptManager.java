@@ -876,7 +876,7 @@ public class ConceptManager extends ServerPlugin {
 
     private void insertConcept(GraphDatabaseService graphDb, String facetId, Index<Node> conceptIndex,
                                ImportConcept jsonConcept, CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
-                               ImportOptions importOptions) throws IllegalAccessException {
+                               ImportOptions importOptions) {
         // Name is mandatory, thus we don't use the
         // null-convenience method here.
         String prefName = jsonConcept.prefName;
@@ -1091,126 +1091,122 @@ public class ConceptManager extends ServerPlugin {
      */
     private InsertionReport insertConcepts(GraphDatabaseService graphDb, List<ImportConcept> jsonConcepts, String facetId,
                                            CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
-        try {
-            long time = System.currentTimeMillis();
-            InsertionReport insertionReport = new InsertionReport();
-            // Idea: First create all nodes and just store which Node has which
-            // parent. Then, after all nodes have been created, do the actual
-            // connection.
-            Index<Node> conceptIndex = null;
-            IndexManager indexManager = graphDb.index();
-            conceptIndex = indexManager.forNodes(INDEX_NAME);
+        long time = System.currentTimeMillis();
+        InsertionReport insertionReport = new InsertionReport();
+        // Idea: First create all nodes and just store which Node has which
+        // parent. Then, after all nodes have been created, do the actual
+        // connection.
+        Index<Node> conceptIndex = null;
+        IndexManager indexManager = graphDb.index();
+        conceptIndex = indexManager.forNodes(INDEX_NAME);
 
-            // this MUST be a TreeSort or at least some collection using the
-            // Comparable interface because ConceptCoordinates are rather
-            // complicated regarding equality
-            CoordinatesSet toBeCreated = new CoordinatesSet();
-            // First, iterate through all concepts and check if their parents
-            // already exist, before any nodes are created (for more efficient
-            // relationship creation).
+        // this MUST be a TreeSort or at least some collection using the
+        // Comparable interface because ConceptCoordinates are rather
+        // complicated regarding equality
+        CoordinatesSet toBeCreated = new CoordinatesSet();
+        // First, iterate through all concepts and check if their parents
+        // already exist, before any nodes are created (for more efficient
+        // relationship creation).
 
-            // When merging, we don't care about parents.
-            if (!importOptions.merge) {
-                for (int i = 0; i < jsonConcepts.size(); i++) {
-                    ImportConcept jsonConcept = jsonConcepts.get(i);
-                    if (jsonConcept.parentCoordinates != null) {
-                        for (ConceptCoordinates parentCoordinates : jsonConcept.parentCoordinates) {
-                            Node parentNode = lookupConcept(parentCoordinates, conceptIndex);
-                            if (parentNode != null) {
-                                insertionReport.addExistingConcept(parentNode);
-                                nodesByCoordinates.put(parentCoordinates, parentNode);
-                            } else {
-                                toBeCreated.add(parentCoordinates);
-                            }
+        // When merging, we don't care about parents.
+        if (!importOptions.merge) {
+            for (int i = 0; i < jsonConcepts.size(); i++) {
+                ImportConcept jsonConcept = jsonConcepts.get(i);
+                if (jsonConcept.parentCoordinates != null) {
+                    for (ConceptCoordinates parentCoordinates : jsonConcept.parentCoordinates) {
+                        Node parentNode = lookupConcept(parentCoordinates, conceptIndex);
+                        if (parentNode != null) {
+                            insertionReport.addExistingConcept(parentNode);
+                            nodesByCoordinates.put(parentCoordinates, parentNode);
+                        } else {
+                            toBeCreated.add(parentCoordinates);
                         }
                     }
                 }
             }
-            // Finished finding parents
-
-            // When merging, we remove those import concepts that are not known in
-            // the database from the input data
-            List<Integer> importConceptsToRemove = new ArrayList<>();
-            // Second, iterate through all concepts to be imported and check if
-            // they already exist themselves or not. Not existing nodes will be
-            // created as
-            // HOLLOW nodes.
-            // The following methods can then just access the nodes by their source
-            // Id which ought to be unique for each import.
-            for (int i = 0; i < jsonConcepts.size(); i++) {
-                ImportConcept jsonConcept = jsonConcepts.get(i);
-                ConceptCoordinates coordinates;
-                if (jsonConcept.coordinates != null) {
-                    coordinates = jsonConcept.coordinates;
-                    insertionReport.addImportedCoordinates(coordinates);
-                } else if (!jsonConcept.aggregate) {
-                    throw new IllegalArgumentException("Concept " + jsonConcept + " does not define concept coordinates.");
-                } else {
-                    continue;
-                }
-                // many nodes will actually already have been seen as parents
-                // above
-                if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
-                    continue;
-                Node conceptNode = lookupConcept(coordinates, conceptIndex);
-                if (conceptNode != null) {
-                    insertionReport.addExistingConcept(conceptNode);
-                    nodesByCoordinates.put(coordinates, conceptNode);
-                } else if (!importOptions.merge) {
-                    // When merging, we don't create new concepts
-
-                    // The concept coordinates are not yet known, create an
-                    // empty
-                    // concept node with its coordinates.
-                    // Node newConcept = registerNewHollowConceptNode(graphDb,
-                    // coordinates, conceptIndex);
-                    toBeCreated.add(coordinates);
-
-                    // conceptNode = newConcept;
-                } else {
-                    // We are in merging mode and requested concept is not in the
-                    // database; mark it for removal from the input data and
-                    // continue
-                    importConceptsToRemove.add(i);
-                    continue;
-                }
-
-            }
-            // Finished getting existing nodes and creating HOLLOW nodes
-
-            for (ConceptCoordinates coordinates : toBeCreated) {
-                Node conceptNode = registerNewHollowConceptNode(graphDb, coordinates, conceptIndex);
-                ++insertionReport.numConcepts;
-
-                nodesByCoordinates.put(coordinates, conceptNode);
-            }
-
-            log.info("removing " + importConceptsToRemove.size()
-                    + " input concepts that should be omitted because we are merging and don't have them in the database");
-            for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
-                jsonConcepts.remove(importConceptsToRemove.get(index));
-
-            log.info("Starting to insert " + jsonConcepts.size() + " concepts.");
-            for (int i = 0; i < jsonConcepts.size(); i++) {
-                ImportConcept jsonConcept = jsonConcepts.get(i);
-                boolean isAggregate = jsonConcept.aggregate;
-                if (isAggregate) {
-                    insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
-                            importOptions);
-                } else {
-                    insertConcept(graphDb, facetId, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
-                            importOptions);
-                }
-            }
-            log.debug(jsonConcepts.size() + " concepts inserted.");
-            time = System.currentTimeMillis() - time;
-            log.info(insertionReport.numConcepts
-                    + " new concepts - but not yet relationships - have been inserted. This took " + time + " ms ("
-                    + (time / 1000) + " s)");
-            return insertionReport;
-        } catch (IllegalAccessException e) {
-            throw new ConceptInsertionException(e);
         }
+        // Finished finding parents
+
+        // When merging, we remove those import concepts that are not known in
+        // the database from the input data
+        List<Integer> importConceptsToRemove = new ArrayList<>();
+        // Second, iterate through all concepts to be imported and check if
+        // they already exist themselves or not. Not existing nodes will be
+        // created as
+        // HOLLOW nodes.
+        // The following methods can then just access the nodes by their source
+        // Id which ought to be unique for each import.
+        for (int i = 0; i < jsonConcepts.size(); i++) {
+            ImportConcept jsonConcept = jsonConcepts.get(i);
+            ConceptCoordinates coordinates;
+            if (jsonConcept.coordinates != null) {
+                coordinates = jsonConcept.coordinates;
+                insertionReport.addImportedCoordinates(coordinates);
+            } else if (!jsonConcept.aggregate) {
+                throw new IllegalArgumentException("Concept " + jsonConcept + " does not define concept coordinates.");
+            } else {
+                continue;
+            }
+            // many nodes will actually already have been seen as parents
+            // above
+            if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
+                continue;
+            Node conceptNode = lookupConcept(coordinates, conceptIndex);
+            if (conceptNode != null) {
+                insertionReport.addExistingConcept(conceptNode);
+                nodesByCoordinates.put(coordinates, conceptNode);
+            } else if (!importOptions.merge) {
+                // When merging, we don't create new concepts
+
+                // The concept coordinates are not yet known, create an
+                // empty
+                // concept node with its coordinates.
+                // Node newConcept = registerNewHollowConceptNode(graphDb,
+                // coordinates, conceptIndex);
+                toBeCreated.add(coordinates);
+
+                // conceptNode = newConcept;
+            } else {
+                // We are in merging mode and requested concept is not in the
+                // database; mark it for removal from the input data and
+                // continue
+                importConceptsToRemove.add(i);
+                continue;
+            }
+
+        }
+        // Finished getting existing nodes and creating HOLLOW nodes
+
+        for (ConceptCoordinates coordinates : toBeCreated) {
+            Node conceptNode = registerNewHollowConceptNode(graphDb, coordinates, conceptIndex);
+            ++insertionReport.numConcepts;
+
+            nodesByCoordinates.put(coordinates, conceptNode);
+        }
+
+        log.info("removing " + importConceptsToRemove.size()
+                + " input concepts that should be omitted because we are merging and don't have them in the database");
+        for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
+            jsonConcepts.remove(importConceptsToRemove.get(index));
+
+        log.info("Starting to insert " + jsonConcepts.size() + " concepts.");
+        for (int i = 0; i < jsonConcepts.size(); i++) {
+            ImportConcept jsonConcept = jsonConcepts.get(i);
+            boolean isAggregate = jsonConcept.aggregate;
+            if (isAggregate) {
+                insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+                        importOptions);
+            } else {
+                insertConcept(graphDb, facetId, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+                        importOptions);
+            }
+        }
+        log.debug(jsonConcepts.size() + " concepts inserted.");
+        time = System.currentTimeMillis() - time;
+        log.info(insertionReport.numConcepts
+                + " new concepts - but not yet relationships - have been inserted. This took " + time + " ms ("
+                + (time / 1000) + " s)");
+        return insertionReport;
     }
 
     /**
@@ -1861,7 +1857,8 @@ public class ConceptManager extends ServerPlugin {
 
         Map<String, Set<String>> requestedConceptIds = null;
         if (!StringUtils.isBlank(conceptIdsJson) && !conceptIdsJson.equals("null")) {
-            Map<String, String[]> conceptIdsObject = om.readValue(conceptIdsJson, new TypeReference<Map<String, String[]>>() {});
+            Map<String, String[]> conceptIdsObject = om.readValue(conceptIdsJson, new TypeReference<Map<String, String[]>>() {
+            });
             requestedConceptIds = new HashMap<>();
             for (String facetId : conceptIdsObject.keySet()) {
                 String[] requestedRootIdsForFacet = conceptIdsObject.get(facetId);
