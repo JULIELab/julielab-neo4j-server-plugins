@@ -120,13 +120,13 @@ public class ImportConcept {
 
 	// ------------- for aggregates -----------------
 	@JsonProperty(ConceptConstants.AGGREGATE)
-	public Boolean aggregate;
+	public boolean aggregate;
 	@JsonProperty(ConceptConstants.ELEMENT_COORDINATES)
 	public List<ConceptCoordinates> elementCoordinates = Collections.emptyList();
 	@JsonProperty(ConceptConstants.PROP_COPY_PROPERTIES)
 	public List<String> copyProperties = Collections.emptyList();
 	@JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
-	public Boolean aggregateIncludeInHierarchy;
+	public boolean aggregateIncludeInHierarchy;
 
 	public void addRelationship(ImportConceptRelationship relationship) {
 		if (relationships.isEmpty())

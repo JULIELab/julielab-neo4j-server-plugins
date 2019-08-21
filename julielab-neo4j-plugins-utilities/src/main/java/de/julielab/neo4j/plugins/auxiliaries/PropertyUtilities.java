@@ -9,6 +9,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.function.Supplier;
 
 public class PropertyUtilities {
 
@@ -30,7 +31,7 @@ public class PropertyUtilities {
                                                      Set<String> exclusions) {
 
         try {
-            final Field[] fields = object.getClass().getFields();
+            final Field[] fields = object.getClass().getDeclaredFields();
             for (Field field : fields) {
                 String key = field.getName();
                 // Check if the field is annotated to give it another name
@@ -40,10 +41,14 @@ public class PropertyUtilities {
                 }
                 if ((Modifier.PUBLIC & field.getModifiers()) != 0 && (exclusions == null || !exclusions.contains(key))) {
                     Object value = field.get(object);
-                    if (List.class.isAssignableFrom(value.getClass())) {
-                        value = ((List<?>) value).toArray();
+                    if (value != null) {
+                        if (List.class.isAssignableFrom(value.getClass())) {
+                            value = ((List<?>) value).toArray();
+                        }
+                        node.setProperty(key, value);
+                    } else {
+                        node.removeProperty(key);
                     }
-                    node.setProperty(key, value);
                 }
             }
         } catch (IllegalAccessException e) {
@@ -74,12 +79,14 @@ public class PropertyUtilities {
                 }
                 if ((Modifier.PUBLIC & field.getModifiers()) != 0 && (exclusions == null || !exclusions.contains(key))) {
                     final Object value = field.get(object);
-                    if (value.getClass().isArray()) {
-                        mergeArrayProperty(node, key, (Object[]) value);
-                    } else if (List.class.isAssignableFrom(value.getClass())) {
-                        mergeArrayProperty(node, key, ((List<?>) value).toArray());
-                    } else {
-                        setNonNullNodeProperty(node, key, value);
+                    if (value != null) {
+                        if (value.getClass().isArray()) {
+                            mergeArrayProperty(node, key, (Object[]) value);
+                        } else if (List.class.isAssignableFrom(value.getClass())) {
+                            mergeArrayProperty(node, key, ((List<?>) value).toArray());
+                        } else {
+                            setNonNullNodeProperty(node, key, value);
+                        }
                     }
                 }
             }
@@ -109,6 +116,15 @@ public class PropertyUtilities {
             } else {
                 setNonNullNodeProperty(to, key, value);
             }
+        }
+    }
+
+    public static <T> void mergeArrayProperty(PropertyContainer node, String key, Supplier<T[]> arraySupplier) {
+        try {
+            final T[] value = arraySupplier.get();
+            mergeArrayProperty(node, key, value);
+        } catch (NullPointerException e) {
+            // nothing, this was expected
         }
     }
 
@@ -220,6 +236,15 @@ public class PropertyUtilities {
             return newArray.length - 1;
         }
         return -1;
+    }
+
+    public static void setNonNullNodeProperty(PropertyContainer node, String key, Supplier<Object> value) {
+        try {
+            final Object nonNulValue = value.get();
+            setNonNullNodeProperty(node, key, nonNulValue);
+        } catch (NullPointerException e) {
+            // nothing, was expected
+        }
     }
 
     /**

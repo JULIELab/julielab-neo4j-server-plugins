@@ -13,6 +13,7 @@ import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.PushConceptsToSetCommand.ConceptSelectionDefinition;
 import de.julielab.neo4j.plugins.datarepresentation.constants.*;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
@@ -852,7 +853,7 @@ public class ConceptManager extends ServerPlugin {
                 aggregate.setProperty(PROP_ORG_SRC, aggOrgSource);
             List<String> copyProperties = jsonConcept.copyProperties;
             if (null != copyProperties && !copyProperties.isEmpty())
-                aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties);
+                aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties.toArray(new String[0]));
 
             List<String> generalLabels = jsonConcept.generalLabels;
             for (int i = 0; null != generalLabels && i < generalLabels.size(); i++) {
@@ -968,9 +969,17 @@ public class ConceptManager extends ServerPlugin {
             concept.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
 
-        PropertyUtilities.mergeObjectIntoPropertyContainer(jsonConcept, concept, ConceptConstants.PROP_LABELS,
-                PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, COORDINATES, PARENT_COORDINATES,
-                ConceptConstants.RELATIONSHIPS);
+      //  PropertyUtilities.mergeObjectIntoPropertyContainer(jsonConcept, concept, ConceptConstants.PROP_LABELS,
+        //        PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, COORDINATES, PARENT_COORDINATES,
+          //      ConceptConstants.RELATIONSHIPS);
+
+        PropertyUtilities.setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
+        PropertyUtilities.mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
+        PropertyUtilities.mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
+        PropertyUtilities.mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));
+        mergeArrayProperty(concept, ConceptConstants.PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
+        addToArrayProperty(concept, PROP_FACETS, facetId);
+
         // There could be multiple sources containing a concept. For
         // now, we just note that facet (if these sources give the same original
         // ID, otherwise we won't notice) but don't do anything about
@@ -994,8 +1003,6 @@ public class ConceptManager extends ServerPlugin {
             addToArrayProperty(concept, PROP_SOURCES, source, true);
             addToArrayProperty(concept, PROP_UNIQUE_SRC_ID, uniqueSourceId, true);
         }
-        mergeArrayProperty(concept, ConceptConstants.PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
-        addToArrayProperty(concept, PROP_FACETS, facetId);
 
         for (int i = 0; null != generalLabels && i < generalLabels.size(); i++) {
             concept.addLabel(Label.label(generalLabels.get(i)));
@@ -1241,9 +1248,9 @@ public class ConceptManager extends ServerPlugin {
 
     public Representation insertConcepts(GraphDatabaseService graphDb, String conceptsWithFacet) throws ConceptInsertionException, IOException {
         final ObjectMapper om = new ObjectMapper();
-        final ImportConcepts importConcepts = om.readValue(conceptsWithFacet, ImportConcepts.class);
+        final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(conceptsWithFacet, ImportConcepts.class);
         ImportFacet jsonFacet = importConcepts.getFacet();
-        List<ImportConcept> jsonConcepts = importConcepts.getConceptsAsList();
+        List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
         ImportOptions importOptionsJson = importConcepts.getImportOptions();
         return insertConcepts(graphDb, jsonFacet != null ? om.writeValueAsString(jsonFacet) : null, om.writeValueAsString(jsonConcepts),
                 importOptionsJson != null ? om.writeValueAsString(importOptionsJson) : null);

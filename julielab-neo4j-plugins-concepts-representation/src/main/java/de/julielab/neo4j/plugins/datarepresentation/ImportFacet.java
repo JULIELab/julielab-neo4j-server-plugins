@@ -41,7 +41,24 @@ public class ImportFacet {
 	protected String shortName;
 	@JsonProperty(PROP_SOURCE_TYPE)
 	protected String sourceType;
-	/**
+
+	public ImportFacet(){}
+
+    @Override
+    public String toString() {
+        return "ImportFacet{" +
+                "customId='" + customId + '\'' +
+                ", facetGroup=" + facetGroup +
+                ", id='" + id + '\'' +
+                ", labels=" + labels +
+                ", name='" + name + '\'' +
+                ", noFacet=" + noFacet +
+                ", shortName='" + shortName + '\'' +
+                ", sourceType='" + sourceType + '\'' +
+                '}';
+    }
+
+    /**
 	 * Constructor eligible for creating new facets in the database.
 	 * 
 	 * @param facetGroup

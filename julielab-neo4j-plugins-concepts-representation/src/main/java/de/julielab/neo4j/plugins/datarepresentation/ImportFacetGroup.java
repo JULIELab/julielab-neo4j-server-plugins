@@ -12,7 +12,18 @@ public class ImportFacetGroup {
 		this.labels = generalLabels;
 	}
 
-	public ImportFacetGroup(String name) {
+	public ImportFacetGroup(){}
+
+    @Override
+    public String toString() {
+        return "ImportFacetGroup{" +
+                "name='" + name + '\'' +
+                ", labels=" + labels +
+                ", type='" + type + '\'' +
+                '}';
+    }
+
+    public ImportFacetGroup(String name) {
 		this.name = name;
 	}
 
