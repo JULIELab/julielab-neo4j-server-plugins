@@ -146,6 +146,10 @@ public class PropertyUtilities {
         try {
             if (null == array || array.length == 0)
                 return;
+
+            if (array[0] == null)
+                throw new IllegalArgumentException("An array was passed whose first element is null. This is not allowed.");
+
             // we can't directly cast to T[] because sometimes we will get an
             // Integer[] but the node stored an int[]
             // which is not castable...
