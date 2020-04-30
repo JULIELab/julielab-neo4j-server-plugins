@@ -140,7 +140,7 @@ public class ConceptManager extends ServerPlugin {
                                           @Description("Label to restrict the concepts to that are considered for aggregation creation.") @Parameter(name = KEY_LABEL, optional = true) String allowedConceptLabelString)
             throws IOException {
         ObjectMapper om = new ObjectMapper();
-        final String[] allowedMappingTypesJson = om.readValue(allowedConceptLabelString, String[].class);
+        final String[] allowedMappingTypesJson = om.readValue(allowedMappingTypesArray, String[].class);
         Set<String> allowedMappingTypes = new HashSet<>();
         for (int i = 0; i < allowedMappingTypesJson.length; i++) {
             allowedMappingTypes.add(allowedMappingTypesJson[i]);
