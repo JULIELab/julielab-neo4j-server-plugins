@@ -20,7 +20,6 @@ import org.neo4j.server.plugins.*;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -405,7 +404,7 @@ public class Export extends ServerPlugin {
 		}
 		log.info("Done exporting Lingpipe term dictionary.");
 		byte[] bytes = baos.toByteArray();
-		String encoded = DatatypeConverter.printBase64Binary(bytes);
+		String encoded = Base64.getEncoder().encodeToString(bytes);
 		return encoded;
 	}
 
@@ -466,7 +465,7 @@ public class Export extends ServerPlugin {
 		ByteArrayOutputStream gzipBytes = createElementAggregateIdMapping(graphDb, labelsArray);
 		byte[] bytes = gzipBytes.toByteArray();
 		log.info("Sending all " + bytes.length + " bytes of GZIPed ID element-aggregate ID mapping file data.");
-		String encoded = DatatypeConverter.printBase64Binary(bytes);
+		String encoded = Base64.getEncoder().encodeToString(bytes);
 		log.info("Done exporting element-aggregate ID mapping data.");
 		return encoded;
 	}
