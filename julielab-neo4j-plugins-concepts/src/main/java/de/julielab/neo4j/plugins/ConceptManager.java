@@ -969,9 +969,9 @@ public class ConceptManager extends ServerPlugin {
             concept.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
 
-      //  PropertyUtilities.mergeObjectIntoPropertyContainer(jsonConcept, concept, ConceptConstants.PROP_LABELS,
+        //  PropertyUtilities.mergeObjectIntoPropertyContainer(jsonConcept, concept, ConceptConstants.PROP_LABELS,
         //        PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, COORDINATES, PARENT_COORDINATES,
-          //      ConceptConstants.RELATIONSHIPS);
+        //      ConceptConstants.RELATIONSHIPS);
 
         PropertyUtilities.setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
         PropertyUtilities.mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
@@ -1343,16 +1343,16 @@ public class ConceptManager extends ServerPlugin {
                             insertionReport);
                 else
                     log.info("This is a property merging import, no relationships are created.");
-                time = System.currentTimeMillis() - time;
                 report.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
                 report.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
-                report.put(KEY_FACET_ID, facetId);
-                report.put(KEY_TIME, time);
                 log.debug("Done creating concepts and relationships.");
             } else {
                 log.info("No concepts were included in the request.");
             }
 
+            time = System.currentTimeMillis() - time;
+            report.put(KEY_TIME, time);
+            report.put(KEY_FACET_ID, facetId);
             tx.success();
         }
         log.info("Concept insertion complete.");
