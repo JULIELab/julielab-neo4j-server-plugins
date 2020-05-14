@@ -35,10 +35,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-@Path("/export")
+@Path("/facet_manager")
 public class FacetManager  {
 
     /**
