@@ -597,12 +597,12 @@ public class ConceptManager {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path("/{" + GET_CHILDREN_OF_CONCEPTS + "}")
-    public MappingRepresentation getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdArray,
-                                                       @QueryParam(KEY_LABEL) String labelString) throws IOException {
+    public MappingRepresentation getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdCsv,
+                                                       @QueryParam(KEY_LABEL) String labelString)  {
         Label label = ConceptLabel.CONCEPT;
         if (!StringUtils.isBlank(labelString))
             label = Label.label(labelString);
-        final String[] conceptIds = conceptIdArray.split(",");
+        final String[] conceptIds = conceptIdCsv.split(",");
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
             Map<String, Object> childrenByConceptId = new HashMap<>();
