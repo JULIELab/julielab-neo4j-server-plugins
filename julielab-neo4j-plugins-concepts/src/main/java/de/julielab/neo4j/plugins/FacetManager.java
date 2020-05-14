@@ -56,7 +56,7 @@ public class FacetManager {
         this.dbms = dbms;
     }
 
-    public static Node createFacet(GraphDatabaseService graphDb, ImportFacet jsonFacet) {
+    public static Node createFacet(Transaction tx, ImportFacet jsonFacet) {
         log.info("Creating facet with the following data: " + jsonFacet);
 
         Collection<String> generalLabels = jsonFacet.getLabels();
@@ -64,41 +64,36 @@ public class FacetManager {
 
         ImportFacetGroup jsonFacetGroup = jsonFacet.getFacetGroup();
 
-        try (Transaction tx = graphDb.beginTx()) {
-            Node facetGroupsNode;
-            if (isNoFacet)
-                facetGroupsNode = getNoFacetGroupsNode(tx);
-            else
-                facetGroupsNode = getFacetGroupsNode(tx);
-            Node facetGroup = createFacetGroup(tx, facetGroupsNode, jsonFacetGroup);
+        Node facetGroupsNode;
+        if (isNoFacet)
+            facetGroupsNode = getNoFacetGroupsNode(tx);
+        else
+            facetGroupsNode = getFacetGroupsNode(tx);
+        Node facetGroup = createFacetGroup(tx, facetGroupsNode, jsonFacetGroup);
 
-            // Create the actual facet node and populate it with data.
-            Node facet = tx.createNode(FacetLabel.FACET);
-            //PropertyUtilities.copyObjectToPropertyContainer(jsonFacet, facet, NO_FACET, PROP_LABELS,
-            //		FACET_GROUP);
+        // Create the actual facet node and populate it with data.
+        Node facet = tx.createNode(FacetLabel.FACET);
 
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_NAME, jsonFacet.getName());
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_SHORT_NAME, jsonFacet.getShortName());
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_CUSTOM_ID, jsonFacet.getCustomId());
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_LABELS, () -> jsonFacet.getLabels().toArray(new String[0]));
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_SOURCE_TYPE, jsonFacet.getSourceType());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_NAME, jsonFacet.getName());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_SHORT_NAME, jsonFacet.getShortName());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_CUSTOM_ID, jsonFacet.getCustomId());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_LABELS, () -> jsonFacet.getLabels().toArray(new String[0]));
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_SOURCE_TYPE, jsonFacet.getSourceType());
 
 
-            // If everything is alright, get an ID for the facet.
-            String facetId = NodeIDPrefixConstants.FACET
-                    + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_FACET);
-            facet.setProperty(PROP_ID, facetId);
-            facetGroup.createRelationshipTo(facet, EdgeTypes.HAS_FACET);
-            if (null != generalLabels) {
-                for (String labelString : generalLabels) {
-                    Label label = Label.label(labelString);
-                    facet.addLabel(label);
-                }
+        // If everything is alright, get an ID for the facet.
+        String facetId = NodeIDPrefixConstants.FACET
+                + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_FACET);
+        facet.setProperty(PROP_ID, facetId);
+        facetGroup.createRelationshipTo(facet, EdgeTypes.HAS_FACET);
+        if (null != generalLabels) {
+            for (String labelString : generalLabels) {
+                Label label = Label.label(labelString);
+                facet.addLabel(label);
             }
-
-            tx.commit();
-            return facet;
         }
+
+        return facet;
     }
 
     private static int countFacetChildren(GraphDatabaseService graphDb, String fid) {
@@ -264,12 +259,12 @@ public class FacetManager {
         });
         List<Node> facets = new ArrayList<>();
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        for (ImportFacet jsonFacet : input) {
-            Node facet = createFacet(graphDb, jsonFacet);
-            facets.add(facet);
-        }
 
         try (Transaction tx = graphDb.beginTx()) {
+            for (ImportFacet jsonFacet : input) {
+                Node facet = createFacet(tx, jsonFacet);
+                facets.add(facet);
+            }
             // The response is a list - according to the input order - where for
             // each facet is shown its name and which ID it received.
             List<Representation> facetRepList = new ArrayList<>();

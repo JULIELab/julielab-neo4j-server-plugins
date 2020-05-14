@@ -1225,7 +1225,7 @@ public class ConceptManager {
         ImportFacet jsonFacet = importConcepts.getFacet();
         List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
         log.info("Got {} input concepts for import.", jsonConcepts != null ? jsonConcepts.size() : 0);
-        ImportOptions importOptions = importConcepts.getImportOptions();
+        ImportOptions importOptions = importConcepts.getImportOptions() != null ? importConcepts.getImportOptions() : new ImportOptions();
 
         Map<String, Object> report = new HashMap<>();
         InsertionReport insertionReport = new InsertionReport();
@@ -1261,7 +1261,7 @@ public class ConceptManager {
             }
             if (null != jsonFacet && null == facet) {
                 // No existing ID is given, create a new facet.
-                facet = FacetManager.createFacet(graphDb, jsonFacet);
+                facet = FacetManager.createFacet(tx, jsonFacet);
             }
             if (null != facet) {
                 facetId = (String) facet.getProperty(PROP_ID);

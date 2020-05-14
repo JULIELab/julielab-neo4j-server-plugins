@@ -12,8 +12,8 @@ public class SequenceManager {
 
     private final static String SEQUENCE_INDEX = "sequenceIndex";
 
-    public static int getNextSequenceValue(Transaction tx, String seqFacetGroup) {
-        Node sequence = getSequence(tx, seqFacetGroup);
+    public static int getNextSequenceValue(Transaction tx, String sequenceName) {
+        Node sequence = getSequence(tx, sequenceName);
         tx.acquireReadLock(sequence);
         tx.acquireWriteLock(sequence);
         int currentSequenceValue = (Integer) sequence.getProperty(PROP_VALUE);
@@ -43,7 +43,7 @@ public class SequenceManager {
                 // with the
                 // Neo4j server graph viewer.
                 Node seqRoot = getSequenceRoot(tx);
-                sequence = tx.createNode();
+                sequence = tx.createNode(SequenceLabel.SEQUENCE);
                 sequence.setProperty(PROP_NAME, sequenceName);
                 sequence.setProperty(PROP_VALUE, 0);
                 seqRoot.createRelationshipTo(sequence, EdgeTypes.HAS_SEQUENCE);
