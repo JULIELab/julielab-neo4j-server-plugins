@@ -1,14 +1,13 @@
 package de.julielab.neo4j.plugins;
 
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
+import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
+import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -20,14 +19,10 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
 
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
-import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
-import de.julielab.neo4j.plugins.test.TestUtilities;
+import java.io.IOException;
+import java.util.*;
+
+import static org.junit.Assert.assertTrue;
 
 public class TraversalTest {
 

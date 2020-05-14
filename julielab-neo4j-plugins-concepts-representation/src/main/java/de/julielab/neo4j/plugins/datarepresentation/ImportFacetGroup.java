@@ -1,10 +1,9 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
+
+import java.util.List;
 
 public class ImportFacetGroup {
 	public ImportFacetGroup(String name, int position, List<String> generalLabels) {
@@ -13,7 +12,18 @@ public class ImportFacetGroup {
 		this.labels = generalLabels;
 	}
 
-	public ImportFacetGroup(String name) {
+	public ImportFacetGroup(){}
+
+    @Override
+    public String toString() {
+        return "ImportFacetGroup{" +
+                "name='" + name + '\'' +
+                ", labels=" + labels +
+                ", type='" + type + '\'' +
+                '}';
+    }
+
+    public ImportFacetGroup(String name) {
 		this.name = name;
 	}
 

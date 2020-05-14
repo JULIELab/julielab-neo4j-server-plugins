@@ -1,12 +1,8 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+
+import java.util.*;
 
 public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	private Map<String, ConceptCoordinates> coordsByOriginalId = new HashMap<>();

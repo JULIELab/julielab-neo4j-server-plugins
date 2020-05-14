@@ -1,26 +1,9 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PARENT_COORDINATES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.COORDINATES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SOURCES;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_UNIQUE_SRC_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.RELATIONSHIPS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
-
 import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.Label;
@@ -29,8 +12,16 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 
-import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUtilities {
 

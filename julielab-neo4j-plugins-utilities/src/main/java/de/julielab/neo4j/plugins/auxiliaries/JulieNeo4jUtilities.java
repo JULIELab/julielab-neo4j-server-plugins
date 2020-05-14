@@ -1,8 +1,8 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
-import java.util.List;
-
 import org.apache.commons.lang.ArrayUtils;
+
+import java.util.List;
 
 public class JulieNeo4jUtilities {
 	/**

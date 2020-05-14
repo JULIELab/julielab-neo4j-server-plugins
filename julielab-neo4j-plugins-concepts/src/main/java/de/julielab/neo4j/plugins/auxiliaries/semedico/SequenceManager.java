@@ -1,20 +1,15 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import static de.julielab.neo4j.plugins.constants.semedico.SequenceConstants.NAME_SEQUENCES_ROOT;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_VALUE;
-
-import java.util.NoSuchElementException;
-
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.Transaction;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
+import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexHits;
 
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
+import java.util.NoSuchElementException;
+
+import static de.julielab.neo4j.plugins.constants.semedico.SequenceConstants.NAME_SEQUENCES_ROOT;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_VALUE;
 
 public class SequenceManager {
 

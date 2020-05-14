@@ -1,17 +1,11 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
+import org.apache.commons.lang.StringUtils;
+import org.neo4j.graphdb.*;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
-import org.apache.commons.lang.StringUtils;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.ResourceIterable;
-import org.neo4j.graphdb.ResourceIterator;
 
 public class NodeUtilities extends PropertyUtilities {
 

@@ -1,12 +1,12 @@
 package de.julielab.neo4j.plugins.evaluators;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_FACET_GROUPS;
-
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
+
+import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_FACET_GROUPS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 /**
  * Evaluates to {@link Evaluation#INCLUDE_AND_CONTINUE} for the facet groups

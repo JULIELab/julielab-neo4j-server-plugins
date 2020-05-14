@@ -1,51 +1,9 @@
 package de.julielab.neo4j.plugins;
 
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_FACETS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_PREF_NAME;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SYNONYMS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Logger;
-import java.util.zip.GZIPOutputStream;
-
-import javax.xml.bind.DatatypeConverter;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.ResourceIterable;
-import org.neo4j.graphdb.ResourceIterator;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.traversal.TraversalDescription;
-import org.neo4j.graphdb.traversal.Traverser;
-import org.neo4j.server.plugins.Description;
-import org.neo4j.server.plugins.Name;
-import org.neo4j.server.plugins.Parameter;
-import org.neo4j.server.plugins.PluginTarget;
-import org.neo4j.server.plugins.ServerPlugin;
-import org.neo4j.server.plugins.Source;
-import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
-import org.neo4j.server.rest.repr.Representation;
-import org.neo4j.shell.util.json.JSONArray;
-import org.neo4j.shell.util.json.JSONException;
-
-import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -53,6 +11,24 @@ import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.traversal.TraversalDescription;
+import org.neo4j.graphdb.traversal.Traverser;
+import org.neo4j.server.plugins.*;
+import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
+import org.neo4j.server.rest.repr.Representation;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.*;
+import java.util.logging.Logger;
+import java.util.zip.GZIPOutputStream;
+
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 
 public class Export extends ServerPlugin {
 
@@ -91,8 +67,9 @@ public class Export extends ServerPlugin {
 	public Representation exportIdMapping(@Source GraphDatabaseService graphDb,
 			@Parameter(name = PARAM_ID_PROPERTY) @Description("TODO") String idProperty,
 			@Parameter(name = PARAM_LABELS) @Description("TODO") String labelStrings) throws Exception {
+		final ObjectMapper om = new ObjectMapper();
 		log.info("Exporting ID mapping data.");
-		JSONArray labelsArray = null != labelStrings ? new JSONArray(labelStrings) : null;
+		String[] labelsArray = null != labelStrings ? om.readValue(labelStrings, String[].class) : null;
 		log.info("Creating mapping file content for property \"" + idProperty + "\" and facets " + labelsArray);
 		ByteArrayOutputStream gzipBytes = createIdMapping(graphDb, idProperty, labelsArray);
 		byte[] bytes = gzipBytes.toByteArray();
@@ -102,13 +79,13 @@ public class Export extends ServerPlugin {
 	}
 
 	private ByteArrayOutputStream createIdMapping(GraphDatabaseService graphDb, String idProperty,
-			JSONArray labelsArray) throws Exception {
+			String[] labelsArray) throws Exception {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
 		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 			try (Transaction tx = graphDb.beginTx()) {
 				int numWritten = 0;
-				for (int i = 0; i < labelsArray.length(); i++) {
-					String labelString = labelsArray.getString(i);
+				for (int i = 0; i < labelsArray.length; i++) {
+					String labelString = labelsArray[i];
 					Label label = Label.label(labelString);
 					for (ResourceIterator<Node> terms = graphDb.findNodes(label); terms.hasNext();) {
 						Node term = terms.next();
@@ -149,7 +126,8 @@ public class Export extends ServerPlugin {
 			@Description("The facet labels indicating for which facets to create the hypernyms file") @Parameter(name = PARAM_LABELS, optional = true) String facetLabelStrings,
 			@Description("A label restricting hypernym generation to terms with this label.") @Parameter(name = PARAM_LABEL, optional = true) String termLabel)
 			throws Exception {
-		JSONArray labelsArray = null != facetLabelStrings ? new JSONArray(facetLabelStrings) : null;
+        ObjectMapper om = new ObjectMapper();
+		String[] labelsArray = null != facetLabelStrings ? om.readValue(facetLabelStrings, String[].class) : null;
 		if (null == labelsArray)
 			log.info("Exporting hypernyms dictionary data for all facets.");
 		else
@@ -162,13 +140,12 @@ public class Export extends ServerPlugin {
 		return RecursiveMappingRepresentation.getObjectRepresentation(bytes);
 	}
 
-	private ByteArrayOutputStream writeHypernymList(GraphDatabaseService graphDb, JSONArray labelsArray,
-			String termLabelString, int cacheSize) throws IOException, JSONException {
+	private ByteArrayOutputStream writeHypernymList(GraphDatabaseService graphDb, String[] labelsArray,
+			String termLabelString, int cacheSize) throws IOException{
 
-		JSONArray labels = labelsArray;
+		String[] labels = labelsArray;
 		if (null == labels) {
-			labels = new JSONArray();
-			labels.put(FacetManager.FacetLabel.FACET.name());
+			labels = new String[]{FacetManager.FacetLabel.FACET.name()};
 		}
 		Label termLabel = null;
 		if (!StringUtils.isBlank(termLabelString))
@@ -189,9 +166,9 @@ public class Export extends ServerPlugin {
 				List<RelationshipType> relationshipTypeList = new ArrayList<>();
 				// Only create the specific facet IDs set when we have not just
 				// all facets
-				if (labels.length() > 1 || !labels.getString(0).equals(FacetManager.FacetLabel.FACET.name())) {
-					for (int i = 0; i < labels.length(); i++) {
-						String labelString = labels.getString(i);
+				if (labels.length > 1 || !labels[0].equals(FacetManager.FacetLabel.FACET.name())) {
+					for (int i = 0; i < labels.length; i++) {
+						String labelString = labels[i];
 						Label label = Label.label(labelString);
 						ResourceIterable<Node> facets = () -> graphDb.findNodes(label);
 						for (Node facet : facets) {
@@ -209,8 +186,8 @@ public class Export extends ServerPlugin {
 					relationshipTypeList.add(ConceptManager.EdgeTypes.IS_BROADER_THAN);
 				}
 
-				for (int i = 0; i < labels.length(); i++) {
-					String labelString = labels.getString(i);
+				for (int i = 0; i < labels.length; i++) {
+					String labelString = labels[i];
 					Label label = Label.label(labelString);
 					log.info("Now creating hypernyms for facets with label " + label);
 					ResourceIterable<Node> facets = () -> graphDb.findNodes(label);
@@ -315,14 +292,15 @@ public class Export extends ServerPlugin {
 		}
 		Label[] exclusionLabels = null;
 		if (!StringUtils.isBlank(exclusionLabelString)) {
-			try {
-				JSONArray exclusionLabelsJson = new JSONArray(exclusionLabelString);
-				exclusionLabels = new Label[exclusionLabelsJson.length()];
-				for (int i = 0; i < exclusionLabelsJson.length(); i++) {
-					String string = exclusionLabelsJson.getString(i);
+            final ObjectMapper om = new ObjectMapper();
+            try {
+                String[] exclusionLabelsJson = om.readValue(exclusionLabelString, String[].class);
+				exclusionLabels = new Label[exclusionLabelsJson.length];
+				for (int i = 0; i < exclusionLabelsJson.length; i++) {
+					String string = exclusionLabelsJson[i];
 					exclusionLabels[i] = Label.label(string);
 				}
-			} catch (JSONException e) {
+			} catch (JsonParseException e) {
 				Label exclusionLabel = Label.label(exclusionLabelString);
 				exclusionLabels = new Label[] { exclusionLabel };
 			}
@@ -426,7 +404,7 @@ public class Export extends ServerPlugin {
 		}
 		log.info("Done exporting Lingpipe term dictionary.");
 		byte[] bytes = baos.toByteArray();
-		String encoded = DatatypeConverter.printBase64Binary(bytes);
+		String encoded = Base64.getEncoder().encodeToString(bytes);
 		return encoded;
 	}
 
@@ -480,13 +458,14 @@ public class Export extends ServerPlugin {
 	public String exportElementToAggregateIdMapping(@Source GraphDatabaseService graphDb,
 			@Parameter(name = PARAM_LABELS) @Description("The aggregate labels for which to create the mapping") String aggLabelStrings)
 			throws Exception {
+        ObjectMapper om = new ObjectMapper();
 		log.info("Exporting element-aggregate ID mapping data.");
-		JSONArray labelsArray = new JSONArray(aggLabelStrings);
+        String[] labelsArray = om.readValue(aggLabelStrings, String[].class);
 		log.info("Creating element-aggregate ID mapping file content for aggregate labels \"" + labelsArray + "\"");
 		ByteArrayOutputStream gzipBytes = createElementAggregateIdMapping(graphDb, labelsArray);
 		byte[] bytes = gzipBytes.toByteArray();
 		log.info("Sending all " + bytes.length + " bytes of GZIPed ID element-aggregate ID mapping file data.");
-		String encoded = DatatypeConverter.printBase64Binary(bytes);
+		String encoded = Base64.getEncoder().encodeToString(bytes);
 		log.info("Done exporting element-aggregate ID mapping data.");
 		return encoded;
 	}
@@ -501,17 +480,16 @@ public class Export extends ServerPlugin {
 	 * @param aggLabelsArray
 	 * @return
 	 * @throws IOException
-	 * @throws JSONException
 	 */
 	private ByteArrayOutputStream createElementAggregateIdMapping(GraphDatabaseService graphDb,
-			JSONArray aggLabelsArray) throws IOException, JSONException {
+			String[] aggLabelsArray) throws IOException {
 		ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
 		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 			try (Transaction tx = graphDb.beginTx()) {
 				Map<String, String> ele2Agg = new HashMap<>();
 				Set<String> visitedAggregates = new HashSet<>();
-				for (int i = 0; i < aggLabelsArray.length(); ++i) {
-					Label label = Label.label(aggLabelsArray.getString(i));
+				for (int i = 0; i < aggLabelsArray.length; ++i) {
+					Label label = Label.label(aggLabelsArray[i]);
 					ResourceIterator<Node> aggregates = graphDb.findNodes(label);
 					TraversalDescription td = PredefinedTraversals.getNonAggregateAggregateElements(graphDb);
 					while (aggregates.hasNext()) {

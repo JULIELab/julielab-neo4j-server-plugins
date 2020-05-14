@@ -1,12 +1,8 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
+import com.google.common.collect.Lists;
+import de.julielab.neo4j.plugins.constants.NodeConstants;
+import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -16,10 +12,12 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Transaction;
 
-import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
-import de.julielab.neo4j.plugins.constants.NodeConstants;
-import de.julielab.neo4j.plugins.test.TestUtilities;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class NodeRepresentationTest {
 	private static GraphDatabaseService graphDb;

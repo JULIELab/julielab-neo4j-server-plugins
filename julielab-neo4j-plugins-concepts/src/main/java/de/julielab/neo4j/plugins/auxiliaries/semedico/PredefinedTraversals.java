@@ -1,19 +1,18 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
+import de.julielab.neo4j.plugins.ConceptManager;
+import de.julielab.neo4j.plugins.FacetManager;
+import de.julielab.neo4j.plugins.FacetManager.EdgeTypes;
+import de.julielab.neo4j.plugins.evaluators.FacetGroupPathEvaluator;
+import de.julielab.neo4j.plugins.evaluators.HasRelationShipEvaluator;
+import de.julielab.neo4j.plugins.evaluators.NodeLabelEvaluator;
+import de.julielab.neo4j.plugins.evaluators.PropertyEvaluator;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.TraversalDescription;
-
-import de.julielab.neo4j.plugins.FacetManager;
-import de.julielab.neo4j.plugins.FacetManager.EdgeTypes;
-import de.julielab.neo4j.plugins.ConceptManager;
-import de.julielab.neo4j.plugins.evaluators.FacetGroupPathEvaluator;
-import de.julielab.neo4j.plugins.evaluators.HasRelationShipEvaluator;
-import de.julielab.neo4j.plugins.evaluators.NodeLabelEvaluator;
-import de.julielab.neo4j.plugins.evaluators.PropertyEvaluator;
 
 public class PredefinedTraversals {
 	/**

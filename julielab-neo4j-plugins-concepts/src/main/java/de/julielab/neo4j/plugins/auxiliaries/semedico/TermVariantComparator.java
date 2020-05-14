@@ -1,9 +1,9 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.Comparator;
 import java.util.Locale;
-
-import org.apache.commons.lang3.StringUtils;
 
 /**
  * This comparator aims to judge whether two term writing variants are the same

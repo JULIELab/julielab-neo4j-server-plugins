@@ -1,24 +1,19 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
-import java.util.HashSet;
-import java.util.Set;
-
+import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
+import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.*;
 
-import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
-import de.julielab.neo4j.plugins.test.TestUtilities;
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SequenceManagerTest {
 	private static GraphDatabaseService graphDb;

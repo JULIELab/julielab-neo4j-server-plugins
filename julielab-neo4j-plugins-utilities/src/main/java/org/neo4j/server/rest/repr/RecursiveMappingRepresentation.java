@@ -1,25 +1,13 @@
 package org.neo4j.server.rest.repr;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.neo4j.graphdb.Node;
-import org.neo4j.server.rest.repr.ListRepresentation;
-import org.neo4j.server.rest.repr.MappingRepresentation;
-import org.neo4j.server.rest.repr.MappingSerializer;
-import org.neo4j.server.rest.repr.Representation;
-import org.neo4j.server.rest.repr.RepresentationType;
-import org.neo4j.server.rest.repr.ValueRepresentation;
-
 import com.google.common.primitives.Booleans;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-
 import de.julielab.neo4j.plugins.auxiliaries.NodeRepresentation;
+import org.neo4j.graphdb.Node;
+
+import java.util.*;
 
 /**
  * Custom convenience representation type. Must reside in this very package in

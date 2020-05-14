@@ -1,12 +1,11 @@
 package de.julielab.neo4j.plugins.evaluators;
 
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.traversal.Evaluation;
 import org.neo4j.graphdb.traversal.Evaluator;
-
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 
 /**
  * An <tt>Evaluator</tt> which includes the facet groups node as well as the

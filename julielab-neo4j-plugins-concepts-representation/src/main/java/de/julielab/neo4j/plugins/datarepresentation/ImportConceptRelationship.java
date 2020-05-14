@@ -20,6 +20,9 @@ public class ImportConceptRelationship {
     @JsonProperty(ConceptConstants.RS_PROPS)
     public Map<String, Object> properties;
 
+    public ImportConceptRelationship() {
+    }
+
     public ImportConceptRelationship(ConceptCoordinates targetCoordinates, String relationType) {
         this.targetCoordinates = targetCoordinates;
         this.type = relationType;
