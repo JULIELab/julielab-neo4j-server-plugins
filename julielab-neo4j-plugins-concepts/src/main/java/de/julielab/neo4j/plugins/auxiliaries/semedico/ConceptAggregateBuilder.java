@@ -112,7 +112,6 @@ public class ConceptAggregateBuilder {
     }
 
     /**
-     * @param graphDb              The graph database to work on.
      * @param allowedMappingTypes  The mapping types that will be used to build aggregates. This
      *                             relates to the property of mapping relationships that exposes
      *                             the type of mapping the relationships is part of. All edges
@@ -123,11 +122,11 @@ public class ConceptAggregateBuilder {
      *                             defines a particular set of aggregations.
      * @param allowedTermLabel     Label to restrict the terms for which aggregates are built.
      * @param aggregatedTermsLabel Label for terms that have been processed by the aggregation
-     *                             algorithm. Such terms can be aggregate terms (with the label
-     *                             {@link ConceptLabel#AGGREGATE}) or just plain terms (with the label
-     *                             {@link ConceptLabel#CONCEPT}) that are not an element of an aggregate.
+ *                             algorithm. Such terms can be aggregate terms (with the label
+ *                             {@link ConceptLabel#AGGREGATE}) or just plain terms (with the label
+ *                             {@link ConceptLabel#CONCEPT}) that are not an element of an aggregate.
      */
-    public static void buildAggregatesForMappings(GraphDatabaseService graphDb, Set<String> allowedMappingTypes,
+    public static void buildAggregatesForMappings(Set<String> allowedMappingTypes,
                                                   Label allowedTermLabel, Label aggregatedTermsLabel) {
         log.info("Building aggregates for mappings " + allowedMappingTypes + " and terms with label "
                 + allowedTermLabel);

@@ -157,7 +157,7 @@ public class ConceptAggregateBuilderTest {
 		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet2), ConceptsJsonSerializer.toJson(terms2), null);
 		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
 		Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
-		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
+		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
@@ -247,7 +247,7 @@ public class ConceptAggregateBuilderTest {
 		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
 		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
 		Label aggLabel = Label.label("EQUAL_AGG");
-		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
@@ -305,7 +305,7 @@ public class ConceptAggregateBuilderTest {
 		// aggregated unit, i.e. an actual aggregate node
 		// or a term without any mappings that is its own aggregate.
 		Label aggLabel = Label.label("EQUAL_AGG");
-		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
 				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {

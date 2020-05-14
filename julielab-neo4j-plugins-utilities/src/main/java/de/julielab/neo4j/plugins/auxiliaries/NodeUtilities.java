@@ -32,10 +32,10 @@ public class NodeUtilities extends PropertyUtilities {
 		return node;
 	}
 
-	public static Node findSingleNodeByLabelAndProperty(GraphDatabaseService graphDb, Label label, String key,
+	public static Node findSingleNodeByLabelAndProperty(Transaction tx, Label label, String key,
 			String value) {
 		Node node = null;
-		ResourceIterator<Node> resourceIterator = graphDb.findNodes(label, key, value);
+		ResourceIterator<Node> resourceIterator = tx.findNodes(label, key, value);
 		if (resourceIterator.hasNext()) {
 			node = resourceIterator.next();
 			if (resourceIterator.hasNext()) {

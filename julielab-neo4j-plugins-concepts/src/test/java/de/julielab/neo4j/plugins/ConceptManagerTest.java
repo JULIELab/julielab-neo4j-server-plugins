@@ -1245,7 +1245,7 @@ public class ConceptManagerTest {
 		int numInsertedRels = ftm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mappings));
 		assertEquals(1, numInsertedRels);
 
-		ConceptAggregateBuilder.buildAggregatesForMappings(graphDb, Sets.newHashSet("loom"), ConceptLabel.CONCEPT,
+		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("loom"), ConceptLabel.CONCEPT,
 				ConceptLabel.AGGREGATE);
 
 		try (Transaction tx = graphDb.beginTx()) {
