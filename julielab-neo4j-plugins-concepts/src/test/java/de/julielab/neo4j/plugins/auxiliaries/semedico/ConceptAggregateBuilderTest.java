@@ -18,15 +18,16 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static org.junit.Assert.*;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class ConceptAggregateBuilderTest {
 	private static GraphDatabaseService graphDb;
@@ -40,16 +41,18 @@ public class ConceptAggregateBuilderTest {
 	 * respective name and source ID using {@link #coords}.
 	 */
 	private static BiFunction<String, String, ImportConcept> cs;
+	private static DatabaseManagementService graphDBMS;
 
 	@BeforeClass
 	public static void initialize() {
-		graphDb = TestUtilities.getGraphDBMS();
+		graphDBMS = TestUtilities.getGraphDBMS();
+		graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
 		coords = srcId -> new ConceptCoordinates(srcId, "TEST_DATA", CoordinateType.SRC);
 		cs = (name, srcId) -> new ImportConcept(name, coords.apply(srcId));
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 	}
 
@@ -57,11 +60,11 @@ public class ConceptAggregateBuilderTest {
 	public void testCopyAggregateProperties() {
 		try (Transaction tx = graphDb.beginTx()) {
 			// Create the aggregate node and its element nodes
-			Node aggregate = graphDb.createNode();
-			Node element1 = graphDb.createNode();
-			Node element2 = graphDb.createNode();
-			Node element3 = graphDb.createNode();
-			Node element4 = graphDb.createNode();
+			Node aggregate = tx.createNode();
+			Node element1 = tx.createNode();
+			Node element2 = tx.createNode();
+			Node element3 = tx.createNode();
+			Node element4 = tx.createNode();
 
 			// Set some properties to the element nodes that should then be
 			// copied to the aggregate.
@@ -121,7 +124,7 @@ public class ConceptAggregateBuilderTest {
 			// element comes first
 			// assertEquals("orange", synonyms[1]);
 
-			tx.success();
+			tx.commit();
 		}
 	}
 
@@ -136,10 +139,10 @@ public class ConceptAggregateBuilderTest {
 		// one aggregation node.
 		ImportConcept t11 = cs.apply("t11", "t11");
 		ImportConcept t12 = cs.apply("t12", "t12");
-		t12.parentCoordinates = Arrays.asList(coords.apply("t11"));
+		t12.parentCoordinates = List.of(coords.apply("t11"));
 		ImportConcept t13 = cs.apply("t13", "t13");
 		t13.parentCoordinates = Arrays.asList(coords.apply("t12"));
-		ArrayList<ImportConcept> terms1 = Lists.newArrayList(t11, t12, t13);
+		ArrayList<ImportConcept> concepts1 = Lists.newArrayList(t11, t12, t13);
 		ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
 		ImportConcept t21 = cs.apply("t21", "t21");
@@ -147,20 +150,21 @@ public class ConceptAggregateBuilderTest {
 		t22.parentCoordinates = Arrays.asList(coords.apply("t21"));
 		ImportConcept t23 = cs.apply("t23", "t3");
 		t23.parentCoordinates = Arrays.asList(coords.apply("t22"));
-		ArrayList<ImportConcept> terms2 = Lists.newArrayList(t21, t22, t23);
+		ArrayList<ImportConcept> concepts2 = Lists.newArrayList(t21, t22, t23);
 		ImportFacet importFacet2 = FacetManagerTest.getImportFacet();
 
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t12", "t21", "EQUAL"));
 
-		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
-		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet2), ConceptsJsonSerializer.toJson(terms2), null);
-		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
+		ConceptManager tm = new ConceptManager(graphDBMS);
+
+		tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)));
+		tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)));
+		tm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
 		Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
-		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
+		ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
+			ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggregatedTermsLabel);
 			int count = 0;
 			for (Node aggregate : mappingAggregates) {
 				if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
@@ -180,14 +184,14 @@ public class ConceptAggregateBuilderTest {
 			}
 			assertEquals(1, count);
 
-			tx.success();
+			tx.commit();
 		}
 
 		// Test that we can get the "children" of the aggregate, i.e. its
 		// elements via the respective FacetManager
 		// method
 		try (Transaction tx = graphDb.beginTx()) {
-			RecursiveMappingRepresentation responseMap = (RecursiveMappingRepresentation) tm.getChildrenOfConcepts(graphDb,
+			RecursiveMappingRepresentation responseMap = (RecursiveMappingRepresentation) tm.getChildrenOfConcepts(
 					"[\"" + NodeIDPrefixConstants.AGGREGATE_TERM + 0 + "\"]", aggregatedTermsLabel.name());
 			Map<String, Object> map = (Map<String, Object>) responseMap.getUnderlyingMap()
 					.get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
@@ -206,9 +210,9 @@ public class ConceptAggregateBuilderTest {
 
 		// Now test whether the removal of aggregates is working as well
 		try (Transaction tx = graphDb.beginTx()) {
-			ConceptAggregateBuilder.deleteAggregates(graphDb, aggregatedTermsLabel);
+			ConceptAggregateBuilder.deleteAggregates(tx, aggregatedTermsLabel);
 
-			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggregatedTermsLabel);
+			ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggregatedTermsLabel);
 			int count = 0;
 			for (@SuppressWarnings("unused")
 			Node aggregate : mappingAggregates) {
@@ -216,7 +220,7 @@ public class ConceptAggregateBuilderTest {
 			}
 			assertEquals(0, count);
 
-			tx.success();
+			tx.commit();
 		}
 
 	}
@@ -243,15 +247,15 @@ public class ConceptAggregateBuilderTest {
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
-		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
-		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
+		ConceptManager tm = new ConceptManager(graphDBMS);
+		tm.insertConcepts( ConceptsJsonSerializer.toJson(new ImportConcepts(terms1, importFacet1)));
+		tm.insertMappings( ConceptsJsonSerializer.toJson(mapping));
 		Label aggLabel = Label.label("EQUAL_AGG");
-		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
-				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggLabel);
+		ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+				aggLabel);
+			ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggLabel);
 			int count = 0;
 			for (Node aggregate : mappingAggregates) {
 				count++;
@@ -291,25 +295,25 @@ public class ConceptAggregateBuilderTest {
 		t5.parentCoordinates = Arrays.asList(coords.apply("t4"));
 		ImportConcept t6 = cs.apply("t6", "t6");
 		t6.parentCoordinates = Arrays.asList(coords.apply("t5"));
-		ArrayList<ImportConcept> terms1 = Lists.newArrayList(t1, t2, t3, t4, t5, t6);
+		ArrayList<ImportConcept> concepts = Lists.newArrayList(t1, t2, t3, t4, t5, t6);
 		ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
 		// Define the mappings. Term 6 is not mapped.
 		List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
 				new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
-		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(importFacet1), ConceptsJsonSerializer.toJson(terms1), null);
-		tm.insertMappings(graphDb, ConceptsJsonSerializer.toJson(mapping));
+		ConceptManager tm = new ConceptManager(graphDBMS);
+		tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts, importFacet1)));
+		tm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
 		// The label by which we will identify all nodes representing an
 		// aggregated unit, i.e. an actual aggregate node
 		// or a term without any mappings that is its own aggregate.
 		Label aggLabel = Label.label("EQUAL_AGG");
-		ConceptAggregateBuilder.buildAggregatesForMappings(Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
-				aggLabel);
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterable<Node> mappingAggregates = () -> graphDb.findNodes(aggLabel);
+		ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+				aggLabel);
+			ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggLabel);
 			// Count of the aggregation terms, i.e. the representation terms
 			// that have formerly existing terms as their
 			// elements.
@@ -339,7 +343,7 @@ public class ConceptAggregateBuilderTest {
 			}
 			assertEquals(2, aggCount);
 
-			ResourceIterable<Node> aggregatedTerms = () -> graphDb.findNodes(aggLabel);
+			ResourceIterable<Node> aggregatedTerms = () -> tx.findNodes(aggLabel);
 			// Count of all terms that represent the result of the aggegation,
 			// i.e. aggregate terms as well as original
 			// terms that are no element of an aggregate term and as such "are
@@ -363,6 +367,6 @@ public class ConceptAggregateBuilderTest {
 
 	@AfterClass
 	public static void shutdown() {
-		graphDb.shutdown();
+		graphDBMS.shutdown();
 	}
 }
