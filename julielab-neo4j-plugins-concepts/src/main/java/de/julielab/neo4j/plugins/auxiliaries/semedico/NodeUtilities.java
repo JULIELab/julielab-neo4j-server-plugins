@@ -2,15 +2,11 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import org.apache.commons.lang.StringUtils;
-import org.neo4j.graphdb.Direction;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.graphdb.index.Index;
-import org.neo4j.graphdb.index.IndexHits;
+import org.neo4j.graphdb.*;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -98,10 +94,11 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
         return false;
     }
 
-    public static Node mergeConceptNodesWithUniqueSourceId(String srcId, Index<Node> termIndex, List<Node> obsoleteNodes) {
-        IndexHits<Node> conceptNodes = termIndex.get(PROP_SRC_IDS, srcId);
+    public static Node mergeConceptNodesWithUniqueSourceId(Transaction tx, String srcId, List<Node> obsoleteNodes) {
+        ResourceIterator<Object> conceptNodesIt = FullTextIndexUtils.getNodes(tx, ConceptManager.ConceptLabel.CONCEPT, PROP_SRC_IDS, srcId);
         Node firstNode = null;
-        for (Node conceptNode : conceptNodes) {
+        for (Object o : (Iterable<Object>)() -> conceptNodesIt) {
+            Node conceptNode = (Node) o;
             if (firstNode == null) {
                 firstNode = conceptNode;
                 continue;
@@ -113,7 +110,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
             boolean addConceptPrefToSynonyms = !firstNodePrefName.equals(conceptPrefName);
 
             // ----- merging of general properties
-            PropertyUtilities.mergePropertyContainerIntoPropertyContainer(conceptNode, firstNode, ConceptConstants.PROP_LABELS,
+            PropertyUtilities.mergeEntityIntoEntity(conceptNode, firstNode, ConceptConstants.PROP_LABELS,
                     PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, RELATIONSHIPS, COORDINATES, PARENT_COORDINATES);
 
             // ----- merging of source IDs and sources
@@ -165,7 +162,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
      * @see #getElementNodes(Node)
      */
     public static Set<Node> getAggregatingNodes(Node node) {
-        return StreamSupport.stream(node.getRelationships(EdgeTypes.HAS_ELEMENT, Direction.INCOMING).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
+        return StreamSupport.stream(node.getRelationships(Direction.INCOMING, EdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
     }
 
     /**
@@ -175,7 +172,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
      * @return The taxonomic parents of <tt>node</tt>.
      */
     public static Set<Node> getParentNodes(Node node) {
-        return StreamSupport.stream(node.getRelationships(EdgeTypes.IS_BROADER_THAN, Direction.INCOMING).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
+        return StreamSupport.stream(node.getRelationships(Direction.INCOMING, EdgeTypes.IS_BROADER_THAN).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
     }
 
     /**
@@ -189,6 +186,6 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     public static Set<Node> getElementNodes(Node aggregate) {
         if (!aggregate.hasLabel(ConceptManager.ConceptLabel.AGGREGATE))
             throw new IllegalArgumentException("The given node does not have the AGGREGATE label");
-        return StreamSupport.stream(aggregate.getRelationships(EdgeTypes.HAS_ELEMENT, Direction.OUTGOING).spliterator(), false).map(Relationship::getEndNode).collect(Collectors.toSet());
+        return StreamSupport.stream(aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getEndNode).collect(Collectors.toSet());
     }
 }

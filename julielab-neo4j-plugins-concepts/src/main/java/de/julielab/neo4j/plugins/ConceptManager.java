@@ -15,14 +15,12 @@ import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
-import org.apache.lucene.queryparser.classic.QueryParser;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.graphdb.traversal.*;
-import org.neo4j.procedure.Name;
 import org.neo4j.server.rest.repr.MappingRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
@@ -56,7 +54,7 @@ public class ConceptManager {
     public static final String GET_PATHS_FROM_FACETROOTS = "get_paths_to_facetroots";
     public static final String INSERT_CONCEPTS = "insert_concepts";
     public static final String GET_FACET_ROOTS = "get_facet_roots";
-    public static final String ADD_CONCEPT_CONCEPT = "add_concept_term";
+    public static final String ADD_CONCEPT_TERM = "add_concept_term";
     public static final String KEY_AMOUNT = "amount";
     public static final String KEY_CREATE_HOLLOW_PARENTS = "createHollowParents";
     public static final String KEY_FACET = "facet";
@@ -96,7 +94,7 @@ public class ConceptManager {
     public static final String RET_KEY_RELTYPES = "reltypes";
     public static final String RET_KEY_CONCEPTS = "concepts";
 
-    public static final String UPDATE_CHILDREN_INFORMATION = "update_children_information";
+    public static final String UPDATE_CHILD_INFORMATION = "update_children_information";
     private static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
     private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
     private static final int CONCEPT_INSERT_BATCH_SIZE = 10000;
@@ -166,11 +164,12 @@ public class ConceptManager {
      *     Such concepts can be aggregate concepts (with the label AGGREGATE) or just plain concepts
      *     (with the label CONCEPT) that are not an element of an aggregate.</li>
      * </ul>
+     *
      * @param aggregatedConceptsLabelString
      */
     @DELETE
     @Consumes(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path("/{"+DELETE_AGGREGATES+"}")
+    @javax.ws.rs.Path("/{" + DELETE_AGGREGATES + "}")
     public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
         Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
         ConceptAggregateBuilder.deleteAggregates(dbms.database(DEFAULT_DATABASE_NAME), aggregatedConceptsLabel);
@@ -179,7 +178,7 @@ public class ConceptManager {
 
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{"+COPY_AGGREGATE_PROPERTIES+"}")
+    @javax.ws.rs.Path("/{" + COPY_AGGREGATE_PROPERTIES + "}")
     public Representation copyAggregateProperties() {
         int numAggregates = 0;
         CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
@@ -377,7 +376,7 @@ public class ConceptManager {
                     if (noFacetCmd != null && noFacetCmd.getParentCriteria()
                             .contains(AddToNonFacetGroupCommand.ParentCriterium.NO_PARENT)) {
                         if (null != noFacetCmd && null == noFacet) {
-                            noFacet = FacetManager.getNoFacet(graphDb, tx, (String) facet.getProperty(PROP_ID));
+                            noFacet = FacetManager.getNoFacet(tx, (String) facet.getProperty(PROP_ID));
                         }
 
                         createRelationshipIfNotExists(noFacet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
@@ -562,7 +561,7 @@ public class ConceptManager {
      * </ul>
      */
     @PUT
-    @javax.ws.rs.Path("/{"+CREATE_SCHEMA_INDEXES+"}")
+    @javax.ws.rs.Path("/{" + CREATE_SCHEMA_INDEXES + "}")
     public void createSchemaIndexes() {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         createIndexIfAbsent(graphDb, ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, true);
@@ -574,25 +573,25 @@ public class ConceptManager {
 
     /**
      * <p>
-     *  Returns all non-hollow children of concepts identified via the  KEY_CONCEPT_IDS
-     *  parameter. The return format is a map from the children's id
-     *  to respective child concept. This endpoint has been created due
-     *  to performance reasons. All tried Cypher queries to achieve
-     *  the same behaviour were less performant (tested for version 2.0.0 M3).
-     *  </p>
-     *  <p>
-     *      Parameters:
-     *      <ul>
-     *          <li>{@link #KEY_CONCEPT_IDS}: Comma-separated list of concept IDs for which to return their children.</li>
-     *          <li>{@link #KEY_LABEL}: The label against which the given concept IDs are resolved. Defaults to 'CONCEPT'.</li>
-     *      </ul>
-     *  </p>
+     * Returns all non-hollow children of concepts identified via the  KEY_CONCEPT_IDS
+     * parameter. The return format is a map from the children's id
+     * to respective child concept. This endpoint has been created due
+     * to performance reasons. All tried Cypher queries to achieve
+     * the same behaviour were less performant (tested for version 2.0.0 M3).
+     * </p>
+     * <p>
+     * Parameters:
+     *     <ul>
+     *         <li>{@link #KEY_CONCEPT_IDS}: Comma-separated list of concept IDs for which to return their children.</li>
+     *         <li>{@link #KEY_LABEL}: The label against which the given concept IDs are resolved. Defaults to 'CONCEPT'.</li>
+     *     </ul>
+     * </p>
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{"+GET_CHILDREN_OF_CONCEPTS+"}")
+    @javax.ws.rs.Path("/{" + GET_CHILDREN_OF_CONCEPTS + "}")
     public MappingRepresentation getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdArray,
-                                                      @QueryParam(KEY_LABEL) String labelString) throws IOException {
+                                                       @QueryParam(KEY_LABEL) String labelString) throws IOException {
         Label label = ConceptLabel.CONCEPT;
         if (!StringUtils.isBlank(labelString))
             label = Label.label(labelString);
@@ -630,31 +629,14 @@ public class ConceptManager {
         }
     }
 
-    @Name(GET_NUM_CONCEPTS)
-    @Description("Returns the number of concepts in the database, i.e. the number of nodes with the \"CONCEPT\" label.")
-    @PluginTarget(GraphDatabaseService.class)
-    public long getNumConcepts(@Source GraphDatabaseService graphDb) {
-        try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterable<Node> concepts = () -> graphDb.findNodes(ConceptLabel.CONCEPT);
-            long count = 0;
-            for (@SuppressWarnings("unused")
-                    Node concept : concepts) {
-                count++;
-            }
-            return count;
-        }
-    }
-
-    @Name(GET_PATHS_FROM_FACETROOTS)
-    @Description("TODO")
-    @PluginTarget(GraphDatabaseService.class)
-    public Representation getPathsFromFacetroots(@Source GraphDatabaseService graphDb,
-                                                 @Description("TODO") @Parameter(name = KEY_CONCEPT_IDS) String conceptIdsJsonString,
-                                                 @Description("TODO") @Parameter(name = KEY_ID_TYPE) String idType,
-                                                 @Description("TODO") @Parameter(name = KEY_SORT_RESULT) boolean sort,
-                                                 @Description("TODO") @Parameter(name = KEY_FACET_ID) final String facetId) throws IOException {
-        final ObjectMapper om = new ObjectMapper();
-        final String[] conceptIds = om.readValue(conceptIdsJsonString, String[].class);
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path("/{" + GET_PATHS_FROM_FACETROOTS + "}")
+    public Representation getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv,
+                                                 @QueryParam(KEY_ID_TYPE) String idType,
+                                                 @QueryParam(KEY_SORT_RESULT) boolean sort,
+                                                 @QueryParam(KEY_FACET_ID) final String facetId) {
+        final String[] conceptIds = conceptIdsCsv.split(",");
 
         Evaluator rootConceptEvaluator = path -> {
             Node endNode = path.endNode();
@@ -673,33 +655,18 @@ public class ConceptManager {
             }
             return Evaluation.EXCLUDE_AND_CONTINUE;
         };
-        RelationshipType relType = StringUtils.isBlank(facetId) ? ConceptManager.EdgeTypes.IS_BROADER_THAN
-                : RelationshipType.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
-        TraversalDescription td = graphDb.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
-                .relationships(relType, Direction.INCOMING).evaluator(rootConceptEvaluator);
-
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            StringBuilder sb = new StringBuilder();
+            RelationshipType relType = StringUtils.isBlank(facetId) ? ConceptManager.EdgeTypes.IS_BROADER_THAN
+                    : RelationshipType.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
+            TraversalDescription td = tx.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
+                    .relationships(relType, Direction.INCOMING).evaluator(rootConceptEvaluator);
+
+            Node[] startNodes = new Node[conceptIds.length];
             for (int i = 0; i < conceptIds.length; i++) {
                 String conceptId = conceptIds[i];
-                // escape the conceptId for the Lucene lookup
-                conceptId = QueryParser.escape(conceptId);
-                sb.append(idType).append(":").append(conceptId);
-                if (i < conceptIds.length - 1)
-                    sb.append(" ");
-            }
-            String conceptQuery = sb.toString();
-
-            Index<Node> conceptIndex = graphDb.index().forNodes(INDEX_NAME);
-            IndexHits<Node> indexHits = conceptIndex.query(conceptQuery);
-            ResourceIterator<Node> startNodeIterator = indexHits.iterator();
-            Node[] startNodes = new Node[indexHits.size()];
-            for (int i = 0; i < indexHits.size(); i++) {
-                if (startNodeIterator.hasNext()) {
-                    startNodes[i] = startNodeIterator.next();
-                } else
-                    throw new IllegalStateException(indexHits.size()
-                            + " index hits for start nodes expected but iterator expired unexpectedly.");
+                Node node = tx.findNode(ConceptLabel.CONCEPT, PROP_ID, conceptId);
+                startNodes[i] = node;
             }
 
             Traverser traverse = td.traverse(startNodes);
@@ -730,7 +697,7 @@ public class ConceptManager {
                     pathsConceptIds.add(pathConceptIds);
             }
             if (sort)
-                pathsConceptIds.sort((o1, o2) -> o1.length - o2.length);
+                pathsConceptIds.sort(Comparator.comparingInt(o -> o.length));
             Map<String, Object> pathsWrappedInMap = new HashMap<>();
             pathsWrappedInMap.put(RET_KEY_PATHS, pathsConceptIds);
             return new RecursiveMappingRepresentation(Representation.MAP, pathsWrappedInMap);
@@ -757,16 +724,14 @@ public class ConceptManager {
      * aggregate and does not have to be present in which case nothing will be
      * copied. The copy process will NOT be done in this method call but must be
      * triggered manually via
-     * {@link #copyAggregateProperties(Transaction)}.
+     * {@link #copyAggregateProperties()}.
      *
-     * @param tx
-     * @param conceptIndex
-     * @param jsonConcept
-     * @param nodesByCoordinates
-     * @param insertionReport
-     * @param importOptions
-     * @return
-     * @throws AggregateConceptInsertionException
+     * @param tx                 The current transaction.
+     * @param jsonConcept        The aggregate encoded into JSON format.
+     * @param nodesByCoordinates The currently imported nodes.
+     * @param insertionReport    The current insertion report.
+     * @param importOptions      The current import options.
+     * @throws AggregateConceptInsertionException If the aggregate could not be added.
      */
     private void insertAggregateConcept(Transaction tx, ImportConcept jsonConcept,
                                         CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
@@ -879,7 +844,7 @@ public class ConceptManager {
         }
     }
 
-    private void insertConcept(GraphDatabaseService graphDb, String facetId, Index<Node> conceptIndex,
+    private void insertConcept(Transaction tx, String facetId,
                                ImportConcept jsonConcept, CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
                                ImportOptions importOptions) {
         // Name is mandatory, thus we don't use the
@@ -952,9 +917,8 @@ public class ConceptManager {
                     rel.delete();
             }
             String conceptId = NodeIDPrefixConstants.TERM
-                    + SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_TERM);
+                    + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_TERM);
             concept.setProperty(PROP_ID, conceptId);
-            conceptIndex.putIfAbsent(concept, PROP_ID, conceptId);
         }
 
         // Merge the new or an already existing concept with what we
@@ -1020,7 +984,7 @@ public class ConceptManager {
                     + " because on concept with this source ID and source " + source
                     + " the ID was declared non-unique in the past but unique now. Properties from all nodes are merged together and relationships are moved from obsolete nodes to the single remaining node. This is experimental and might lead to errors.");
             List<Node> obsoleteNodes = new ArrayList<>();
-            Node mergedNode = NodeUtilities.mergeConceptNodesWithUniqueSourceId(srcId, conceptIndex, obsoleteNodes);
+            Node mergedNode = NodeUtilities.mergeConceptNodesWithUniqueSourceId(tx, srcId, obsoleteNodes);
             // now move the relationships of all nodes to be removed to the
             // merged node
             for (Node obsoleteNode : obsoleteNodes) {
@@ -1092,7 +1056,7 @@ public class ConceptManager {
      *
      * </ul>
      *
-     * @param graphDb
+     * @param tx
      * @param jsonConcepts
      * @param facetId
      * @param nodesByCoordinates
@@ -1100,16 +1064,13 @@ public class ConceptManager {
      * @return
      * @throws AggregateConceptInsertionException
      */
-    private InsertionReport insertConcepts(GraphDatabaseService graphDb, List<ImportConcept> jsonConcepts, String facetId,
+    private InsertionReport insertConcepts(Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
                                            CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         InsertionReport insertionReport = new InsertionReport();
         // Idea: First create all nodes and just store which Node has which
         // parent. Then, after all nodes have been created, do the actual
         // connection.
-        Index<Node> conceptIndex = null;
-        IndexManager indexManager = graphDb.index();
-        conceptIndex = indexManager.forNodes(INDEX_NAME);
 
         // this MUST be a TreeSort or at least some collection using the
         // Comparable interface because ConceptCoordinates are rather
@@ -1124,7 +1085,7 @@ public class ConceptManager {
             for (ImportConcept jsonConcept : jsonConcepts) {
                 if (jsonConcept.parentCoordinates != null) {
                     for (ConceptCoordinates parentCoordinates : jsonConcept.parentCoordinates) {
-                        Node parentNode = lookupConcept(parentCoordinates, conceptIndex);
+                        Node parentNode = lookupConcept(tx, parentCoordinates);
                         if (parentNode != null) {
                             insertionReport.addExistingConcept(parentNode);
                             nodesByCoordinates.put(parentCoordinates, parentNode);
@@ -1161,7 +1122,7 @@ public class ConceptManager {
             // above
             if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
                 continue;
-            Node conceptNode = lookupConcept(coordinates, conceptIndex);
+            Node conceptNode = lookupConcept(tx, coordinates);
             if (conceptNode != null) {
                 insertionReport.addExistingConcept(conceptNode);
                 nodesByCoordinates.put(coordinates, conceptNode);
@@ -1188,7 +1149,7 @@ public class ConceptManager {
         // Finished getting existing nodes and creating HOLLOW nodes
 
         for (ConceptCoordinates coordinates : toBeCreated) {
-            Node conceptNode = registerNewHollowConceptNode(graphDb, coordinates, conceptIndex);
+            Node conceptNode = registerNewHollowConceptNode(tx, coordinates);
             ++insertionReport.numConcepts;
 
             nodesByCoordinates.put(coordinates, conceptNode);
@@ -1203,10 +1164,10 @@ public class ConceptManager {
         for (ImportConcept jsonConcept : jsonConcepts) {
             boolean isAggregate = jsonConcept.aggregate;
             if (isAggregate) {
-                insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+                insertAggregateConcept(tx, jsonConcept, nodesByCoordinates, insertionReport,
                         importOptions);
             } else {
-                insertConcept(graphDb, facetId, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
+                insertConcept(tx, facetId, jsonConcept, nodesByCoordinates, insertionReport,
                         importOptions);
             }
         }
@@ -1227,7 +1188,7 @@ public class ConceptManager {
      * @return
      */
     private Node registerNewHollowConceptNode(Transaction tx, ConceptCoordinates coordinates,
-                                           Label... additionalLabels) {
+                                              Label... additionalLabels) {
         Node node = tx.createNode(ConceptLabel.HOLLOW);
         for (Label label : additionalLabels) {
             node.addLabel(label);
@@ -1244,50 +1205,25 @@ public class ConceptManager {
         return node;
     }
 
-    public Representation insertConcepts(GraphDatabaseService graphDb, String conceptsWithFacet) throws ConceptInsertionException, IOException {
-        final ObjectMapper om = new ObjectMapper();
-        final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(conceptsWithFacet, ImportConcepts.class);
-        ImportFacet jsonFacet = importConcepts.getFacet();
-        List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
-        ImportOptions importOptionsJson = importConcepts.getImportOptions();
-        return insertConcepts(graphDb, jsonFacet != null ? om.writeValueAsString(jsonFacet) : null, om.writeValueAsString(jsonConcepts),
-                importOptionsJson != null ? om.writeValueAsString(importOptionsJson) : null);
-    }
-
-    @Name(INSERT_CONCEPTS)
-    // TODO
-    @Description("TODO")
-    @PluginTarget(GraphDatabaseService.class)
-    public Representation insertConcepts(@Source GraphDatabaseService graphDb,
-                                         @Description("TODO") @Parameter(name = KEY_FACET, optional = true) String facetJson,
-                                         @Description("TODO") @Parameter(name = KEY_CONCEPTS, optional = true) String conceptsJson,
-                                         @Description("TODO") @Parameter(name = KEY_IMPORT_OPTIONS, optional = true) String importOptionsJsonString)
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path("/{" + INSERT_CONCEPTS + "}")
+    public Representation insertConcepts(String jsonParameterObject)
             throws ConceptInsertionException, IOException {
         log.info("{} was called", INSERT_CONCEPTS);
         long time = System.currentTimeMillis();
 
-        final ObjectMapper om = new ObjectMapper();
-        log.debug("Parsing input.");
-        ImportFacet jsonFacet = null;
-        List<ImportConcept> jsonConcepts = null;
-        jsonFacet = !StringUtils.isEmpty(facetJson) ? om.readValue(facetJson, ImportFacet.class) : null;
-        if (null != conceptsJson) {
-            jsonConcepts = om.readValue(conceptsJson, new TypeReference<List<ImportConcept>>() {
-            });
-            log.info("Got {} input concepts for import.", jsonConcepts.size());
-        } else {
-            log.info("Got 0 input concepts for import.");
-        }
-        ImportOptions importOptions;
-        if (null != importOptionsJsonString) {
-            importOptions = om.readValue(importOptionsJsonString, ImportOptions.class);
-        } else {
-            importOptions = new ImportOptions();
-        }
+        final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(jsonParameterObject, ImportConcepts.class);
+        ImportFacet jsonFacet = importConcepts.getFacet();
+        List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
+        log.info("Got {} input concepts for import.", jsonConcepts != null ? jsonConcepts.size() : 0);
+        ImportOptions importOptions = importConcepts.getImportOptions();
 
         Map<String, Object> report = new HashMap<>();
         InsertionReport insertionReport = new InsertionReport();
         log.debug("Beginning processing of concept insertion.");
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
             Node facet = null;
             String facetId = null;
@@ -1299,14 +1235,14 @@ public class ConceptManager {
                 log.info("Facet ID {} has been given to add the concepts to.", facetId);
                 boolean isNoFacet = jsonFacet.isNoFacet();
                 if (isNoFacet)
-                    facet = FacetManager.getNoFacet(graphDb, facetId);
+                    facet = FacetManager.getNoFacet(tx, facetId);
                 else
-                    facet = FacetManager.getFacetNode(graphDb, facetId);
+                    facet = FacetManager.getFacetNode(tx, facetId);
                 if (null == facet)
                     throw new IllegalArgumentException("The facet with ID \"" + facetId
                             + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
             } else if (null != jsonFacet && jsonFacet.getName() != null) {
-                ResourceIterator<Node> facetIterator = graphDb.findNodes(FacetLabel.FACET);
+                ResourceIterator<Node> facetIterator = tx.findNodes(FacetLabel.FACET);
                 while (facetIterator.hasNext()) {
                     facet = facetIterator.next();
                     if (facet.getProperty(FacetConstants.PROP_NAME)
@@ -1332,7 +1268,7 @@ public class ConceptManager {
             if (null != jsonConcepts) {
                 log.debug("Beginning to create concept nodes and relationships.");
                 CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                insertionReport = insertConcepts(graphDb, jsonConcepts, facetId, nodesByCoordinates, importOptions);
+                insertionReport = insertConcepts(tx, jsonConcepts, facetId, nodesByCoordinates, importOptions);
                 // If the nodesBySrcId map is empty we either have no concepts or
                 // at least no concepts with a source ID. Then,
                 // relationship creation is currently not supported.
@@ -1365,7 +1301,7 @@ public class ConceptManager {
      * ID and original source but the same source ID and source. Contradicting means
      * two non-null values that are not equal.
      *
-     * @param coordinates  The coordinates of the concept to find.
+     * @param coordinates The coordinates of the concept to find.
      * @return The node corresponding to the given coordinates or null, if none is found.
      */
     private Node lookupConcept(Transaction tx, ConceptCoordinates coordinates) {
@@ -1429,7 +1365,6 @@ public class ConceptManager {
      * Returns the concept node with source ID <tt>srcId</tt> given from source
      * <tt>source</tt> or <tt>null</tt> if no such node exists.
      *
-     *
      * @param tx
      * @param srcId          The source ID of the requested concept node.
      * @param source         The source in which the concept node should be given
@@ -1490,16 +1425,18 @@ public class ConceptManager {
     }
 
 
-
-    @Name(UPDATE_CHILDREN_INFORMATION)
-    @Description("Updates - or creates - the information which concept has children in which facets."
-            + " This information is used in Semedico to either render an 'opening' arrow next to"
-            + " a concept to display its children, or no 'drill-down' option depending on whether"
-            + " the concept in question has children in the facet it is shown in or not.")
-    @PluginTarget(GraphDatabaseService.class)
-    public String updateChildrenInformation(@Source GraphDatabaseService graphDb) {
+    /**
+     * Updates - or creates - the information which concept has children in which facets.
+     * This information is used in Semedico to either render an 'opening' arrow next to
+     * a concept to display its children, or no 'drill-down' option depending on whether
+     * the concept in question has children in the facet it is shown in or not.
+     */
+    @PUT
+    @javax.ws.rs.Path("/{" + UPDATE_CHILD_INFORMATION + "}")
+    public void updateChildrenInformation() {
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterator<Node> conceptIt = graphDb.findNodes(ConceptLabel.CONCEPT);
+            ResourceIterator<Node> conceptIt = tx.findNodes(ConceptLabel.CONCEPT);
             while (conceptIt.hasNext()) {
                 Node concept = conceptIt.next();
                 Iterator<Relationship> relIt = concept.getRelationships(Direction.OUTGOING).iterator();
@@ -1522,101 +1459,36 @@ public class ConceptManager {
                             facetsContainingChildren.toArray(new String[facetsContainingChildren.size()]));
             }
             tx.commit();
-            return "success";
         }
     }
 
-    @Name("include_concepts")
-    @Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
-    @PluginTarget(GraphDatabaseService.class)
-    public void includeConcepts(@Source GraphDatabaseService graphDb) {
-        Label includeLabel = Label.label("INCLUDE");
-        try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterable<Node> concepts = () -> graphDb.findNodes(includeLabel);
-            for (Node concept : concepts)
-                concept.removeLabel(includeLabel);
-            tx.commit();
-        }
-
-        Set<String> facetIds = new HashSet<>();
-        try (Transaction tx = graphDb.beginTx()) {
-            Node facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
-            TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(graphDb, null, null);
-            Traverser traverse = facetTraversal.traverse(facetGroupsNode);
-            for (Path path : traverse) {
-                Node facetNode = path.endNode();
-                facetIds.add((String) facetNode.getProperty(FacetConstants.PROP_ID));
-            }
-            log.info("Including concepts from facets " + facetIds);
-            tx.commit();
-        }
-        try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterable<Node> concepts = () -> graphDb.findNodes(ConceptLabel.CONCEPT);
-            for (Node concept : concepts) {
-                if (!concept.hasProperty(PROP_FACETS)) {
-                    log.info("Doesnt have facets: " + PropertyUtilities.getNodePropertiesAsString(concept));
-                    continue;
-                }
-                String[] facets = (String[]) concept.getProperty(PROP_FACETS);
-                for (String string : facets) {
-                    if (facetIds.contains(string)) {
-                        concept.addLabel(includeLabel);
-                        break;
-                    }
-                }
-            }
-            tx.commit();
-        }
-    }
-
-    @Name("exclude_concepts")
-    @Description("This is only a remedy for a problem we shouldnt have, delete in the future.")
-    @PluginTarget(GraphDatabaseService.class)
-    public void excludeConcepts(@Source GraphDatabaseService graphDb) {
-        Label includeLabel = Label.label("INCLUDE");
-        Label excludeLabel = Label.label("EXCLUDE");
-        Label mappingAggregateLabel = Label.label("MAPPING_AGGREGATE");
-        try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterable<Node> concepts = () -> graphDb.findNodes(ConceptLabel.CONCEPT);
-            for (Node concept : concepts) {
-                if (!concept.hasLabel(includeLabel)) {
-                    concept.addLabel(excludeLabel);
-                    concept.removeLabel(mappingAggregateLabel);
-                    concept.removeLabel(ConceptLabel.AGGREGATE);
-                    concept.removeLabel(ConceptLabel.CONCEPT);
-                } else {
-                    concept.addLabel(mappingAggregateLabel);
-                }
-            }
-            tx.commit();
-        }
-        try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterable<Node> concepts = () -> graphDb.findNodes(ConceptLabel.AGGREGATE);
-            for (Node a : concepts) {
-                a.removeLabel(ConceptLabel.AGGREGATE);
-                a.removeLabel(mappingAggregateLabel);
-            }
-            tx.commit();
-        }
-
-    }
-
-    @Name(INSERT_MAPPINGS)
-    @Description("Adds a set of concept mappings to the database. Here, a 'mapping'"
-            + " between two concepts means that those concepts are 'similar' to one"
-            + " another. The actual similarity - e.g. 'equal' or 'related' - is"
-            + " defined by the type of the mapping. Here, all mappings are interpreted"
-            + " as being symmetric. That does not mean that two relationships are created"
-            + " but that reading commands don't care about the relationship direction.")
-    @PluginTarget(GraphDatabaseService.class)
-    public int insertMappings(@Source GraphDatabaseService graphDb,
-                              @Description("An array of mappings in JSON format. Each mapping is an object with the keys for \"id1\", \"id2\" and \"mappingType\", respectively.") @Parameter(name = KEY_MAPPINGS) String mappingsJson) throws IOException {
+    /**
+     * <p>
+     * Adds a set of concept mappings to the database. Here, a 'mapping'
+     * between two concepts means that those concepts are 'similar' to one
+     * another. The actual similarity - e.g. 'equal' or 'related' - is
+     * defined by the type of the mapping. Here, all mappings are interpreted
+     * as being symmetric. That does not mean that two relationships are created
+     * but that reading commands don't care about the relationship direction.
+     * </p>
+     * <p>
+     * Parameter: {@link #KEY_MAPPINGS}: An array of mappings in JSON format. Each mapping is an object with the keys for "id1", "id2" and "mappingType", respectively.
+     * </p>
+     *
+     * @param mappingsJson The mappings in JSON format.
+     * @return The number of insertes mappings.
+     * @throws IOException If the input JSON cannot be read.
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path("/{" + INSERT_MAPPINGS + "}")
+    public int insertMappings(String mappingsJson) throws IOException {
         final ObjectMapper om = new ObjectMapper();
         final List<Map<String, String>> mappings = om.readValue(mappingsJson, new TypeReference<List<Map<String, String>>>() {
         });
         log.info("Starting to insert " + mappings.size() + " mappings.");
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            Index<Node> conceptIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
             Map<String, Node> nodesBySrcId = new HashMap<>(mappings.size());
             InsertionReport insertionReport = new InsertionReport();
 
@@ -1636,14 +1508,16 @@ public class ConceptManager {
 
                 Node n1 = nodesBySrcId.get(id1);
                 if (null == n1) {
-                    IndexHits<Node> indexHits = conceptIndex.get(PROP_SRC_IDS, id1);
-                    if (indexHits.size() > 1) {
+
+                    ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, ConceptLabel.CONCEPT, PROP_SRC_IDS, id1);
+                    if (indexHits.hasNext())
+                        n1 = (Node) indexHits.next();
+                    if (indexHits.hasNext()) {
                         log.error("More than one node for source ID {}", id1);
-                        for (Node n : indexHits)
-                            log.error(NodeUtilities.getNodePropertiesAsString(n));
+                        while (indexHits.hasNext())
+                            log.error(NodeUtilities.getNodePropertiesAsString((Entity) indexHits.next()));
                         throw new IllegalStateException("More than one node for source ID " + id1);
                     }
-                    n1 = indexHits.getSingle();
                     if (null == n1) {
                         log.warn("There is no concept with source ID \"" + id1 + "\" as required by the mapping \""
                                 + mapping + "\" Mapping is skipped.");
@@ -1653,7 +1527,7 @@ public class ConceptManager {
                 }
                 Node n2 = nodesBySrcId.get(id2);
                 if (null == n2) {
-                    n2 = conceptIndex.get(PROP_SRC_IDS, id2).getSingle();
+                    n2 = FullTextIndexUtils.getNode(tx, ConceptLabel.CONCEPT, PROP_SRC_IDS, id2);
                     if (null == n2) {
                         log.warn("There is no concept with source ID \"" + id2 + "\" as required by the mapping \""
                                 + mapping + "\" Mapping is skipped.");
@@ -1696,13 +1570,31 @@ public class ConceptManager {
         }
     }
 
-    @Name(GET_FACET_ROOTS)
-    @Description("Returns root concepts for the facets with specified IDs. Can also be restricted to particular roots which is useful for facets that have a lot of roots.")
-    @PluginTarget(GraphDatabaseService.class)
-    public MappingRepresentation getFacetRoots(@Source GraphDatabaseService graphDb,
-                                               @Description("An array of facet IDs in JSON format.") @Parameter(name = KEY_FACET_IDS) String facetIdsJson,
-                                               @Description("An array of concept IDs to restrict the retrieval to.") @Parameter(name = KEY_CONCEPT_IDS, optional = true) String conceptIdsJson,
-                                               @Description("Restricts the facets to those that have at most the specified number of roots.") @Parameter(name = KEY_MAX_ROOTS, optional = true) long maxRoots) throws IOException {
+    /**
+     * <p>
+     * Returns root concepts for the facets with specified IDs. Can also be restricted to particular roots which is useful for facets that have a lot of roots.
+     * </p>
+     * <p>
+     * Parameters:
+     *     <ul>
+     *         <li>{@link #KEY_FACET_IDS}: "An array of facet IDs in CSV format.</li>
+     *         <li>{@link #KEY_CONCEPT_IDS}: "An array of concept IDs to restrict the retrieval to in CSV format.</li>
+     *         <li>{@link #KEY_MAX_ROOTS}: "Restricts the facets to those that have at most the specified number of roots.</li>
+     *     </ul>
+     * </p>
+     *
+     * @param facetIdsJson
+     * @param conceptIdsJson
+     * @param maxRoots
+     * @return
+     * @throws IOException
+     */
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path("/{" + GET_FACET_ROOTS + "}")
+    public MappingRepresentation getFacetRoots(@QueryParam(KEY_FACET_IDS) String facetIdsJson,
+                                               @QueryParam(KEY_CONCEPT_IDS) String conceptIdsJson,
+                                               @QueryParam(KEY_MAX_ROOTS) long maxRoots) throws IOException {
         final ObjectMapper om = new ObjectMapper();
         Map<String, Object> facetRoots = new HashMap<>();
 
@@ -1723,10 +1615,11 @@ public class ConceptManager {
             }
         }
 
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
             log.info("Returning roots for facets " + requestedFacetIds);
-            Node facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
-            TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(graphDb, null, null);
+            Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
+            TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(tx, null, null);
             Traverser traverse = facetTraversal.traverse(facetGroupsNode);
             for (Path path : traverse) {
                 Node facetNode = path.endNode();
@@ -1767,18 +1660,34 @@ public class ConceptManager {
         return new RecursiveMappingRepresentation(Representation.MAP, facetRoots);
     }
 
-    @Name(ADD_CONCEPT_CONCEPT)
-    @Description("Allows to add writing variants and acronyms to concepts in the database. For each type of data (variants and acronyms) there is a parameter of its own."
-            + " It is allowed to omit a parameter value. The expected format is"
-            + " {'tid1': {'docID1': {'variant1': count1, 'variant2': count2, ...}, 'docID2': {...}}, 'tid2':...} for both variants and acronyms.")
-    @PluginTarget(GraphDatabaseService.class)
-    public void addWritingVariants(@Source GraphDatabaseService graphDb,
-                                   @Description("A JSON object mapping concept IDs to an array of writing variants to add to the existing writing variants.") @Parameter(name = KEY_CONCEPT_TERMS, optional = true) String conceptVariants,
-                                   @Description("A JSON object mapping concept IDs to an array of acronyms to add to the existing concept acronyms.") @Parameter(name = KEY_CONCEPT_ACRONYMS, optional = true) String conceptAcronyms) {
+    /**
+     * <p>
+     * Allows to add writing variants and acronyms to concepts in the database. For each type of data
+     * (variants and acronyms) there is a parameter of its own. It is allowed to omit a parameter value. The expected format is"
+     * {'tid1': {'docID1': {'variant1': count1, 'variant2': count2, ...}, 'docID2': {...}}, 'tid2':...} for both variants and acronyms."
+     * </p>
+     * <p>
+     * Parameters encapsulated into a JSON object:
+     *     <ul>
+     *         <li>{@link #KEY_CONCEPT_TERMS}: A JSON object mapping concept IDs to an array of writing variants to add to the existing writing variants.</li>
+     *         <li>{@link #KEY_CONCEPT_ACRONYMS}: A JSON object mapping concept IDs to an array of acronyms to add to the existing concept acronyms.</li>
+     *     </ul>
+     * </p>
+     *
+     * @throws IOException If the JSON input cannot be read.
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path("/{" + ADD_CONCEPT_TERM + "}")
+    public void addWritingVariants(String jsonParameterObject) throws IOException {
+        ObjectMapper om = new ObjectMapper();
+        Map<String, String> parameterMap = om.readValue(jsonParameterObject, Map.class);
+        String conceptVariants = parameterMap.get(KEY_CONCEPT_TERMS);
+        String conceptAcronyms = parameterMap.get(KEY_CONCEPT_ACRONYMS);
         if (null != conceptVariants)
-            addConceptVariant(graphDb, conceptVariants, "writingVariants");
+            addConceptVariant(conceptVariants, "writingVariants");
         if (null != conceptAcronyms)
-            addConceptVariant(graphDb, conceptAcronyms, "acronyms");
+            addConceptVariant(conceptAcronyms, "acronyms");
     }
 
     /**
@@ -1801,11 +1710,10 @@ public class ConceptManager {
      * }
      * </pre>
      *
-     * @param graphDb
      * @param conceptVariants
      * @param type
      */
-    private void addConceptVariant(GraphDatabaseService graphDb, String conceptVariants, String type) {
+    private void addConceptVariant(String conceptVariants, String type) {
         Label variantsAggregationLabel;
         Label variantNodeLabel;
 
@@ -1822,6 +1730,7 @@ public class ConceptManager {
             throw new IllegalArgumentException("Unknown lexico-morphological type \"" + type + "\".");
         try (StringReader stringReader = new StringReader(conceptVariants)) {
             JsonReader jsonReader = new JsonReader(stringReader);
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
                 // object holding the concept IDs mapped to their respective
                 // writing variant object
@@ -1866,7 +1775,7 @@ public class ConceptManager {
                         log.debug("Concept with ID " + conceptId + " has no writing variants / acronyms attached.");
                         continue;
                     }
-                    Node concept = graphDb.findNode(ConceptLabel.CONCEPT, PROP_ID, conceptId);
+                    Node concept = tx.findNode(ConceptLabel.CONCEPT, PROP_ID, conceptId);
                     if (null == concept) {
                         log.warn("Concept with ID " + conceptId
                                 + " was not found, cannot add writing variants / acronyms.");
@@ -1880,7 +1789,7 @@ public class ConceptManager {
                     Relationship hasVariantsRel = concept.getSingleRelationship(variantRelationshipType,
                             Direction.OUTGOING);
                     if (null == hasVariantsRel) {
-                        Node variantsNode = graphDb.createNode(variantsAggregationLabel);
+                        Node variantsNode = tx.createNode(variantsAggregationLabel);
                         hasVariantsRel = concept.createRelationshipTo(variantsNode, variantRelationshipType);
                     }
                     Node variantsNode = hasVariantsRel.getEndNode();
@@ -1888,10 +1797,10 @@ public class ConceptManager {
                         Map<String, Integer> variantCounts = variantCountsInDocs.get(docId);
                         for (String variant : variantCounts.keySet()) {
                             String normalizedVariant = TermVariantComparator.normalizeVariant(variant);
-                            Node variantNode = graphDb.findNode(variantNodeLabel, MorphoConstants.PROP_ID,
+                            Node variantNode = tx.findNode(variantNodeLabel, MorphoConstants.PROP_ID,
                                     normalizedVariant);
                             if (null == variantNode) {
-                                variantNode = graphDb.createNode(variantNodeLabel);
+                                variantNode = tx.createNode(variantNodeLabel);
                                 variantNode.setProperty(NodeConstants.PROP_ID, normalizedVariant);
                                 variantNode.setProperty(MorphoConstants.PROP_NAME, variant);
                             }

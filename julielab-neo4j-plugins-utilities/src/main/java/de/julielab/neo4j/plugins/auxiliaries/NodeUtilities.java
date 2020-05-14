@@ -78,8 +78,8 @@ public class NodeUtilities extends PropertyUtilities {
 		return otherNode;
 	}
 
-	public static Node copyNode(GraphDatabaseService graphDb, Node source) {
-		Node copy = graphDb.createNode();
+	public static Node copyNode(Transaction tx, Node source) {
+		Node copy = tx.createNode();
 		for (String key : source.getPropertyKeys()) {
 			copy.setProperty(key, source.getProperty(key));
 		}

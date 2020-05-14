@@ -1505,7 +1505,7 @@ public class ConceptManagerTest {
 		RecursiveMappingRepresentation pathsFromFacetroots;
 		List<String[]> paths;
 
-		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
+		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(graphDb,
 				ConceptsJsonSerializer.toJson(Lists.newArrayList("source1", "source3")), ConceptConstants.PROP_SRC_IDS,
 				false, "");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
@@ -1529,7 +1529,7 @@ public class ConceptManagerTest {
 		}
 		assertEquals("Wrong number of paths", 3, paths.size());
 
-		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
+		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(graphDb,
 				ConceptsJsonSerializer.toJson(Lists.newArrayList("source4", "source6")), ConceptConstants.PROP_SRC_IDS,
 				false, "");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
@@ -1606,7 +1606,7 @@ public class ConceptManagerTest {
 		RecursiveMappingRepresentation pathsFromFacetroots;
 		List<String[]> paths;
 
-		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
+		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(graphDb,
 				ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false, "");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		for (String[] path : paths) {
@@ -1618,14 +1618,14 @@ public class ConceptManagerTest {
 		}
 		assertEquals("Wrong number of paths", 2, paths.size());
 
-		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
+		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(graphDb,
 				ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false,
 				"fid0");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
 		assertEquals("Wrong number of paths", 1, paths.size());
 		assertArrayEquals(new String[] { "tid0", "tid1", "tid2", "tid3", "tid4" }, paths.get(0));
 
-		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetroots(graphDb,
+		pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(graphDb,
 				ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false,
 				"fid1");
 		paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
