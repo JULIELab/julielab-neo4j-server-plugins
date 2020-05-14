@@ -2,9 +2,7 @@ package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
-import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
-import de.julielab.neo4j.plugins.ConceptManager.MorphoLabel;
+import de.julielab.neo4j.plugins.ConceptManager.*;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -28,7 +26,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import static de.julielab.neo4j.plugins.ConceptManager.ConceptLabel.CONCEPT;
-import static de.julielab.neo4j.plugins.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
+import static de.julielab.neo4j.plugins.ConceptManager.*;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
@@ -1014,8 +1012,7 @@ public class ConceptManagerTest {
             assertEquals(2, relCount);
 
             // now: get the "children" of the aggregate (should be the elements)
-            RecursiveMappingRepresentation response = (RecursiveMappingRepresentation) cm.getChildrenOfConcepts(
-                    NodeIDPrefixConstants.AGGREGATE_TERM + "0", ConceptLabel.AGGREGATE.name());
+            RecursiveMappingRepresentation response = (RecursiveMappingRepresentation) cm.getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), KEY_LABEL, ConceptLabel.AGGREGATE.name())));
             @SuppressWarnings("unchecked")
             Map<String, Object> relAndChildMap = (Map<String, Object>) response.getUnderlyingMap()
                     .get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
@@ -1255,8 +1252,7 @@ public class ConceptManagerTest {
         List<String[]> paths;
 
         pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Lists.newArrayList("source1", "source3")), ConceptConstants.PROP_SRC_IDS,
-                false, "");
+                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source1", "source3"), KEY_SORT_RESULT, false)));
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect one path with a single node, i.e. source1 and two paths
@@ -1279,8 +1275,7 @@ public class ConceptManagerTest {
         assertEquals("Wrong number of paths", 3, paths.size());
 
         pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Lists.newArrayList("source4", "source6")), ConceptConstants.PROP_SRC_IDS,
-                false, "");
+                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source4", "source6"), KEY_SORT_RESULT, false)));
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         String[] expectedPath1 = new String[]{NodeIDPrefixConstants.TERM + 0, NodeIDPrefixConstants.TERM + 2,
                 NodeIDPrefixConstants.TERM + 3};
@@ -1356,7 +1351,7 @@ public class ConceptManagerTest {
         List<String[]> paths;
 
         pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false, "");
+                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source5"), KEY_SORT_RESULT, false)));
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect two paths, both chains that have been defined by the
@@ -1368,15 +1363,13 @@ public class ConceptManagerTest {
         assertEquals("Wrong number of paths", 2, paths.size());
 
         pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false,
-                "fid0");
+                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source15"), KEY_SORT_RESULT, false, KEY_FACET_ID, "fid0")));
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid1", "tid2", "tid3", "tid4"}, paths.get(0));
 
         pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Lists.newArrayList("source5")), ConceptConstants.PROP_SRC_IDS, false,
-                "fid1");
+                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source5"), KEY_SORT_RESULT, false, KEY_FACET_ID, "fid1")));
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid5", "tid4"}, paths.get(0));
@@ -1438,7 +1431,7 @@ public class ConceptManagerTest {
         try (Transaction ignored = graphDb.beginTx()) {
             // Get the children of a single node.
             RecursiveMappingRepresentation childrenRepr = (RecursiveMappingRepresentation) ftm
-                    .getChildrenOfConcepts("tid0", null);
+                    .getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("tid0"))));
             Map<String, Object> childMap = childrenRepr.getUnderlyingMap();
             // We asked for only one node, thus there should be one result
             assertEquals(1, childMap.size());
@@ -1463,8 +1456,7 @@ public class ConceptManagerTest {
             // We get the children of three nodes, where two of queried nodes
             // are the same. This shouldn't change the
             // result, i.e. there should be two elements in the result map.
-            childrenRepr = (RecursiveMappingRepresentation) ftm.getChildrenOfConcepts(
-                    "[\"tid0\",\"tid3\",\"tid3\"]]", null);
+            childrenRepr = (RecursiveMappingRepresentation) ftm.getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("tid0", "tid3", "tid3"))));
             childMap = childrenRepr.getUnderlyingMap();
             // We asked for three nodes' children, however two were equal thus
             // there should be two elements.
@@ -1758,10 +1750,7 @@ public class ConceptManagerTest {
         testTerms.getFacet().setName("secondfacet");
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm
-                .getFacetRoots(
-                        ConceptsJsonSerializer.toJson(
-                                Lists.newArrayList(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1)),
-                        null, 0);
+                .getFacetRoots(ConceptsJsonSerializer.toJson(Map.of(KEY_FACET_IDS, List.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1))));
         Map<String, Object> map = facetRoots.getUnderlyingMap();
 
         try (Transaction ignored = graphDb.beginTx()) {
@@ -1797,9 +1786,8 @@ public class ConceptManagerTest {
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm
                 .getFacetRoots(
-                        ConceptsJsonSerializer.toJson(
-                                Lists.newArrayList(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1)),
-                        null, 2);
+                        ConceptsJsonSerializer.toJson(Map.of(KEY_FACET_IDS,
+                                List.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), KEY_MAX_ROOTS, 2)));
         Map<String, Object> map = facetRoots.getUnderlyingMap();
 
         try (Transaction ignored = graphDb.beginTx()) {
@@ -1827,9 +1815,8 @@ public class ConceptManagerTest {
         // for the third facet, we want all roots returned
 
         RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm.getFacetRoots(
-                ConceptsJsonSerializer.toJson(Lists.newArrayList(NodeIDPrefixConstants.FACET + 0,
-                        NodeIDPrefixConstants.FACET + 1, NodeIDPrefixConstants.FACET + 2)),
-                ConceptsJsonSerializer.toJson(requestedRoots), 0);
+                ConceptsJsonSerializer.toJson(Map.of(KEY_FACET_IDS, List.of(NodeIDPrefixConstants.FACET + 0,
+                        NodeIDPrefixConstants.FACET + 1, NodeIDPrefixConstants.FACET + 2), KEY_CONCEPT_IDS, requestedRoots)));
         Map<String, Object> map = facetRoots.getUnderlyingMap();
 
         try (Transaction ignored = graphDb.beginTx()) {

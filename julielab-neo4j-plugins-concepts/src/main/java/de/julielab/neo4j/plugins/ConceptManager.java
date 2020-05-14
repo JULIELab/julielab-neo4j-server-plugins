@@ -597,15 +597,15 @@ public class ConceptManager {
      *     </ul>
      * </p>
      */
-    @GET
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path("/{" + GET_CHILDREN_OF_CONCEPTS + "}")
-    public MappingRepresentation getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdCsv,
-                                                       @QueryParam(KEY_LABEL) String labelString)  {
-        Label label = ConceptLabel.CONCEPT;
-        if (!StringUtils.isBlank(labelString))
-            label = Label.label(labelString);
-        final String[] conceptIds = conceptIdCsv.split(",");
+    public MappingRepresentation getChildrenOfConcepts(String parameterObject) throws IOException {
+        ObjectMapper om = new ObjectMapper();
+        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {});
+
+        Label label = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL)) : ConceptLabel.CONCEPT;
+        final List<String> conceptIds = (List<String>) parameterMap.get(KEY_CONCEPT_IDS);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
             Map<String, Object> childrenByConceptId = new HashMap<>();
@@ -639,14 +639,26 @@ public class ConceptManager {
         }
     }
 
-    @GET
+    /**
+     * Parameters:
+     * <ul>
+     *     <li>{@link #KEY_CONCEPT_IDS}: Array of root concept IDs to retrieve the paths from.</li>
+     *     <li>{@link #KEY_SORT_RESULT}: Boolean indicator if the result paths should be sorted by length.</li>
+     *     <li>{@link #KEY_FACET_ID}: Optional. The facet ID to restrict the root nodes to.</li>
+     * </ul>
+     * @param parameterObject
+     * @return
+     * @throws IOException
+     */
+    @POST
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path("/{" + GET_PATHS_FROM_FACETROOTS + "}")
-    public Representation getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv,
-                                                 @QueryParam(KEY_ID_TYPE) String idType,
-                                                 @QueryParam(KEY_SORT_RESULT) boolean sort,
-                                                 @QueryParam(KEY_FACET_ID) final String facetId) {
-        final String[] conceptIds = conceptIdsCsv.split(",");
+    public Representation getPathsFromFacetRoots(String parameterObject) throws IOException {
+        ObjectMapper om = new ObjectMapper();
+        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {});
+        final List<String> conceptIds = (List<String>) parameterMap.get(KEY_CONCEPT_IDS);
+        final Boolean sort = (Boolean) parameterMap.get(KEY_SORT_RESULT);
+        final String facetId = (String) parameterMap.get(KEY_FACET_ID);
 
         Evaluator rootConceptEvaluator = path -> {
             Node endNode = path.endNode();
@@ -672,9 +684,9 @@ public class ConceptManager {
             TraversalDescription td = tx.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
                     .relationships(relType, Direction.INCOMING).evaluator(rootConceptEvaluator);
 
-            Node[] startNodes = new Node[conceptIds.length];
-            for (int i = 0; i < conceptIds.length; i++) {
-                String conceptId = conceptIds[i];
+            Node[] startNodes = new Node[conceptIds.size()];
+            for (int i = 0; i < conceptIds.size(); i++) {
+                String conceptId = conceptIds.get(i);
                 Node node = tx.findNode(ConceptLabel.CONCEPT, PROP_ID, conceptId);
                 startNodes[i] = node;
             }
@@ -1385,7 +1397,7 @@ public class ConceptManager {
      */
     private Node lookupConceptBySourceId(Transaction tx, String srcId, String source, boolean uniqueSourceId) {
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
-        ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, ConceptLabel.CONCEPT, PROP_SRC_IDS, srcId);
+        ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
         if (!indexHits.hasNext())
             log.trace("    Did not find any concept with source ID {}", srcId);
 
@@ -1441,7 +1453,7 @@ public class ConceptManager {
      * a concept to display its children, or no 'drill-down' option depending on whether
      * the concept in question has children in the facet it is shown in or not.
      */
-    @PUT
+    @POST
     @javax.ws.rs.Path("/{" + UPDATE_CHILD_INFORMATION + "}")
     public void updateChildrenInformation() {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
@@ -1519,7 +1531,7 @@ public class ConceptManager {
                 Node n1 = nodesBySrcId.get(id1);
                 if (null == n1) {
 
-                    ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, ConceptLabel.CONCEPT, PROP_SRC_IDS, id1);
+                    ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, id1);
                     if (indexHits.hasNext())
                         n1 = (Node) indexHits.next();
                     if (indexHits.hasNext()) {
@@ -1553,12 +1565,8 @@ public class ConceptManager {
                     String[] n2Facets = (String[]) n2.getProperty(PROP_FACETS);
                     Set<String> n1FacetSet = new HashSet<>();
                     Set<String> n2FacetSet = new HashSet<>();
-                    for (String facet : n1Facets) {
-                        n1FacetSet.add(facet);
-                    }
-                    for (String facet : n2Facets) {
-                        n2FacetSet.add(facet);
-                    }
+                    n1FacetSet.addAll(Arrays.asList(n1Facets));
+                    Collections.addAll(n2FacetSet, n2Facets);
                     if (!Sets.intersection(n1FacetSet, n2FacetSet).isEmpty()) {
                         // Of course an ontology might contain two equivalent
                         // classes; possible they are even asserted to be equal.
@@ -1593,32 +1601,29 @@ public class ConceptManager {
      *     </ul>
      * </p>
      *
-     * @param facetIdsJson
-     * @param conceptIdsJson
-     * @param maxRoots
      * @return
      * @throws IOException
      */
-    @GET
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path("/{" + GET_FACET_ROOTS + "}")
-    public MappingRepresentation getFacetRoots(@QueryParam(KEY_FACET_IDS) String facetIdsJson,
-                                               @QueryParam(KEY_CONCEPT_IDS) String conceptIdsJson,
-                                               @QueryParam(KEY_MAX_ROOTS) long maxRoots) throws IOException {
+    public MappingRepresentation getFacetRoots(String parameterObject) throws IOException {
         final ObjectMapper om = new ObjectMapper();
+        Map<String, Object> parameterMap = om.readValue(parameterObject, Map.class);
+        Map<String, List<String>> conceptIdsObject = (Map<String, List<String>>) parameterMap.get(KEY_CONCEPT_IDS);
         Map<String, Object> facetRoots = new HashMap<>();
+        int maxRoots = parameterMap.containsKey(KEY_MAX_ROOTS) ? (int) parameterMap.get(KEY_MAX_ROOTS) :0;
 
-        String[] facetIdsArray = om.readValue(facetIdsJson, String[].class);
+        List<String> facetIdsArray = (List<String>) parameterMap.get(KEY_FACET_ID);
         Set<String> requestedFacetIds = new HashSet<>();
         for (String value : facetIdsArray) requestedFacetIds.add(value);
 
         Map<String, Set<String>> requestedConceptIds = null;
-        if (!StringUtils.isBlank(conceptIdsJson) && !conceptIdsJson.equals("null")) {
-            Map<String, String[]> conceptIdsObject = om.readValue(conceptIdsJson, new TypeReference<Map<String, String[]>>() {
-            });
+        if (conceptIdsObject != null) {
             requestedConceptIds = new HashMap<>();
             for (String facetId : conceptIdsObject.keySet()) {
-                String[] requestedRootIdsForFacet = conceptIdsObject.get(facetId);
+                List<String> requestedRootIdsForFacet = conceptIdsObject.get(facetId);
                 Set<String> idSet = new HashSet<>();
                 for (String s : requestedRootIdsForFacet) idSet.add(s);
                 requestedConceptIds.put(facetId, idSet);

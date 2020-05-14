@@ -95,7 +95,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     }
 
     public static Node mergeConceptNodesWithUniqueSourceId(Transaction tx, String srcId, List<Node> obsoleteNodes) {
-        ResourceIterator<Object> conceptNodesIt = FullTextIndexUtils.getNodes(tx, ConceptManager.ConceptLabel.CONCEPT, PROP_SRC_IDS, srcId);
+        ResourceIterator<Object> conceptNodesIt = FullTextIndexUtils.getNodes(tx, ConceptManager.FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
         Node firstNode = null;
         for (Object o : (Iterable<Object>)() -> conceptNodesIt) {
             Node conceptNode = (Node) o;
