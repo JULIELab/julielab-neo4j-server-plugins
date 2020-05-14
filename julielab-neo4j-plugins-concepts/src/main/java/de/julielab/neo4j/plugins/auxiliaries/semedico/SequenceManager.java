@@ -23,16 +23,13 @@ public class SequenceManager {
 		SEQUENCE_ROOT
 	}
 
-	public static int getNextSequenceValue(GraphDatabaseService graphDb, String seqFacetGroup) {
-		try (Transaction tx = graphDb.beginTx()) {
-			Node sequence = getSequence(graphDb, seqFacetGroup);
+	public static int getNextSequenceValue(Transaction tx, String seqFacetGroup) {
+			Node sequence = getSequence(tx, seqFacetGroup);
 			tx.acquireReadLock(sequence);
 			tx.acquireWriteLock(sequence);
 			int currentSequenceValue = (Integer) sequence.getProperty(PROP_VALUE);
 			sequence.setProperty(PROP_VALUE, currentSequenceValue + 1);
-			tx.success();
 			return currentSequenceValue;
-		}
 	}
 
 	static Node getSequenceRoot(GraphDatabaseService graphDb) {
@@ -46,7 +43,7 @@ public class SequenceManager {
 		return seqRoot;
 	}
 
-	private static synchronized Node getSequence(GraphDatabaseService graphDb, String seqFacetGroup) {
+	private static synchronized Node getSequence(Transaction graphDb, String seqFacetGroup) {
 
 		try {
 			IndexHits<Node> indexHits = null;

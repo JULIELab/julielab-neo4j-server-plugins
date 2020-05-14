@@ -52,22 +52,22 @@ public class ConceptAggregateBuilder {
 
             // Get all terms and sort them by name and synonyms
             ResourceIterable<Node> termIterable = () -> graphDb.findNodes(ConceptManager.ConceptLabel.CONCEPT);
-            List<Node> terms = new ArrayList<Node>();
+            List<Node> terms = new ArrayList<>();
             for (Node term : termIterable) {
                 terms.add(term);
             }
-            Collections.sort(terms, nameAndSynonymComparator);
+            terms.sort(nameAndSynonymComparator);
 
             String[] copyProperties = new String[]{ConceptConstants.PROP_PREF_NAME, ConceptConstants.PROP_SYNONYMS,
                     ConceptConstants.PROP_DESCRIPTIONS};
-            List<Node> equalNameTerms = new ArrayList<Node>();
+            List<Node> equalNameTerms = new ArrayList<>();
             for (Node term : terms) {
                 boolean equalTerm = 0 == equalNameTerms.size()
                         || 0 == nameAndSynonymComparator.compare(equalNameTerms.get(equalNameTerms.size() - 1), term);
                 if (equalTerm) {
                     equalNameTerms.add(term);
                 } else if (equalNameTerms.size() > 1) {
-                    createAggregate(graphDb, copyProperties, new HashSet<Node>(equalNameTerms),
+                    createAggregate(graphDb, copyProperties, new HashSet<>(equalNameTerms),
                             new String[]{ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()}, termIndex,
                             ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
                     for (Node equalNameTerm : equalNameTerms)
@@ -80,7 +80,7 @@ public class ConceptAggregateBuilder {
                 }
             }
             if (equalNameTerms.size() > 1)
-                createAggregate(graphDb, copyProperties, new HashSet<Node>(equalNameTerms),
+                createAggregate(graphDb, copyProperties, new HashSet<>(equalNameTerms),
                         new String[]{ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()}, termIndex,
                         ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
             for (Node term : equalNameTerms)
@@ -204,8 +204,7 @@ public class ConceptAggregateBuilder {
             // We must check whether the found mapping is of a type that should
             // be aggregated in this call.
             String[] mappingTypes = (String[]) mapping.getProperty(ConceptRelationConstants.PROP_MAPPING_TYPE);
-            for (int i = 0; i < mappingTypes.length; i++) {
-                String mappingType = mappingTypes[i];
+            for (String mappingType : mappingTypes) {
                 if (allowedMappingTypes.contains(mappingType)) {
                     // There is at least one allowed mapping and thus an
                     // aggregate has to be created. Of course, the
@@ -270,8 +269,7 @@ public class ConceptAggregateBuilder {
         aggregate.addLabel(ConceptManager.ConceptLabel.AGGREGATE);
         aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties);
         aggregate.setProperty(ConceptConstants.PROP_MAPPING_TYPE, mappingTypes);
-        for (int i = 0; i < labels.length; i++) {
-            Label termLabel = labels[i];
+        for (Label termLabel : labels) {
             aggregate.addLabel(termLabel);
         }
         for (Node elementTerm : elementTerms) {
@@ -300,8 +298,7 @@ public class ConceptAggregateBuilder {
     public static void copyAggregateProperties(Node aggregate, String[] copyProperties,
                                                CopyAggregatePropertiesStatistics copyStats) {
         // first, clear the properties be copied in case we make a refresh
-        for (int i = 0; i < copyProperties.length; i++) {
-            String copyProperty = copyProperties[i];
+        for (String copyProperty : copyProperties) {
             aggregate.removeProperty(copyProperty);
         }
         Iterable<Relationship> elementRels = aggregate.getRelationships(EdgeTypes.HAS_ELEMENT);
@@ -387,8 +384,7 @@ public class ConceptAggregateBuilder {
             String[] synonyms = (String[]) aggregate.getProperty(ConceptConstants.PROP_SYNONYMS);
             Set<String> lowerCaseSynonyms = new HashSet<>();
             List<String> acceptedSynonyms = new ArrayList<>();
-            for (int i = 0; i < synonyms.length; i++) {
-                String synonym = synonyms[i];
+            for (String synonym : synonyms) {
                 String lowerCaseSynonym = synonym.toLowerCase();
                 if (!lowerCaseSynonyms.contains(lowerCaseSynonym)) {
                     lowerCaseSynonyms.add(lowerCaseSynonym);

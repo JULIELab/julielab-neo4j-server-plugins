@@ -131,34 +131,28 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 		Class<?> arrayClass = arrayObject.getClass();
 		if (arrayClass.equals(int[].class)) {
 			int[] array = (int[]) arrayObject;
-			repList = new ArrayList<Representation>();
-			for (int i = 0; i < array.length; i++)
-				repList.add(getObjectRepresentation(array[i]));
+			repList = new ArrayList<>();
+			for (int value : array) repList.add(getObjectRepresentation(value));
 		} else if (arrayClass.equals(byte[].class)) {
 			byte[] array = (byte[]) arrayObject;
-			repList = new ArrayList<Representation>();
-			for (int i = 0; i < array.length; i++)
-				repList.add(getObjectRepresentation(array[i]));
+			repList = new ArrayList<>();
+			for (byte b : array) repList.add(getObjectRepresentation(b));
 		} else if (arrayClass.equals(short[].class)) {
 			short[] array = (short[]) arrayObject;
-			repList = new ArrayList<Representation>();
-			for (int i = 0; i < array.length; i++)
-				repList.add(getObjectRepresentation(array[i]));
+			repList = new ArrayList<>();
+			for (short value : array) repList.add(getObjectRepresentation(value));
 		} else if (arrayClass.equals(double[].class)) {
 			double[] array = (double[]) arrayObject;
-			repList = new ArrayList<Representation>();
-			for (int i = 0; i < array.length; i++)
-				repList.add(getObjectRepresentation(array[i]));
+			repList = new ArrayList<>();
+			for (double v : array) repList.add(getObjectRepresentation(v));
 		} else if (arrayClass.equals(float[].class)) {
 			float[] array = (float[]) arrayObject;
-			repList = new ArrayList<Representation>();
-			for (int i = 0; i < array.length; i++)
-				repList.add(getObjectRepresentation(array[i]));
+			repList = new ArrayList<>();
+			for (float v : array) repList.add(getObjectRepresentation(v));
 		} else {
 			Object[] array = (Object[]) arrayObject;
-			repList = new ArrayList<Representation>();
-			for (int i = 0; i < array.length; i++)
-				repList.add(getObjectRepresentation(array[i]));
+			repList = new ArrayList<>();
+			for (Object o : array) repList.add(getObjectRepresentation(o));
 		}
 		// I have absolutely no idea what this "type" should be good for.
 		rep = new ListRepresentation(RepresentationType.TEMPLATE, repList);
@@ -167,7 +161,7 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 
 	public static ListRepresentation getIterableRepresentation(Iterable<?> value) {
 		ListRepresentation rep;
-		List<Representation> repList = new ArrayList<Representation>();
+		List<Representation> repList = new ArrayList<>();
 		Iterable<?> iterable = (Iterable<?>) value;
 		for (Object o : iterable)
 			repList.add(getObjectRepresentation(o));

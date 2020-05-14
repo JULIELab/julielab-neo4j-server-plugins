@@ -429,7 +429,7 @@ public class ConceptManagerTest {
 
 		ConceptManager ftm = new ConceptManager();
 
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", facetMap);
 		termsAndFacet.put("concepts", Lists.newArrayList(concept));
 		String termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
@@ -827,7 +827,7 @@ public class ConceptManagerTest {
 		List<ImportConcept> termList = new ArrayList<>();
 		termList.add(new ImportConcept("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term",
 				new ConceptCoordinates("CONCEPT", "TEST_SOURCE", SRC)));
-		Map<String, Object> termsAndFacet = new HashMap<String, Object>();
+		Map<String, Object> termsAndFacet = new HashMap<>();
 		termsAndFacet.put("facet", FacetManagerTest.getImportFacet());
 		termsAndFacet.put("concepts", termList);
 
@@ -1466,10 +1466,8 @@ public class ConceptManagerTest {
 			// the facet, although hollow terms are allowed.
 			Node facet = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, FacetManager.FacetLabel.FACET, PROP_ID,
 					"fid0");
-			Iterator<Relationship> facetTerms = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT)
-					.iterator();
-			while (facetTerms.hasNext()) {
-				Node facetTerm = facetTerms.next().getEndNode();
+			for (Relationship relationship : facet.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT)) {
+				Node facetTerm = relationship.getEndNode();
 				String termName = (String) facetTerm.getProperty(PROP_PREF_NAME);
 				assertTrue("Term name was " + termName, termName.equals("prefname0") || termName.equals("prefname1"));
 

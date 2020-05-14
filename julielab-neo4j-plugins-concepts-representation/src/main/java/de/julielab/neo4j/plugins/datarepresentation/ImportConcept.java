@@ -141,8 +141,7 @@ public class ImportConcept {
         if (generalLabels.isEmpty())
             generalLabels = new ArrayList<>();
         try {
-            for (int i = 0; i < labels.length; i++) {
-                String label = labels[i];
+            for (String label : labels) {
                 generalLabels.add(label);
             }
         } catch (java.lang.UnsupportedOperationException e) {
@@ -167,16 +166,10 @@ public class ImportConcept {
         if (generalLabels.isEmpty())
             return;
         Set<String> removeLabels = new HashSet<>(labels.length);
-        for (int i = 0; i < labels.length; i++) {
-            String label = labels[i];
+        for (String label : labels) {
             removeLabels.add(label);
         }
-        Iterator<String> existingLabels = generalLabels.iterator();
-        while (existingLabels.hasNext()) {
-            String existingLabel = existingLabels.next();
-            if (removeLabels.contains(existingLabel))
-                existingLabels.remove();
-        }
+        generalLabels.removeIf(removeLabels::contains);
 
     }
 

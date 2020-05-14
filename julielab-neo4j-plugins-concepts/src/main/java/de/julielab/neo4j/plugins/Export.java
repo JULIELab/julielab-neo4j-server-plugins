@@ -84,10 +84,9 @@ public class Export extends ServerPlugin {
 		try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 			try (Transaction tx = graphDb.beginTx()) {
 				int numWritten = 0;
-				for (int i = 0; i < labelsArray.length; i++) {
-					String labelString = labelsArray[i];
+				for (String labelString : labelsArray) {
 					Label label = Label.label(labelString);
-					for (ResourceIterator<Node> terms = graphDb.findNodes(label); terms.hasNext();) {
+					for (ResourceIterator<Node> terms = graphDb.findNodes(label); terms.hasNext(); ) {
 						Node term = terms.next();
 						String termId = (String) term.getProperty(ConceptConstants.PROP_ID);
 						Object idObject = PropertyUtilities.getNonNullNodeProperty(term, idProperty);
@@ -95,8 +94,7 @@ public class Export extends ServerPlugin {
 							continue;
 						if (idObject.getClass().isArray()) {
 							Object[] idArray = JulieNeo4jUtilities.convertArray(idObject);
-							for (int j = 0; j < idArray.length; j++) {
-								Object id = idArray[j];
+							for (Object id : idArray) {
 								IOUtils.write(id + "\t" + termId + "\n", os, "UTF-8");
 								numWritten++;
 							}
@@ -167,8 +165,7 @@ public class Export extends ServerPlugin {
 				// Only create the specific facet IDs set when we have not just
 				// all facets
 				if (labels.length > 1 || !labels[0].equals(FacetManager.FacetLabel.FACET.name())) {
-					for (int i = 0; i < labels.length; i++) {
-						String labelString = labels[i];
+					for (String labelString : labels) {
 						Label label = Label.label(labelString);
 						ResourceIterable<Node> facets = () -> graphDb.findNodes(label);
 						for (Node facet : facets) {
@@ -178,7 +175,7 @@ public class Export extends ServerPlugin {
 										+ " label.");
 							String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
 							RelationshipType reltype = RelationshipType
-									.withName(ConceptManager.EdgeTypes.IS_BROADER_THAN + "_" + facetId);
+									.withName(EdgeTypes.IS_BROADER_THAN + "_" + facetId);
 							relationshipTypeList.add(reltype);
 						}
 					}
@@ -186,8 +183,7 @@ public class Export extends ServerPlugin {
 					relationshipTypeList.add(ConceptManager.EdgeTypes.IS_BROADER_THAN);
 				}
 
-				for (int i = 0; i < labels.length; i++) {
-					String labelString = labels[i];
+				for (String labelString : labels) {
 					Label label = Label.label(labelString);
 					log.info("Now creating hypernyms for facets with label " + label);
 					ResourceIterable<Node> facets = () -> graphDb.findNodes(label);
@@ -285,8 +281,7 @@ public class Export extends ServerPlugin {
 		if (nodeCategories == null || nodeCategories.length == 0) {
 			propertiesToWrite.add(PROP_ID);
 		} else {
-			for (int i = 0; i < nodeCategories.length; i++) {
-				String property = nodeCategories[i];
+			for (String property : nodeCategories) {
 				propertiesToWrite.add(property);
 			}
 		}
@@ -488,8 +483,8 @@ public class Export extends ServerPlugin {
 			try (Transaction tx = graphDb.beginTx()) {
 				Map<String, String> ele2Agg = new HashMap<>();
 				Set<String> visitedAggregates = new HashSet<>();
-				for (int i = 0; i < aggLabelsArray.length; ++i) {
-					Label label = Label.label(aggLabelsArray[i]);
+				for (String s : aggLabelsArray) {
+					Label label = Label.label(s);
 					ResourceIterator<Node> aggregates = graphDb.findNodes(label);
 					TraversalDescription td = PredefinedTraversals.getNonAggregateAggregateElements(graphDb);
 					while (aggregates.hasNext()) {
@@ -500,7 +495,7 @@ public class Export extends ServerPlugin {
 						Traverser traverse = td.traverse(aggregate);
 						for (Path elementPath : traverse) {
 							for (Node n : elementPath.nodes()) {
-								if (n.hasLabel(ConceptManager.ConceptLabel.AGGREGATE))
+								if (n.hasLabel(ConceptLabel.AGGREGATE))
 									visitedAggregates.add((String) n.getProperty(ConceptConstants.PROP_ID));
 							}
 							Node element = elementPath.endNode();

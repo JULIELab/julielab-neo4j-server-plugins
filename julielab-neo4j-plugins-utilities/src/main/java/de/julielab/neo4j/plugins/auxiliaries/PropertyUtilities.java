@@ -2,8 +2,8 @@ package de.julielab.neo4j.plugins.auxiliaries;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.lang.StringUtils;
+import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.PropertyContainer;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -13,21 +13,20 @@ import java.util.function.Supplier;
 
 public class PropertyUtilities {
 
-    public static void copyObjectToPropertyContainer(Object object, PropertyContainer node) {
-        copyObjectToPropertyContainer(object, node, (Set<String>) null);
+    public static void copyObjectToEntity(Object object, Entity node) {
+        copyObjectToEntity(object, node, (Set<String>) null);
     }
 
-    public static void copyObjectToPropertyContainer(Object object, PropertyContainer node,
+    public static void copyObjectToEntity(Object object, Entity node,
                                                      String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
-        for (int i = 0; i < exclusions.length; i++) {
-            String exclusion = exclusions[i];
+        for (String exclusion : exclusions) {
             exclusionSet.add(exclusion);
         }
-        copyObjectToPropertyContainer(object, node, exclusionSet);
+        copyObjectToEntity(object, node, exclusionSet);
     }
 
-    public static void copyObjectToPropertyContainer(Object object, PropertyContainer node,
+    public static void copyObjectToEntity(Object object, Entity node,
                                                      Set<String> exclusions) {
 
         try {
@@ -56,17 +55,16 @@ public class PropertyUtilities {
         }
     }
 
-    public static void mergeObjectIntoPropertyContainer(Object object, PropertyContainer node,
+    public static void mergeObjectIntoEntity(Object object, Entity node,
                                                         String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
-        for (int i = 0; i < exclusions.length; i++) {
-            String exclusion = exclusions[i];
+        for (String exclusion : exclusions) {
             exclusionSet.add(exclusion);
         }
-        mergeObjectIntoPropertyContainer(object, node, exclusionSet);
+        mergeObjectIntoEntity(object, node, exclusionSet);
     }
 
-    public static void mergeObjectIntoPropertyContainer(Object object, PropertyContainer node,
+    public static void mergeObjectIntoEntity(Object object, Entity node,
                                                         Set<String> exclusions) {
         try {
             final Field[] fields = object.getClass().getFields();
@@ -95,19 +93,16 @@ public class PropertyUtilities {
         }
     }
 
-    public static void mergePropertyContainerIntoPropertyContainer(Node from, Node to, String... exclusions) {
+    public static void mergeEntityIntoEntity(Node from, Node to, String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
-        for (int i = 0; i < exclusions.length; i++) {
-            String exclusion = exclusions[i];
+        for (String exclusion : exclusions) {
             exclusionSet.add(exclusion);
         }
-        mergeJSONObjectIntoPropertyContainer(from, to, exclusionSet);
+        mergeJSONObjectIntoEntity(from, to, exclusionSet);
     }
 
-    private static void mergeJSONObjectIntoPropertyContainer(Node from, Node to, Set<String> exclusions) {
-        Iterator<String> keys = from.getPropertyKeys().iterator();
-        while (keys.hasNext()) {
-            String key = keys.next();
+    private static void mergeJSONObjectIntoEntity(Node from, Node to, Set<String> exclusions) {
+        for (String key : from.getPropertyKeys()) {
             if (null != exclusions && exclusions.contains(key))
                 continue;
             Object value = from.getProperty(key);
@@ -119,7 +114,7 @@ public class PropertyUtilities {
         }
     }
 
-    public static <T> void mergeArrayProperty(PropertyContainer node, String key, Supplier<T[]> arraySupplier) {
+    public static <T> void mergeArrayProperty(Entity node, String key, Supplier<T[]> arraySupplier) {
         try {
             final T[] value = arraySupplier.get();
             mergeArrayProperty(node, key, value);
@@ -142,7 +137,7 @@ public class PropertyUtilities {
      * @param array
      */
     @SuppressWarnings("unchecked")
-    public static <T> void mergeArrayProperty(PropertyContainer node, String key, T[] array) {
+    public static <T> void mergeArrayProperty(Entity node, String key, T[] array) {
         try {
             if (null == array || array.length == 0)
                 return;
@@ -154,7 +149,7 @@ public class PropertyUtilities {
             // Integer[] but the node stored an int[]
             // which is not castable...
             // Use the set to avoid duplicates.
-            Set<T> set = new LinkedHashSet<T>();
+            Set<T> set = new LinkedHashSet<>();
             for (T o : array)
                 set.add(o);
 
@@ -193,16 +188,16 @@ public class PropertyUtilities {
      * @param value
      * @return
      */
-    public static <T> int addToArrayProperty(PropertyContainer node, String key, T value) {
+    public static <T> int addToArrayProperty(Entity node, String key, T value) {
         return addToArrayProperty(node, key, value, false, false);
     }
 
-    public static <T> int addToArrayProperty(PropertyContainer node, String key, T value, boolean allowDuplicates) {
+    public static <T> int addToArrayProperty(Entity node, String key, T value, boolean allowDuplicates) {
         return addToArrayProperty(node, key, value, allowDuplicates, false);
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> int addToArrayProperty(PropertyContainer node, String key, T value, boolean allowDuplicates,
+    public static <T> int addToArrayProperty(Entity node, String key, T value, boolean allowDuplicates,
                                              boolean allowNullValues) {
         if (!allowNullValues && null == value)
             return -1;
@@ -224,8 +219,7 @@ public class PropertyUtilities {
 
         boolean valueFound = false;
         if (!allowDuplicates) {
-            for (int i = 0; i < array.length; i++) {
-                T element = array[i];
+            for (T element : array) {
                 if (element.equals(value)) {
                     valueFound = true;
                     break;
@@ -242,7 +236,7 @@ public class PropertyUtilities {
         return -1;
     }
 
-    public static void setNonNullNodeProperty(PropertyContainer node, String key, Supplier<Object> value) {
+    public static void setNonNullNodeProperty(Entity node, String key, Supplier<Object> value) {
         try {
             final Object nonNulValue = value.get();
             setNonNullNodeProperty(node, key, nonNulValue);
@@ -260,7 +254,7 @@ public class PropertyUtilities {
      * @param key
      * @param value
      */
-    public static void setNonNullNodeProperty(PropertyContainer node, String key, Object value) {
+    public static void setNonNullNodeProperty(Entity node, String key, Object value) {
         if (null == value)
             return;
         if (node.hasProperty(key))
@@ -278,7 +272,7 @@ public class PropertyUtilities {
      * @param key
      * @param value
      */
-    public static void setNonNullNodeProperty(PropertyContainer node, String key, Object value, Object defaultValue) {
+    public static void setNonNullNodeProperty(Entity node, String key, Object value, Object defaultValue) {
         if (node.hasProperty(key))
             return;
         if (null != value)
@@ -295,13 +289,13 @@ public class PropertyUtilities {
      * @param key
      * @return
      */
-    public static Object getNonNullNodeProperty(PropertyContainer node, String key) {
+    public static Object getNonNullNodeProperty(Entity node, String key) {
         if (null != node && node.hasProperty(key))
             return node.getProperty(key);
         return null;
     }
 
-    public static String getNodePropertiesAsString(PropertyContainer node) {
+    public static String getNodePropertiesAsString(Entity node) {
         List<String> values = new ArrayList<>();
         for (String pk : node.getPropertyKeys()) {
             Object p = node.getProperty(pk);
@@ -340,7 +334,7 @@ public class PropertyUtilities {
      * @param valueToCompare
      * @return
      */
-    public static boolean hasSamePropertyValue(PropertyContainer term, String key, Object valueToCompare) {
+    public static boolean hasSamePropertyValue(Entity term, String key, Object valueToCompare) {
         if (null != valueToCompare && !term.hasProperty(key))
             return false;
         Object value = term.getProperty(key);
@@ -362,7 +356,7 @@ public class PropertyUtilities {
      * @param valueToCompare
      * @return
      */
-    public static boolean hasContradictingPropertyValue(PropertyContainer term, String key, Object valueToCompare) {
+    public static boolean hasContradictingPropertyValue(Entity term, String key, Object valueToCompare) {
         if (null == term || null == valueToCompare || !term.hasProperty(key))
             return false;
         Object value = term.getProperty(key);
@@ -372,7 +366,7 @@ public class PropertyUtilities {
         return false;
     }
 
-    public static boolean mergeProperties(PropertyContainer propContainer, Object... properties) {
+    public static boolean mergeProperties(Entity propContainer, Object... properties) {
         boolean success = true;
         // Type and direction match.
         // Now check whether properties fit.

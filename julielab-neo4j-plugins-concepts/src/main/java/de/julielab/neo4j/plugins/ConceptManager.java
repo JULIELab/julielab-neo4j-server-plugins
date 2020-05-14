@@ -44,7 +44,6 @@ import static java.util.stream.Collectors.joining;
 
 @Description("This plugin discloses special operation for efficient access to the FacetConcepts for Semedico.")
 public class ConceptManager extends ServerPlugin {
-
     public static final String INSERT_MAPPINGS = "insert_mappings";
     public static final String BUILD_AGGREGATES_BY_NAME_AND_SYNONYMS = "build_aggregates_by_name_and_synonyms";
     public static final String BUILD_AGGREGATES_BY_MAPPINGS = "build_aggregates_by_mappings";
@@ -142,8 +141,8 @@ public class ConceptManager extends ServerPlugin {
         ObjectMapper om = new ObjectMapper();
         final String[] allowedMappingTypesJson = om.readValue(allowedMappingTypesArray, String[].class);
         Set<String> allowedMappingTypes = new HashSet<>();
-        for (int i = 0; i < allowedMappingTypesJson.length; i++) {
-            allowedMappingTypes.add(allowedMappingTypesJson[i]);
+        for (String s : allowedMappingTypesJson) {
+            allowedMappingTypes.add(s);
         }
         Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
         Label allowedConceptLabel = StringUtils.isBlank(allowedConceptLabelString) ? null
@@ -188,10 +187,10 @@ public class ConceptManager extends ServerPlugin {
             try (ResourceIterator<Node> aggregateIt = graphDb.findNodes(ConceptLabel.AGGREGATE)) {
                 while (aggregateIt.hasNext()) {
                     Node aggregate = aggregateIt.next();
-                    numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, new HashSet<Node>());
+                    numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, new HashSet<>());
                 }
             }
-            tx.success();
+            tx.commit();
         }
         Map<String, Object> reportMap = new HashMap<>();
         reportMap.put(RET_KEY_NUM_AGGREGATES, numAggregates);
@@ -464,7 +463,7 @@ public class ConceptManager extends ServerPlugin {
                 schema.constraintFor(label).assertPropertyIsUnique(key).create();
                 // schema.awaitIndexOnline(indexDefinition, 15,
                 // TimeUnit.MINUTES);
-                tx.success();
+                tx.commit();
             }
         }
     }
@@ -580,15 +579,13 @@ public class ConceptManager extends ServerPlugin {
         final String[] conceptIds = om.readValue(conceptIdArray, String[].class);
         try (Transaction tx = graphDb.beginTx()) {
             Map<String, Object> childrenByConceptId = new HashMap<>();
-            for (int i = 0; i < conceptIds.length; i++) {
+            for (String id : conceptIds) {
                 Map<String, List<String>> reltypesByNodeId = new HashMap<>();
                 Set<Node> childList = new HashSet<>();
-                String conceptId = conceptIds[i];
+                String conceptId = id;
                 Node concept = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, label, PROP_ID, conceptId);
                 if (null != concept) {
-                    Iterator<Relationship> rels = concept.getRelationships(Direction.OUTGOING).iterator();
-                    while (rels.hasNext()) {
-                        Relationship rel = rels.next();
+                    for (Relationship rel : concept.getRelationships(Direction.OUTGOING)) {
                         String reltype = rel.getType().name();
                         Node child = rel.getEndNode();
                         boolean isHollow = false;
@@ -598,11 +595,7 @@ public class ConceptManager extends ServerPlugin {
                         if (isHollow)
                             continue;
                         String childId = (String) child.getProperty(PROP_ID);
-                        List<String> reltypeList = reltypesByNodeId.get(childId);
-                        if (null == reltypeList) {
-                            reltypeList = new ArrayList<>();
-                            reltypesByNodeId.put(childId, reltypeList);
-                        }
+                        List<String> reltypeList = reltypesByNodeId.computeIfAbsent(childId, k -> new ArrayList<>());
                         reltypeList.add(reltype);
                         childList.add(child);
                     }
@@ -716,12 +709,7 @@ public class ConceptManager extends ServerPlugin {
                     pathsConceptIds.add(pathConceptIds);
             }
             if (sort)
-                Collections.sort(pathsConceptIds, new Comparator<String[]>() {
-                    @Override
-                    public int compare(String[] o1, String[] o2) {
-                        return o1.length - o2.length;
-                    }
-                });
+                pathsConceptIds.sort((o1, o2) -> o1.length - o2.length);
             Map<String, Object> pathsWrappedInMap = new HashMap<>();
             pathsWrappedInMap.put(RET_KEY_PATHS, pathsConceptIds);
             return new RecursiveMappingRepresentation(Representation.MAP, pathsWrappedInMap);
@@ -1114,8 +1102,7 @@ public class ConceptManager extends ServerPlugin {
 
         // When merging, we don't care about parents.
         if (!importOptions.merge) {
-            for (int i = 0; i < jsonConcepts.size(); i++) {
-                ImportConcept jsonConcept = jsonConcepts.get(i);
+            for (ImportConcept jsonConcept : jsonConcepts) {
                 if (jsonConcept.parentCoordinates != null) {
                     for (ConceptCoordinates parentCoordinates : jsonConcept.parentCoordinates) {
                         Node parentNode = lookupConcept(parentCoordinates, conceptIndex);
@@ -1194,8 +1181,7 @@ public class ConceptManager extends ServerPlugin {
             jsonConcepts.remove(importConceptsToRemove.get(index));
 
         log.info("Starting to insert " + jsonConcepts.size() + " concepts.");
-        for (int i = 0; i < jsonConcepts.size(); i++) {
-            ImportConcept jsonConcept = jsonConcepts.get(i);
+        for (ImportConcept jsonConcept : jsonConcepts) {
             boolean isAggregate = jsonConcept.aggregate;
             if (isAggregate) {
                 insertAggregateConcept(graphDb, conceptIndex, jsonConcept, nodesByCoordinates, insertionReport,
@@ -1225,8 +1211,7 @@ public class ConceptManager extends ServerPlugin {
     private Node registerNewHollowConceptNode(GraphDatabaseService graphDb, ConceptCoordinates coordinates,
                                               Index<Node> conceptIndex, Label... additionalLabels) {
         Node node = graphDb.createNode(ConceptLabel.HOLLOW);
-        for (int i = 0; i < additionalLabels.length; i++) {
-            Label label = additionalLabels[i];
+        for (Label label : additionalLabels) {
             node.addLabel(label);
         }
         log.trace("Created new HOLLOW concept node for coordinates {}", coordinates);
@@ -1353,7 +1338,7 @@ public class ConceptManager extends ServerPlugin {
             time = System.currentTimeMillis() - time;
             report.put(KEY_TIME, time);
             report.put(KEY_FACET_ID, facetId);
-            tx.success();
+            tx.commit();
         }
         log.info("Concept insertion complete.");
         log.info(INSERT_CONCEPTS + " is finished processing after " + time + " ms. " + insertionReport.numConcepts
@@ -1512,14 +1497,14 @@ public class ConceptManager extends ServerPlugin {
                     poppedConcepts.add(concept);
                 }
             }
-            tx.success();
+            tx.commit();
         }
         try (Transaction tx = graphDb.beginTx()) {
             // Remove the retrieved concepts from the set.
             for (Node concept : poppedConcepts) {
                 concept.removeLabel(label);
             }
-            tx.success();
+            tx.commit();
         }
         Map<String, Object> retMap = new HashMap<>();
         retMap.put(RET_KEY_CONCEPTS, poppedConcepts);
@@ -1558,7 +1543,7 @@ public class ConceptManager extends ServerPlugin {
                     continue;
                 facetsWithSpecifiedGeneralLabel.add((String) facetNode.getProperty(FacetConstants.PROP_ID));
             }
-            tx.success();
+            tx.commit();
         }
 
         log.info("Deconceptined " + facetsWithSpecifiedGeneralLabel.size() + " facets with given restrictions.");
@@ -1629,7 +1614,7 @@ public class ConceptManager extends ServerPlugin {
                     }
                 }
             }
-            tx.success();
+            tx.commit();
         }
         log.info("Finished pushing " + numberOfConceptsAdded + " concepts to set \"" + cmd.setName + "\".");
         return numberOfConceptsAdded;
@@ -1665,7 +1650,7 @@ public class ConceptManager extends ServerPlugin {
                     concept.setProperty(PROP_CHILDREN_IN_FACETS,
                             facetsContainingChildren.toArray(new String[facetsContainingChildren.size()]));
             }
-            tx.success();
+            tx.commit();
             return "success";
         }
     }
@@ -1679,7 +1664,7 @@ public class ConceptManager extends ServerPlugin {
             ResourceIterable<Node> concepts = () -> graphDb.findNodes(includeLabel);
             for (Node concept : concepts)
                 concept.removeLabel(includeLabel);
-            tx.success();
+            tx.commit();
         }
 
         Set<String> facetIds = new HashSet<>();
@@ -1692,7 +1677,7 @@ public class ConceptManager extends ServerPlugin {
                 facetIds.add((String) facetNode.getProperty(FacetConstants.PROP_ID));
             }
             log.info("Including concepts from facets " + facetIds);
-            tx.success();
+            tx.commit();
         }
         try (Transaction tx = graphDb.beginTx()) {
             ResourceIterable<Node> concepts = () -> graphDb.findNodes(ConceptLabel.CONCEPT);
@@ -1702,15 +1687,14 @@ public class ConceptManager extends ServerPlugin {
                     continue;
                 }
                 String[] facets = (String[]) concept.getProperty(PROP_FACETS);
-                for (int i = 0; i < facets.length; i++) {
-                    String string = facets[i];
+                for (String string : facets) {
                     if (facetIds.contains(string)) {
                         concept.addLabel(includeLabel);
                         break;
                     }
                 }
             }
-            tx.success();
+            tx.commit();
         }
     }
 
@@ -1733,7 +1717,7 @@ public class ConceptManager extends ServerPlugin {
                     concept.addLabel(mappingAggregateLabel);
                 }
             }
-            tx.success();
+            tx.commit();
         }
         try (Transaction tx = graphDb.beginTx()) {
             ResourceIterable<Node> concepts = () -> graphDb.findNodes(ConceptLabel.AGGREGATE);
@@ -1741,7 +1725,7 @@ public class ConceptManager extends ServerPlugin {
                 a.removeLabel(ConceptLabel.AGGREGATE);
                 a.removeLabel(mappingAggregateLabel);
             }
-            tx.success();
+            tx.commit();
         }
 
     }
@@ -1765,8 +1749,7 @@ public class ConceptManager extends ServerPlugin {
             Map<String, Node> nodesBySrcId = new HashMap<>(mappings.size());
             InsertionReport insertionReport = new InsertionReport();
 
-            for (int i = 0; i < mappings.size(); i++) {
-                Map<String, String> mapping = mappings.get(i);
+            for (Map<String, String> mapping : mappings) {
                 String id1 = mapping.get("id1");
                 String id2 = mapping.get("id2");
                 String mappingType = mapping.get("mappingType");
@@ -1815,12 +1798,10 @@ public class ConceptManager extends ServerPlugin {
                     String[] n2Facets = (String[]) n2.getProperty(PROP_FACETS);
                     Set<String> n1FacetSet = new HashSet<>();
                     Set<String> n2FacetSet = new HashSet<>();
-                    for (int j = 0; j < n1Facets.length; j++) {
-                        String facet = n1Facets[j];
+                    for (String facet : n1Facets) {
                         n1FacetSet.add(facet);
                     }
-                    for (int j = 0; j < n2Facets.length; j++) {
-                        String facet = n2Facets[j];
+                    for (String facet : n2Facets) {
                         n2FacetSet.add(facet);
                     }
                     if (!Sets.intersection(n1FacetSet, n2FacetSet).isEmpty()) {
@@ -1837,7 +1818,7 @@ public class ConceptManager extends ServerPlugin {
                 createRelationShipIfNotExists(n1, n2, EdgeTypes.IS_MAPPED_TO, insertionReport, Direction.BOTH,
                         ConceptRelationConstants.PROP_MAPPING_TYPE, new String[]{mappingType});
             }
-            tx.success();
+            tx.commit();
             log.info(insertionReport.numRelationships + " of " + mappings.size()
                     + " new mappings successfully added.");
             return insertionReport.numRelationships;
@@ -1856,8 +1837,7 @@ public class ConceptManager extends ServerPlugin {
 
         String[] facetIdsArray = om.readValue(facetIdsJson, String[].class);
         Set<String> requestedFacetIds = new HashSet<>();
-        for (int i = 0; i < facetIdsArray.length; i++)
-            requestedFacetIds.add(facetIdsArray[i]);
+        for (String value : facetIdsArray) requestedFacetIds.add(value);
 
         Map<String, Set<String>> requestedConceptIds = null;
         if (!StringUtils.isBlank(conceptIdsJson) && !conceptIdsJson.equals("null")) {
@@ -1867,8 +1847,7 @@ public class ConceptManager extends ServerPlugin {
             for (String facetId : conceptIdsObject.keySet()) {
                 String[] requestedRootIdsForFacet = conceptIdsObject.get(facetId);
                 Set<String> idSet = new HashSet<>();
-                for (int j = 0; j < requestedRootIdsForFacet.length; j++)
-                    idSet.add(requestedRootIdsForFacet[j]);
+                for (String s : requestedRootIdsForFacet) idSet.add(s);
                 requestedConceptIds.put(facetId, idSet);
             }
         }
@@ -1911,7 +1890,7 @@ public class ConceptManager extends ServerPlugin {
                                 + " root concepts (" + roots.size() + ").");
                 }
             }
-            tx.success();
+            tx.commit();
         }
 
         return new RecursiveMappingRepresentation(Representation.MAP, facetRoots);
@@ -2104,7 +2083,7 @@ public class ConceptManager extends ServerPlugin {
                 }
                 jsonReader.endObject();
                 jsonReader.close();
-                tx.success();
+                tx.commit();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

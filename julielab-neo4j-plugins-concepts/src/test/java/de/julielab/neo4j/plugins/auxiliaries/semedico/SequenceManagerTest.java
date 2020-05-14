@@ -45,7 +45,7 @@ public class SequenceManagerTest {
 			assertEquals(SequenceConstants.NAME_SEQUENCES_ROOT, sequencesNode.getProperty(NodeConstants.PROP_NAME));
 
 			Iterable<Relationship> hasSequenceRels = sequencesNode.getRelationships(Direction.OUTGOING, SequenceManager.EdgeTypes.HAS_SEQUENCE);
-			Set<String> sequenceNames = new HashSet<String>();
+			Set<String> sequenceNames = new HashSet<>();
 			int count = 0;
 			for (Relationship hasSequence : hasSequenceRels) {
 				sequenceNames.add((String) hasSequence.getEndNode().getProperty(NodeConstants.PROP_NAME));
