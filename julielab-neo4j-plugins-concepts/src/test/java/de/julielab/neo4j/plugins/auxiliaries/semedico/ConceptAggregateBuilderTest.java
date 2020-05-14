@@ -43,7 +43,7 @@ public class ConceptAggregateBuilderTest {
 
 	@BeforeClass
 	public static void initialize() {
-		graphDb = TestUtilities.getGraphDB();
+		graphDb = TestUtilities.getGraphDBMS();
 		coords = srcId -> new ConceptCoordinates(srcId, "TEST_DATA", CoordinateType.SRC);
 		cs = (name, srcId) -> new ImportConcept(name, coords.apply(srcId));
 	}

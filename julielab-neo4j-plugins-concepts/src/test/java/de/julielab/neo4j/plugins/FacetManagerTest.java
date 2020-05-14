@@ -32,7 +32,7 @@ public class FacetManagerTest {
 
 	@BeforeClass
 	public static void initialize() {
-		graphDb = TestUtilities.getGraphDB();
+		graphDb = TestUtilities.getGraphDBMS();
 	}
 
 	@Before

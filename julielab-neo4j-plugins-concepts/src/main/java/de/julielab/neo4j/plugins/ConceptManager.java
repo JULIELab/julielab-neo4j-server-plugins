@@ -154,8 +154,12 @@ public class ConceptManager {
                 : null;
         log.info("Creating mapping aggregates for concepts with label {} and mapping types {}", allowedConceptLabel,
                 allowedMappingTypes);
-        ConceptAggregateBuilder.buildAggregatesForMappings(allowedMappingTypes, allowedConceptLabel,
-                aggregatedConceptsLabel);
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        try (Transaction tx = graphDb.beginTx()) {
+            ConceptAggregateBuilder.buildAggregatesForMappings(tx, allowedMappingTypes, allowedConceptLabel,
+                    aggregatedConceptsLabel);
+            tx.commit();
+        }
     }
 
     /**
@@ -172,7 +176,11 @@ public class ConceptManager {
     @javax.ws.rs.Path("/{" + DELETE_AGGREGATES + "}")
     public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
         Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
-        ConceptAggregateBuilder.deleteAggregates(dbms.database(DEFAULT_DATABASE_NAME), aggregatedConceptsLabel);
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        try (Transaction tx = graphDb.beginTx()) {
+            ConceptAggregateBuilder.deleteAggregates(tx, aggregatedConceptsLabel);
+            tx.commit();
+        }
     }
 
 
@@ -221,7 +229,7 @@ public class ConceptManager {
         return alreadySeen.size();
     }
 
-    private void createRelationships(GraphDatabaseService graphDb, Transaction tx, List<ImportConcept> jsonConcepts, Node facet,
+    private void createRelationships(Transaction tx, List<ImportConcept> jsonConcepts, Node facet,
                                      CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
         log.info("Creating relationship between inserted concepts.");
 //        Index<Node> idIndex = graphDb.index().forNodes(ConceptConstants.INDEX_NAME);
@@ -359,8 +367,7 @@ public class ConceptManager {
                                         insertionReport);
                             }
                         }
-                        if (null != parent && parent.hasLabel(ConceptLabel.AGGREGATE)
-                                && !parent.hasLabel(ConceptLabel.CONCEPT))
+                        if (parent.hasLabel(ConceptLabel.AGGREGATE) && !parent.hasLabel(ConceptLabel.CONCEPT))
                             throw new IllegalArgumentException("Concept with source ID " + srcId
                                     + " specifies source ID " + parentSrcId
                                     + " as parent. This node is an aggregate but not a CONCEPT itself and thus is not included in the hierarchy and cannot be the conceptual parent of other concepts. To achieve this, import the aggregate with the property "
@@ -375,7 +382,7 @@ public class ConceptManager {
                 } else {
                     if (noFacetCmd != null && noFacetCmd.getParentCriteria()
                             .contains(AddToNonFacetGroupCommand.ParentCriterium.NO_PARENT)) {
-                        if (null != noFacetCmd && null == noFacet) {
+                        if (null == noFacet) {
                             noFacet = FacetManager.getNoFacet(tx, (String) facet.getProperty(PROP_ID));
                         }
 
@@ -1273,7 +1280,7 @@ public class ConceptManager {
                 // at least no concepts with a source ID. Then,
                 // relationship creation is currently not supported.
                 if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
-                    createRelationships(graphDb, tx, jsonConcepts, facet, nodesByCoordinates, importOptions,
+                    createRelationships(tx, jsonConcepts, facet, nodesByCoordinates, importOptions,
                             insertionReport);
                 else
                     log.info("This is a property merging import, no relationships are created.");

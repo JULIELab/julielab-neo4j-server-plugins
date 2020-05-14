@@ -1,11 +1,11 @@
 package de.julielab.neo4j.plugins.test;
 
+import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.dbms.api.DatabaseManagementServiceBuilder;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.graphdb.schema.ConstraintDefinition;
 import org.neo4j.graphdb.schema.IndexDefinition;
 import org.neo4j.server.rest.repr.ListRepresentation;
@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 public class TestUtilities {
 
 	public static final File GRAPH_DB_DIR = new File("src/test/resources/graph.db");
-	public static final File GRAPH_DB_DIR_2 = new File("src/test/resources/test");
 
 	private static final Random random = new Random();
 	private static final String[] symbols = new String[36];
@@ -34,42 +33,28 @@ public class TestUtilities {
 			symbols[idx] = String.valueOf((char) ('a' + idx - 10));
 	}
 
-	public static String randomLetter() {
-		return symbols[random.nextInt(symbols.length)];
-	}
-
 	public static void deleteEverythingInDB(GraphDatabaseService graphDb) {
 		try (Transaction tx = graphDb.beginTx()) {
-			Iterable<Node> nodes = graphDb.getAllNodes();
+			Iterable<Node> nodes = tx.getAllNodes();
 			for (Node n : nodes) {
 				for (Relationship r : n.getRelationships())
 					r.delete();
 				n.delete();
 			}
-			tx.success();
+			tx.commit();
 		}
-		// ExecutionEngine executionEngine = new ExecutionEngine(graphDb);
-		// executionEngine.execute("MATCH (n) OPTIONAL MATCH n-[r]-() DELETE n, r");
-		// executionEngine.execute("MATCH n DELETE n");
 		try (Transaction tx = graphDb.beginTx()) {
-			Iterator<Node> nodeIt = graphDb.getAllNodes().iterator();
+			Iterator<Node> nodeIt = tx.getAllNodes().iterator();
 			// But there should be no nodes.
 			assertFalse(nodeIt.hasNext());
 
-			// Delete indexes.
-			IndexManager indexManager = graphDb.index();
-			for (String nodeIndex : indexManager.nodeIndexNames()) {
-				indexManager.forNodes(nodeIndex).delete();
-			}
-			for (String relIndex : indexManager.relationshipIndexNames()) {
-				indexManager.forNodes(relIndex).delete();
-			}
-			for (ConstraintDefinition cd : graphDb.schema().getConstraints()) {
+
+			for (ConstraintDefinition cd : tx.schema().getConstraints()) {
 				cd.drop();
 			}
-			for (IndexDefinition id : graphDb.schema().getIndexes())
+			for (IndexDefinition id : tx.schema().getIndexes())
 				id.drop();
-			tx.success();
+			tx.commit();
 		}
 	}
 
@@ -91,15 +76,9 @@ public class TestUtilities {
 		return content;
 	}
 
-	public static GraphDatabaseService getGraphDB() {
-		GraphDatabaseService database = new GraphDatabaseFactory().newEmbeddedDatabase(GRAPH_DB_DIR);
-		return database;
-	}
-
-	public static void printNodeProperties(Node n) {
-		for (String k : n.getPropertyKeys()) {
-			System.out.println(k + ": " + n.getProperty(k));
-		}
+	public static DatabaseManagementService getGraphDBMS() {
+		DatabaseManagementService managementService = new DatabaseManagementServiceBuilder(GRAPH_DB_DIR).build();
+		return managementService;
 	}
 
 }
