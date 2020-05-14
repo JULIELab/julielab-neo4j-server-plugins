@@ -22,9 +22,9 @@ public class SequenceManager {
     }
 
     static Node getSequenceRoot(Transaction tx) {
-        Optional<Node> sequenceRootOpt = tx.findNodes(Labels.SEQUENCE_ROOT).stream().findAny();
+        Optional<Node> sequenceRootOpt = tx.findNodes(SequenceLabel.SEQUENCE_ROOT).stream().findAny();
         if (!sequenceRootOpt.isPresent()) {
-            Node seqRoot = tx.createNode(Labels.SEQUENCE_ROOT);
+            Node seqRoot = tx.createNode(SequenceLabel.SEQUENCE_ROOT);
             return seqRoot;
         } else {
             return sequenceRootOpt.get();
@@ -34,7 +34,7 @@ public class SequenceManager {
     private static synchronized Node getSequence(Transaction tx, String sequenceName) {
 
         try {
-            Node sequence = tx.findNode(Labels.SEQUENCE, PROP_NAME, sequenceName);
+            Node sequence = tx.findNode(SequenceLabel.SEQUENCE, PROP_NAME, sequenceName);
             if (null == sequence) {
                 // First get or create the sequences super node.
                 // We do a connection not for lookup but just so the graph is
@@ -59,16 +59,16 @@ public class SequenceManager {
      */
     public static void createIndexes(Transaction tx) {
         Schema schema = tx.schema();
-        if (!schema.getIndexes(Labels.SEQUENCE).iterator().hasNext()) {
-            schema.indexFor(Labels.SEQUENCE).withName(SEQUENCE_INDEX).on(PROP_NAME).create();
+        if (!schema.getIndexes(SequenceLabel.SEQUENCE).iterator().hasNext()) {
+            schema.indexFor(SequenceLabel.SEQUENCE).withName(SEQUENCE_INDEX).on(PROP_NAME).create();
         }
     }
 
-    private enum EdgeTypes implements RelationshipType {
+    public enum EdgeTypes implements RelationshipType {
         HAS_SEQUENCE
     }
 
-    private enum Labels implements Label {
+    public enum SequenceLabel implements Label {
         SEQUENCE_ROOT, SEQUENCE
     }
 

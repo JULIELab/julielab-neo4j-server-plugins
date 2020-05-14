@@ -11,6 +11,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
@@ -24,15 +25,18 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConsta
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 import static org.junit.Assert.*;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class FacetManagerTest {
 	
 	
 	private static GraphDatabaseService graphDb;
+	private static DatabaseManagementService graphDBMS;
 
 	@BeforeClass
 	public static void initialize() {
-		graphDb = TestUtilities.getGraphDBMS();
+		graphDBMS = TestUtilities.getGraphDBMS();
+		graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
 	}
 
 	@Before
@@ -50,12 +54,12 @@ public class FacetManagerTest {
 		facetGroupMap2.position = 2;
 		facetGroupMap2.labels = Lists.newArrayList("showForSearch");
 
-		FacetManager fm = new FacetManager();
+		FacetManager fm = new FacetManager(graphDBMS);
 		Method createFacetGroupMethod = FacetManager.class.getDeclaredMethod("createFacetGroup",
 				GraphDatabaseService.class, Node.class, ImportFacetGroup.class);
 		createFacetGroupMethod.setAccessible(true);
 		try (Transaction tx = graphDb.beginTx()) {
-			Node facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
+			Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
 			Node facetGroupNode = (Node) createFacetGroupMethod.invoke(fm, graphDb,
 					facetGroupsNode, facetGroupMap1);
 			assertEquals("fgid0", facetGroupNode.getProperty(FacetGroupConstants.PROP_ID));
@@ -80,7 +84,7 @@ public class FacetManagerTest {
 					FacetManager.EdgeTypes.HAS_FACET_GROUP, Direction.INCOMING);
 			assertEquals(facetGroupsNode, facetGroupRel.getStartNode());
 			assertEquals("facetGroups", facetGroupsNode.getProperty(PROP_NAME));
-			tx.success();
+			tx.commit();
 		}
 
 	}
@@ -89,18 +93,17 @@ public class FacetManagerTest {
 	public void testGetFacetGroupsNode() {
 		try (Transaction tx = graphDb.beginTx()) {
 			assertNull("In the beginning, there was no facet groups node",
-					NodeUtilities.findSingleNodeByLabelAndProperty(graphDb,
+					NodeUtilities.findSingleNodeByLabelAndProperty(tx,
 							NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS));
-			Node facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
+			Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
 			assertNotNull("One facet groups node should be there.", facetGroupsNode);
 			// Get the node multiple times to make sure it isn't created twice.
-			facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
-			facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
-			facetGroupsNode = FacetManager.getFacetGroupsNode(graphDb);
-			facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb,
+			FacetManager.getFacetGroupsNode(tx);
+			FacetManager.getFacetGroupsNode(tx);
+			FacetManager.getFacetGroupsNode(tx);
+			facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx,
 					NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
 			assertNotNull("There is one facet groups node", facetGroupsNode);
-			tx.success();
 		}
 	}
 
@@ -140,7 +143,7 @@ public class FacetManagerTest {
 					FacetManager.EdgeTypes.HAS_FACET_GROUP, Direction.INCOMING);
 			Node facetGroupsNode = hasFacetGroupRel.getStartNode();
 			assertEquals("facetGroups", facetGroupsNode.getProperty(PROP_NAME));
-			tx.success();
+			tx.commit();
 		}
 
 		// Let's see what happens when we create a second facet. There should be
@@ -148,11 +151,11 @@ public class FacetManagerTest {
 		facetMap = getTestFacetMap(2);
 		FacetManager.createFacet(graphDb, facetMap);
 		try (Transaction tx = graphDb.beginTx()) {
-			Node facetGroups = FacetManager.getFacetGroupsNode(graphDb);
+			Node facetGroups = FacetManager.getFacetGroupsNode(tx);
 			Node facetGroup1 = facetGroups.getSingleRelationship(
 					FacetManager.EdgeTypes.HAS_FACET_GROUP, Direction.OUTGOING).getEndNode();
-			Iterable<Relationship> facetRels = facetGroup1.getRelationships(
-					FacetManager.EdgeTypes.HAS_FACET, Direction.OUTGOING);
+			Iterable<Relationship> facetRels = facetGroup1.getRelationships(Direction.OUTGOING,
+					FacetManager.EdgeTypes.HAS_FACET);
 			Iterator<Relationship> facetIt = facetRels.iterator();
 			// check if the expected facets have been found; order is not
 			// important (and - most of all - not maintained by Neo4j!)
@@ -166,7 +169,7 @@ public class FacetManagerTest {
 			Node facet2 = facetIt.next().getEndNode();
 			assertTrue(expectedFacets.remove(facet2.getProperty(PROP_NAME)));
 			assertTrue(expectedFacets.isEmpty());
-			tx.success();
+			tx.commit();
 		}
 
 	}
@@ -184,8 +187,8 @@ public class FacetManagerTest {
 		Gson gson = new Gson();
 		String jsonFacetsString = gson.toJson(jsonFacets);
 
-		FacetManager fm = new FacetManager();
-		ListRepresentation response = fm.insertFacets(graphDb, jsonFacetsString);
+		FacetManager fm = new FacetManager(graphDBMS);
+		ListRepresentation response = fm.insertFacets(jsonFacetsString);
 		Iterable<Representation> content = TestUtilities.getListFromListRepresentation(response);
 
 		Iterator<Representation> it = content.iterator();
@@ -211,9 +214,9 @@ public class FacetManagerTest {
 		facetMaps.add(getTestFacetMap(4));
 		facetMaps.add(getTestFacetMap(5));
 
-		FacetManager fm = new FacetManager();
+		FacetManager fm = new FacetManager(graphDBMS);
 		Gson gson = new Gson();
-		fm.insertFacets(graphDb, gson.toJson(facetMaps));
+		fm.insertFacets(gson.toJson(facetMaps));
 
 		// Additionally, we insert a few terms so we later can tell these terms
 		// have NOT
@@ -222,28 +225,27 @@ public class FacetManagerTest {
 		// FacetManager#getFacets. I.e. the last facet should
 		// not be returned since we don't add terms for it.
 
-		ImportConcepts termAndFacet0 = new ImportConcepts(
+		ImportConcepts importConcepts0 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "0"));
-		ImportConcepts termAndFacet1 = new ImportConcepts(
+		ImportConcepts importConcepts1 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM1", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "1"));
-		ImportConcepts termAndFacet2 = new ImportConcepts(
+		ImportConcepts importConcepts2 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM2", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "2"));
-		ImportConcepts termAndFacet3 = new ImportConcepts(
+		ImportConcepts importConcepts3 = new ImportConcepts(
 				Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM3", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
 						NodeIDPrefixConstants.FACET + "3"));
 
-		ConceptManager ftm = new ConceptManager();
-		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet0));
-		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet1));
-		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet2));
-		ftm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(termAndFacet3));
+		ConceptManager ftm = new ConceptManager(graphDBMS);
+		ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts0));
+		ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts1));
+		ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts2));
+		ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts3));
 
 		// Get the facets and check that everything is alright.
-		RecursiveMappingRepresentation facetRep = (RecursiveMappingRepresentation) fm.getFacets(
-				graphDb, false);
+		RecursiveMappingRepresentation facetRep = (RecursiveMappingRepresentation) fm.getFacets(false);
 		Map<String, Object> underlyingMap = facetRep.getUnderlyingMap();
 		// There should be one element, viz. "facetGroups".
 		assertEquals(1, underlyingMap.size());
@@ -272,7 +274,6 @@ public class FacetManagerTest {
 			assertEquals("testfacet2", facet.getProperty(PROP_NAME));
 			facet = facets.get(3);
 			assertEquals("testfacet1", facet.getProperty(PROP_NAME));
-			tx.success();
 		}
 	}
 
@@ -281,12 +282,12 @@ public class FacetManagerTest {
 		int amount = 10;
 		String facet = "fid0";
 
-		ImportConcepts terms = ConceptManagerTest.getTestTerms(amount);
-		ConceptManager termManager = new ConceptManager();
-		termManager.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(terms));
-		FacetManager facetManager = new FacetManager();
+		ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(amount);
+		ConceptManager termManager = new ConceptManager(graphDBMS);
+		termManager.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
+		FacetManager facetManager = new FacetManager(graphDBMS);
 
-		assertEquals(amount, facetManager.getFacetSize(graphDb, facet));
+		assertEquals(amount, facetManager.getFacetSize(facet));
 	}
 
 	public static ImportFacet getImportFacet() {
@@ -304,6 +305,6 @@ public class FacetManagerTest {
 
 	@AfterClass
 	public static void shutdown() {
-		graphDb.shutdown();
+		graphDBMS.shutdown();
 	}
 }

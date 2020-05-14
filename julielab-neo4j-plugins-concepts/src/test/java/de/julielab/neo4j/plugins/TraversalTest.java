@@ -12,6 +12,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
@@ -23,14 +24,17 @@ import java.io.IOException;
 import java.util.*;
 
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class TraversalTest {
 
 	private static GraphDatabaseService graphDb;
+	private static DatabaseManagementService graphDBMS;
 
 	@BeforeClass
 	public static void initialize() {
-		graphDb = TestUtilities.getGraphDBMS();
+		graphDBMS = TestUtilities.getGraphDBMS();
+		graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
 	}
 
 	@Before
@@ -40,14 +44,14 @@ public class TraversalTest {
 
 	@AfterClass
 	public static void shutdown() {
-		graphDb.shutdown();
+		graphDBMS.shutdown();
 	}
 
 	@Test
 	public void testGetAcronymsTraversal() throws Exception {
-		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
-		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+		ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(2);
+		ConceptManager tm = new ConceptManager(graphDBMS);
+		tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
 
 		Map<String, Integer> acronymCounts = new HashMap<>();
 		// acro1 is a shared acronym
@@ -62,16 +66,16 @@ public class TraversalTest {
 		acronymCounts.put("acro1", 4);
 		acronymCounts.put("acro3", 7);
 
-		tm.addWritingVariants(graphDb, null, ConceptsJsonSerializer.toJson(acronyms));
+		tm.addWritingVariants(ConceptsJsonSerializer.toJson(acronyms));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> acronymsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
+			ResourceIterator<Node> acronymsNodes = tx.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
 			assertTrue(acronymsNodes.hasNext());
-			ResourceIterator<Node> acronymNodes = graphDb.findNodes(ConceptManager.MorphoLabel.ACRONYM);
+			ResourceIterator<Node> acronymNodes = tx.findNodes(ConceptManager.MorphoLabel.ACRONYM);
 			assertTrue(acronymNodes.hasNext());
 
-			Node term0 = graphDb.findNode(ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);
-			TraversalDescription acronymsTraversal = PredefinedTraversals.getAcronymsTraversal(graphDb);
+			Node term0 = tx.findNode(ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);
+			TraversalDescription acronymsTraversal = PredefinedTraversals.getAcronymsTraversal(tx);
 			Traverser traverse = acronymsTraversal.traverse(term0);
 			Set<String> expectedAcronyms = new HashSet<>(Arrays.asList("acro1", "acro2"));
 			for (Node n : traverse.nodes()) {
@@ -87,8 +91,8 @@ public class TraversalTest {
 		// this is the same traversal as above, just for writing variants
 		// instead of acronyms
 		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
-		ConceptManager tm = new ConceptManager();
-		tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+		ConceptManager tm = new ConceptManager(graphDBMS);
+		tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
 		Map<String, Integer> variantCounts = new HashMap<>();
 		// acro1 is a shared acronym
@@ -103,16 +107,16 @@ public class TraversalTest {
 		variantCounts.put("variant1", 4);
 		variantCounts.put("variant2", 7);
 
-		tm.addWritingVariants(graphDb, ConceptsJsonSerializer.toJson(variants), null);
+		tm.addWritingVariants(ConceptsJsonSerializer.toJson(variants));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> variantsNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);
+			ResourceIterator<Node> variantsNodes = tx.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);
 			assertTrue(variantsNodes.hasNext());
-			ResourceIterator<Node> variantNodes = graphDb.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANT);
+			ResourceIterator<Node> variantNodes = tx.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANT);
 			assertTrue(variantNodes.hasNext());
 
-			Node term0 = graphDb.findNode(ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);
-			TraversalDescription variantTraversal = PredefinedTraversals.getWritingVariantsTraversal(graphDb);
+			Node term0 = tx.findNode(ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);
+			TraversalDescription variantTraversal = PredefinedTraversals.getWritingVariantsTraversal(tx);
 			Traverser traverse = variantTraversal.traverse(term0);
 			Set<String> expectedVariants = new HashSet<>(Arrays.asList("variant1", "variant2"));
 			for (Node n : traverse.nodes()) {

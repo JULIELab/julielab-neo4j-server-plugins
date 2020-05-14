@@ -7,6 +7,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 
 import java.util.HashSet;
@@ -14,13 +15,16 @@ import java.util.Set;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class SequenceManagerTest {
 	private static GraphDatabaseService graphDb;
+	private static DatabaseManagementService graphDBMS;
 
 	@BeforeClass
 	public static void initialize() {
-		graphDb = TestUtilities.getGraphDBMS();
+		graphDBMS = TestUtilities.getGraphDBMS();
+		graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
 	}
 
 	@Before
@@ -31,17 +35,20 @@ public class SequenceManagerTest {
 	@Test
 	public void testGetNextSequenceValue() {
 		// Check whether the sequences work as expected.
-		assertEquals(0, SequenceManager.getNextSequenceValue(graphDb, "seq1"));
-		assertEquals(0, SequenceManager.getNextSequenceValue(graphDb, "seq2"));
-		assertEquals(1, SequenceManager.getNextSequenceValue(graphDb, "seq1"));
-		assertEquals(1, SequenceManager.getNextSequenceValue(graphDb, "seq2"));
-		assertEquals(2, SequenceManager.getNextSequenceValue(graphDb, "seq1"));
-		assertEquals(2, SequenceManager.getNextSequenceValue(graphDb, "seq2"));
+		try (Transaction tx = graphDb.beginTx()) {
+			assertEquals(0, SequenceManager.getNextSequenceValue(tx, "seq1"));
+			assertEquals(0, SequenceManager.getNextSequenceValue(tx, "seq2"));
+			assertEquals(1, SequenceManager.getNextSequenceValue(tx, "seq1"));
+			assertEquals(1, SequenceManager.getNextSequenceValue(tx, "seq2"));
+			assertEquals(2, SequenceManager.getNextSequenceValue(tx, "seq1"));
+			assertEquals(2, SequenceManager.getNextSequenceValue(tx, "seq2"));
+			tx.commit();
+		}
 
 		// Check whether there is exactly one sequences node now with exactly
 		// two sequence nodes (seq1 and seq2 from above) connected to it.
 		try (Transaction tx = graphDb.beginTx()) {
-			Node sequencesNode = SequenceManager.getSequenceRoot(graphDb);
+			Node sequencesNode = SequenceManager.getSequenceRoot(tx);
 			assertEquals(SequenceConstants.NAME_SEQUENCES_ROOT, sequencesNode.getProperty(NodeConstants.PROP_NAME));
 
 			Iterable<Relationship> hasSequenceRels = sequencesNode.getRelationships(Direction.OUTGOING, SequenceManager.EdgeTypes.HAS_SEQUENCE);
@@ -55,13 +62,13 @@ public class SequenceManagerTest {
 			assertTrue(sequenceNames.contains("seq1"));
 			assertTrue(sequenceNames.contains("seq2"));
 			
-			tx.success();
+			tx.commit();
 		}
 
 	}
 
 	@AfterClass
 	public static void shutdown() {
-		graphDb.shutdown();
+		graphDBMS.shutdown();
 	}
 }

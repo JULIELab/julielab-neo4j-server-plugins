@@ -13,6 +13,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
@@ -20,78 +21,81 @@ import org.neo4j.graphdb.Transaction;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.zip.GZIPInputStream;
 
+import static de.julielab.neo4j.plugins.ConceptManager.ConceptLabel.CONCEPT;
 import static org.junit.Assert.assertEquals;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class ExportTest {
 
     private static GraphDatabaseService graphDb;
+    private static DatabaseManagementService graphDBMS;
 
     @BeforeClass
     public static void initialize() {
-        graphDb = TestUtilities.getGraphDBMS();
+        graphDBMS = TestUtilities.getGraphDBMS();
+        graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
     }
 
     @AfterClass
     public static void shutdown() {
-        graphDb.shutdown();
+        graphDBMS.shutdown();
     }
 
     @Before
-    public void cleanForTest() throws IOException {
+    public void cleanForTest() {
         TestUtilities.deleteEverythingInDB(graphDb);
     }
 
     @Test
     public void createIdMappingOneFacetSourceIds() throws Exception {
-        ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
-        testTerms.getFacet().setName("facet1");
-        for (ImportConcept term : testTerms.getConcepts()) {
+        ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(10);
+        importConcepts.getFacet().setName("facet1");
+        for (ImportConcept term : importConcepts.getConcepts()) {
             term.generalLabels = Lists.newArrayList("TESTLABEL");
             // clear the original ID and source of the test terms for this test
             term.coordinates.originalId = null;
             term.coordinates.originalSource = null;
         }
-        testTerms.getConcepts().get(0).coordinates.originalId = "orgId1";
-        testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
-        testTerms.getConcepts().get(1).coordinates.originalId = "orgId2";
-        testTerms.getConcepts().get(1).coordinates.originalSource = "src2";
-        testTerms.getConcepts().get(2).coordinates.originalId = "orgId3";
-        testTerms.getConcepts().get(2).coordinates.originalSource = "src3";
+        importConcepts.getConcepts().get(0).coordinates.originalId = "orgId1";
+        importConcepts.getConcepts().get(0).coordinates.originalSource = "src1";
+        importConcepts.getConcepts().get(1).coordinates.originalId = "orgId2";
+        importConcepts.getConcepts().get(1).coordinates.originalSource = "src2";
+        importConcepts.getConcepts().get(2).coordinates.originalId = "orgId3";
+        importConcepts.getConcepts().get(2).coordinates.originalSource = "src3";
         // We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
         ImportConcept term = new ImportConcept("Added Last PrefName", new ConceptCoordinates("addedLastSourceId", "TEST_SOURCE", "orgId2", "src2"));
-        testTerms.getConcepts().add(term);
-        ConceptManager tm = new ConceptManager();
-        tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+        importConcepts.getConcepts().add(term);
+        ConceptManager tm = new ConceptManager(graphDBMS);
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
         // Get some more terms; those will be in another label and should be ignored here.
-        testTerms = ConceptManagerTest.getTestTerms(15);
-        testTerms.getFacet().setName("facet2");
-        for (ImportConcept t : testTerms.getConcepts()) {
+        importConcepts = ConceptManagerTest.getTestTerms(15);
+        importConcepts.getFacet().setName("facet2");
+        for (ImportConcept t : importConcepts.getConcepts()) {
             t.coordinates.originalId = null;
             t.coordinates.originalSource = null;
         }
 
-        tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
 
         // Assure we have two facets.
         try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterator<Node> allNodesWithLabel = graphDb.findNodes(FacetManager.FacetLabel.FACET);
+            ResourceIterator<Node> allNodesWithLabel = tx.findNodes(FacetManager.FacetLabel.FACET);
             int facetCount = 0;
             while (allNodesWithLabel.hasNext()) {
-                Node facet = (Node) allNodesWithLabel.next();
+                Node facet = allNodesWithLabel.next();
                 System.out.println("Got facet node: " + NodeUtilities.getNodePropertiesAsString(facet));
                 facetCount++;
             }
             assertEquals(2, facetCount);
         }
 
-        Method method = Export.class.getDeclaredMethod("createIdMapping", GraphDatabaseService.class, String.class,
+        Method method = Export.class.getDeclaredMethod("createIdMapping", String.class,
                 String[].class);
         method.setAccessible(true);
-        Export export = new Export();
+        Export export = new Export(graphDBMS);
         String[] labelsArray = new String[]{"TESTLABEL"};
         ByteArrayOutputStream baos;
         byte[] byteArray;
@@ -100,14 +104,17 @@ public class ExportTest {
         String fileContent;
 
         // create mapping file contents for sourceIDs
-        baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "sourceIds", labelsArray);
+        baos = (ByteArrayOutputStream) method.invoke(export,  "sourceIds", labelsArray);
         byteArray = baos.toByteArray();
         bais = new ByteArrayInputStream(byteArray);
         gzis = new GZIPInputStream(bais);
         fileContent = IOUtils.toString(gzis, "UTF-8");
 
         // We have inserted 15 terms
-        long numTerms = tm.getNumConcepts(graphDb);
+        long numTerms;
+        try (Transaction tx = graphDb.beginTx()) {
+            numTerms = tx.findNodes(CONCEPT).stream().count();
+        }
         assertEquals(15, numTerms);
         int countMatches = StringUtils.countMatches(fileContent, "\n");
         // All terms have a source ID, in the test case one term has two source IDs, thus we should have 11 mapping
@@ -116,14 +123,16 @@ public class ExportTest {
 
         // NEXT TEST
         // create mapping file contents for original Ids
-        baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "originalId", labelsArray);
+        baos = (ByteArrayOutputStream) method.invoke(export,  "originalId", labelsArray);
         byteArray = baos.toByteArray();
         bais = new ByteArrayInputStream(byteArray);
         gzis = new GZIPInputStream(bais);
         fileContent = IOUtils.toString(gzis, "UTF-8");
 
         // We have inserted 15 terms
-        numTerms = tm.getNumConcepts(graphDb);
+        try (Transaction tx = graphDb.beginTx()) {
+            numTerms = tx.findNodes(CONCEPT).stream().count();
+        }
         assertEquals(15, numTerms);
         countMatches = StringUtils.countMatches(fileContent, "\n");
         // only three terms have an original ID. No term can have more than one original ID.
@@ -132,30 +141,30 @@ public class ExportTest {
 
     @Test
     public void createIdMappingOneFacetOriginalId() throws Exception {
-        ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
-        for (ImportConcept term : testTerms.getConcepts()) {
+        ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(10);
+        for (ImportConcept term : importConcepts.getConcepts()) {
             term.generalLabels = Lists.newArrayList("TESTLABEL");
             term.coordinates.originalId = null;
             term.coordinates.originalSource = null;
         }
-        testTerms.getConcepts().get(0).coordinates.originalId = "orgId1";
-        testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
-        testTerms.getConcepts().get(1).coordinates.originalId = "orgId2";
-        testTerms.getConcepts().get(1).coordinates.originalSource = "src2";
-        testTerms.getConcepts().get(2).coordinates.originalId = "orgId3";
-        testTerms.getConcepts().get(2).coordinates.originalSource = "src3";
+        importConcepts.getConcepts().get(0).coordinates.originalId = "orgId1";
+        importConcepts.getConcepts().get(0).coordinates.originalSource = "src1";
+        importConcepts.getConcepts().get(1).coordinates.originalId = "orgId2";
+        importConcepts.getConcepts().get(1).coordinates.originalSource = "src2";
+        importConcepts.getConcepts().get(2).coordinates.originalId = "orgId3";
+        importConcepts.getConcepts().get(2).coordinates.originalSource = "src3";
         // We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
         ImportConcept term = new ImportConcept("Added Last PrefName", new ConceptCoordinates("addedLastSourceId", "TEST_SOURCE", "orgId2", "src2"));
         term.coordinates.originalId = "orgId2";
         term.coordinates.originalSource = "src2";
-        testTerms.getConcepts().add(term);
-        ConceptManager tm = new ConceptManager();
-        tm.insertConcepts(graphDb, ConceptsJsonSerializer.toJson(testTerms));
+        importConcepts.getConcepts().add(term);
+        ConceptManager tm = new ConceptManager(graphDBMS);
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
 
-        Method method = Export.class.getDeclaredMethod("createIdMapping", GraphDatabaseService.class, String.class,
+        Method method = Export.class.getDeclaredMethod("createIdMapping", String.class,
                 String[].class);
         method.setAccessible(true);
-        Export export = new Export();
+        Export export = new Export(graphDBMS);
         String[] labelsArray = new String[]{"TESTLABEL"};
         ByteArrayOutputStream baos;
         byte[] byteArray;
@@ -164,14 +173,17 @@ public class ExportTest {
         String fileContent;
 
         // create mapping file contents for original Ids
-        baos = (ByteArrayOutputStream) method.invoke(export, graphDb, "originalId", labelsArray);
+        baos = (ByteArrayOutputStream) method.invoke(export,  "originalId", labelsArray);
         byteArray = baos.toByteArray();
         bais = new ByteArrayInputStream(byteArray);
         gzis = new GZIPInputStream(bais);
         fileContent = IOUtils.toString(gzis, "UTF-8");
 
         // We have inserted 10 terms
-        long numTerms = tm.getNumConcepts(graphDb);
+        long numTerms;
+        try (Transaction tx = graphDb.beginTx()) {
+            numTerms = tx.findNodes(CONCEPT).stream().count();
+        }
         assertEquals(10, numTerms);
         int countMatches = StringUtils.countMatches(fileContent, "\n");
         // only three terms have an original ID. No term can have more than one original ID.
