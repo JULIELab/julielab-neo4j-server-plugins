@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import static de.julielab.neo4j.plugins.ConceptManager.ConceptLabel.CONCEPT;
+import static de.julielab.neo4j.plugins.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
@@ -572,8 +573,8 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             // Would throw an exception if there were multiple terms found.
-            FullTextIndexUtils.getNode(tx, CONCEPT, PROP_SRC_IDS, "source0");
-            FullTextIndexUtils.getNode(tx, CONCEPT, PROP_SRC_IDS, "source1");
+            FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "source0");
+            FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "source1");
         }
     }
 
@@ -672,7 +673,7 @@ public class ConceptManagerTest {
         ftt.insertConcepts(termsJson);
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node term = FullTextIndexUtils.getNode(tx, CONCEPT, PROP_SRC_IDS, "CONCEPT");
+            Node term = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "CONCEPT");
             assertEquals("Preferred name", "prefname", term.getProperty(PROP_PREF_NAME));
             assertEquals("Description", Lists.newArrayList("desc of term"),
                     Arrays.asList((String[]) term.getProperty(PROP_DESCRIPTIONS)));
@@ -874,7 +875,7 @@ public class ConceptManagerTest {
             }
             assertEquals("There are 4 elements", 4, numElementRels);
 
-            Node term = FullTextIndexUtils.getNode(tx, CONCEPT, PROP_SRC_IDS, "CONCEPT4");
+            Node term = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "CONCEPT4");
             assertNotNull("Term on position 4 was inserted and found", term);
             Iterable<Relationship> relationships = term.getRelationships();
             int numRels = 0;
@@ -1151,7 +1152,7 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             // Would throw an exception if there were multiple terms found.
-            Node hollowParent = FullTextIndexUtils.getNode(tx, CONCEPT, PROP_SRC_IDS, "parentid42");
+            Node hollowParent = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "parentid42");
             assertNotNull(hollowParent);
             assertTrue(hollowParent.hasLabel(ConceptManager.ConceptLabel.HOLLOW));
         }

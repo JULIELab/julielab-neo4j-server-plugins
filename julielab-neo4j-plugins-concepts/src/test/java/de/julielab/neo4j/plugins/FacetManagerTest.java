@@ -17,7 +17,6 @@ import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.*;
 
@@ -58,7 +57,7 @@ public class FacetManagerTest {
     }
 
     @Before
-    public void cleanForTest() throws IOException {
+    public void cleanForTest() {
         TestUtilities.deleteEverythingInDB(graphDb);
     }
 

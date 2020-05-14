@@ -43,6 +43,7 @@ import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAM
 
 @javax.ws.rs.Path("/concept_manager")
 public class ConceptManager {
+
     public static final String INSERT_MAPPINGS = "insert_mappings";
     public static final String BUILD_AGGREGATES_BY_NAME_AND_SYNONYMS = "build_aggregates_by_name_and_synonyms";
     public static final String BUILD_AGGREGATES_BY_MAPPINGS = "build_aggregates_by_mappings";
@@ -93,6 +94,8 @@ public class ConceptManager {
     public static final String RET_KEY_PATHS = "paths";
     public static final String RET_KEY_RELTYPES = "reltypes";
     public static final String RET_KEY_CONCEPTS = "concepts";
+
+    public static final String FULLTEXT_INDEX_CONCEPTS = "concepts";
 
     public static final String UPDATE_CHILD_INFORMATION = "update_children_information";
     private static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
@@ -1534,7 +1537,7 @@ public class ConceptManager {
                 }
                 Node n2 = nodesBySrcId.get(id2);
                 if (null == n2) {
-                    n2 = FullTextIndexUtils.getNode(tx, ConceptLabel.CONCEPT, PROP_SRC_IDS, id2);
+                    n2 = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, id2);
                     if (null == n2) {
                         log.warn("There is no concept with source ID \"" + id2 + "\" as required by the mapping \""
                                 + mapping + "\" Mapping is skipped.");
