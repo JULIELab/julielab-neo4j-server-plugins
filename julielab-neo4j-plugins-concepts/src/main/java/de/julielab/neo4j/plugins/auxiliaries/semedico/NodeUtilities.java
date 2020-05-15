@@ -81,7 +81,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
      * marked as unique.
      */
     public static boolean isSourceUnique(Node conceptNode, String srcId) {
-        String[] conceptSrcIds = (String[]) conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS);
+        String[] conceptSrcIds = ((String)conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS)).split("\\s+");
         boolean[] conceptUniqueSrcIds = (boolean[]) conceptNode.getProperty(ConceptConstants.PROP_UNIQUE_SRC_ID);
         if (conceptSrcIds.length > 0 && conceptSrcIds.length != conceptUniqueSrcIds.length) {
             throw new IllegalStateException("Concept " + NodeUtilities.getNodePropertiesAsString(conceptNode)

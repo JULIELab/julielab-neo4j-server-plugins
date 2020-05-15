@@ -15,6 +15,10 @@ public class FullTextIndexUtils {
         createTextIndex(tx, indexName, new Label[]{label}, new String[]{property});
     }
 
+    public static void createTextIndex(Transaction tx, String indexName, @Nullable Map<String, String> indexSettings, Label label, String property) {
+        createTextIndex(tx, indexName, indexSettings, new Label[]{label}, new String[]{property});
+    }
+
     public static void createTextIndex(Transaction tx, String indexName, @Nullable Map<String, String> indexSettings, Label[] labels, String[] properties) {
         if (indexSettings == null)
             tx.execute("CALL db.index.fulltext.createNodeIndex($indexName, $labels, $properties)", Map.of("indexName", indexName, "labels", Stream.of(labels).map(Label::name).toArray(), "properties", properties));

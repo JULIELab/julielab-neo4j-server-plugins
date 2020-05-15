@@ -136,7 +136,7 @@ public class ConceptManager {
         // by schema indexes it seems
         Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, false, ConceptConstants.PROP_ORG_ID);
         Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, true, NodeConstants.PROP_NAME);
-        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, ConceptLabel.CONCEPT, PROP_SRC_IDS);
+        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), ConceptLabel.CONCEPT, PROP_SRC_IDS);
     }
 
     /**
@@ -682,6 +682,12 @@ public class ConceptManager {
         }
     }
 
+    private String[] getSourceIds(Node concept) {
+        String sourceIdString = (String) concept.getProperty(PROP_SRC_IDS);
+        if (sourceIdString != null)
+            return sourceIdString.split("\\s+");
+        return null;
+    }
     /**
      * Adds an aggregate concept. An aggregate concept is a concept of the following
      * input form:<br/>
@@ -755,7 +761,7 @@ public class ConceptManager {
                     elementSource = UNKNOWN_CONCEPT_SOURCE;
                 Node element = nodesByCoordinates.get(elementCoordinates);
                 if (null != element) {
-                    String[] srcIds = (String[]) element.getProperty(PROP_SRC_IDS);
+                    String[] srcIds = getSourceIds(element);
                     String[] sources = element.hasProperty(PROP_SOURCES) ? (String[]) element.getProperty(PROP_SOURCES)
                             : new String[0];
                     for (int j = 0; j < srcIds.length; j++) {
@@ -787,11 +793,11 @@ public class ConceptManager {
 
             // Set the aggregate's properties
             if (null != aggSrcId) {
-                int idIndex = findFirstValueInArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId);
+                int idIndex = Arrays.asList(getSourceIds(aggregate)).indexOf(aggSrcId);
                 int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
                 if (!StringUtils.isBlank(aggSrcId)
                         && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
-                    addToArrayProperty(aggregate, PROP_SRC_IDS, aggSrcId, true);
+                    aggregate.setProperty(PROP_SRC_IDS, aggregate.getProperty(PROP_SRC_IDS + " " + aggOrgId));
                     addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
                 }
                 // if the aggregate has a source ID, add it to the respective
@@ -900,16 +906,10 @@ public class ConceptManager {
         }
 
         // Merge the new or an already existing concept with what we
-        // already
-        // have, perhaps the
-        // stored information
+        // already have, perhaps the stored information
         // and the new information is complementary to each other
-        // (if
-        // there
-        // is any information already stored, the concept could be
-        // fresh
-        // and
-        // empty).
+        // (if there is any information already stored, the concept could be
+        // fresh and empty).
         // Currently, just do the following: For non-array property
         // values, set those properties which are currently non
         // existent. For array, merge the arrays.
@@ -917,11 +917,6 @@ public class ConceptManager {
             concept.setProperty(PROP_ORG_ID, coordinates.originalId);
             concept.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
-
-        //  PropertyUtilities.mergeObjectIntoPropertyContainer(jsonConcept, concept, ConceptConstants.PROP_LABELS,
-        //        PROP_SRC_IDS, PROP_SOURCES, PROP_SYNONYMS, COORDINATES, PARENT_COORDINATES,
-        //      ConceptConstants.RELATIONSHIPS);
-
         PropertyUtilities.setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
         PropertyUtilities.mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
         PropertyUtilities.mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
@@ -941,14 +936,18 @@ public class ConceptManager {
         // Check, if the parallel pair of source ID and source already exists.
         // If not, insert it. Unless a source ID
         // wasn't specified.
-        int idIndex = findFirstValueInArrayProperty(concept, PROP_SRC_IDS, srcId);
+
+        // The source IDs are stored as whitespace-delimited string. The reason is that this allows us to use a
+        // full text index on the source ID property.
+        List<String> presentSourceIds = Arrays.asList(getSourceIds(concept));
         int sourceIndex = findFirstValueInArrayProperty(concept, PROP_SOURCES, source);
-        // (sourceID, source) coordinate has not been found, create it
+        int idIndex = presentSourceIds.indexOf(srcId);
         if (!StringUtils.isBlank(srcId) && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
             // on first creation, no concept node has a source ID at this point
             if (concept.hasProperty(PROP_SRC_IDS))
                 srcIduniqueMarkerChanged = checkUniqueIdMarkerClash(concept, srcId, uniqueSourceId);
-            addToArrayProperty(concept, PROP_SRC_IDS, srcId, true);
+//            addToArrayProperty(concept, PROP_SRC_IDS, srcId, true);
+            concept.setProperty(PROP_SRC_IDS, concept.getProperty(PROP_SRC_IDS) + " " + srcId);
             addToArrayProperty(concept, PROP_SOURCES, source, true);
             addToArrayProperty(concept, PROP_UNIQUE_SRC_ID, uniqueSourceId, true);
         }
@@ -1176,7 +1175,7 @@ public class ConceptManager {
             node.setProperty(PROP_ORG_ID, coordinates.originalId);
             node.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
-        node.setProperty(PROP_SRC_IDS, new String[]{coordinates.sourceId});
+        node.setProperty(PROP_SRC_IDS, coordinates.sourceId);
         node.setProperty(PROP_SOURCES, new String[]{coordinates.source});
         node.setProperty(PROP_UNIQUE_SRC_ID, new boolean[]{coordinates.uniqueSourceId});
 

@@ -657,8 +657,7 @@ public class ConceptManagerTest {
     public void testOrganizeSynonyms() throws Exception {
         // In this test, we have a term that specifies its preferred term as a
         // synonym, too. The FacetConceptManager should detect this and remove
-        // the
-        // synonym that equals the preferred name.
+        // the synonym that equals the preferred name.
         List<ImportConcept> termList = new ArrayList<>();
         termList.add(new ImportConcept("prefname", Arrays.asList("prefname", "othersynonym"), "desc of term",
                 new ConceptCoordinates("CONCEPT", "TEST_SOURCE", SRC)));
@@ -672,12 +671,12 @@ public class ConceptManagerTest {
         ftt.insertConcepts(termsJson);
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node term = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "CONCEPT");
-            assertEquals("Preferred name", "prefname", term.getProperty(PROP_PREF_NAME));
-            assertEquals("Description", Lists.newArrayList("desc of term"),
-                    Arrays.asList((String[]) term.getProperty(PROP_DESCRIPTIONS)));
-            assertArrayEquals("Source ID", new String[]{"CONCEPT"}, (String[]) term.getProperty(PROP_SRC_IDS));
-            String[] synonyms = (String[]) term.getProperty(PROP_SYNONYMS);
+            Node concept = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "CONCEPT");
+            assertEquals("Preferred name", "prefname", concept.getProperty(PROP_PREF_NAME));
+            assertEquals("Description", List.of("desc of term"),
+                    List.of((String[]) concept.getProperty(PROP_DESCRIPTIONS)));
+            assertEquals("Source ID doesn't match", "CONCEPT", (String) concept.getProperty(PROP_SRC_IDS));
+            String[] synonyms = (String[]) concept.getProperty(PROP_SYNONYMS);
             assertEquals("Number of synonyms", 1, synonyms.length);
             assertEquals("Synonym", "othersynonym", synonyms[0]);
             tx.commit();
@@ -1882,7 +1881,7 @@ public class ConceptManagerTest {
             variantCounts.put("var1", 3);
             variantCountsPerDoc.put("doc2", variantCounts);
             variantCountsByTermIdPerDoc.put(NodeIDPrefixConstants.TERM + 0, variantCountsPerDoc);
-            tm.addWritingVariants(ConceptsJsonSerializer.toJson(variantCountsByTermIdPerDoc));
+            tm.addWritingVariants(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_TERMS, ConceptsJsonSerializer.toJson(variantCountsByTermIdPerDoc))));
         }
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -1943,7 +1942,7 @@ public class ConceptManagerTest {
             variantCounts.put("var1", 8);
             variantCountsPerDoc.put("doc8", variantCounts);
             variantCountsByTermIdPerDoc.put(NodeIDPrefixConstants.TERM + 0, variantCountsPerDoc);
-            tm.addWritingVariants(ConceptsJsonSerializer.toJson(variantCountsByTermIdPerDoc));
+            tm.addWritingVariants(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_TERMS, ConceptsJsonSerializer.toJson(variantCountsByTermIdPerDoc))));
         }
 
         try (Transaction tx = graphDb.beginTx()) {
