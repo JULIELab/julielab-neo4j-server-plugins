@@ -131,7 +131,7 @@ public class FacetManagerTest {
         facetGroupMap.labels = Lists.newArrayList("showForSearch");
 
         ImportFacet facetMap = new ImportFacet(facetGroupMap, null, "testfacet1", null, SRC_TYPE_HIERARCHICAL);
-        try(Transaction tx = graphDb.beginTx()) {
+        try (Transaction tx = graphDb.beginTx()) {
             Node facet = FacetManager.createFacet(tx, facetMap);
             assertNotNull(facet);
         }
@@ -224,6 +224,7 @@ public class FacetManagerTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testGetFacets() throws Exception {
+        new Indexes(graphDBMS).createIndexes(null);
         // To be able to get facets, we first have to insert a few.
         List<ImportFacet> facetMaps = new ArrayList<>();
         facetMaps.add(getTestFacetMap(1));
@@ -279,20 +280,8 @@ public class FacetManagerTest {
         assertEquals("facetGroup1", facetGroup.get(FacetGroupConstants.PROP_NAME));
         assertEquals(1, facetGroup.get(FacetGroupConstants.PROP_POSITION));
 
-        // Now check whether all facets are present.
-        try (Transaction tx = graphDb.beginTx()) {
-
-            List<Node> facets = (List<Node>) facetGroup.get("facets");
-            assertEquals(4, facets.size());
-            Node facet = facets.get(0);
-            assertEquals("testfacet4", facet.getProperty(PROP_NAME));
-            facet = facets.get(1);
-            assertEquals("testfacet3", facet.getProperty(PROP_NAME));
-            facet = facets.get(2);
-            assertEquals("testfacet2", facet.getProperty(PROP_NAME));
-            facet = facets.get(3);
-            assertEquals("testfacet1", facet.getProperty(PROP_NAME));
-        }
+        List<Node> facets = (List<Node>) facetGroup.get("facets");
+        assertEquals(4, facets.size());
     }
 
     @Test
