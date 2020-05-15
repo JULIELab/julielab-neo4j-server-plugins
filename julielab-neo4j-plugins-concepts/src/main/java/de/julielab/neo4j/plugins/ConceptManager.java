@@ -18,8 +18,6 @@ import org.apache.commons.lang.StringUtils;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.graphdb.schema.Schema;
 import org.neo4j.graphdb.traversal.*;
 import org.neo4j.server.rest.repr.MappingRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
@@ -49,7 +47,6 @@ public class ConceptManager {
     public static final String BUILD_AGGREGATES_BY_MAPPINGS = "build_aggregates_by_mappings";
     public static final String DELETE_AGGREGATES = "delete_aggregates";
     public static final String COPY_AGGREGATE_PROPERTIES = "copy_aggregate_properties";
-    public static final String CREATE_SCHEMA_INDEXES = "create_schema_indexes";
     public static final String GET_CHILDREN_OF_CONCEPTS = "get_children_of_concepts";
     public static final String GET_NUM_CONCEPTS = "get_num_concepts";
     public static final String GET_PATHS_FROM_FACETROOTS = "get_paths_to_facetroots";
@@ -133,6 +130,13 @@ public class ConceptManager {
         return elementValues.isEmpty() ? null : elementValues.toArray(new String[elementValues.size()]);
     }
 
+    public static void createIndexes(Transaction tx) {
+        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, true);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, ConceptConstants.PROP_ORG_ID, true);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, NodeConstants.PROP_NAME, true);
+        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, ConceptLabel.CONCEPT, PROP_SRC_IDS);
+    }
+
     /**
      * <ul>
      *  <li>{@link #KEY_ALLOWED_MAPPING_TYPES}: The allowed types for IS_MAPPED_TO relationships to be included in aggregation building.</li>
@@ -185,7 +189,6 @@ public class ConceptManager {
             tx.commit();
         }
     }
-
 
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
@@ -450,35 +453,6 @@ public class ConceptManager {
     }
 
     /**
-     * Checks whether an automatic index for the <tt>label</tt> exists on the
-     * {@link ConceptConstants#PROP_ID} property and creates it, if not.
-     *
-     * @param graphDb
-     * @param label
-     */
-    private void createIndexIfAbsent(GraphDatabaseService graphDb, Label label, String key, boolean unique) {
-        try (Transaction tx = graphDb.beginTx()) {
-            Schema schema = tx.schema();
-            boolean indexExists = false;
-            for (IndexDefinition id : schema.getIndexes(label)) {
-                for (String propertyKey : id.getPropertyKeys()) {
-                    if (propertyKey.equals(key))
-                        indexExists = true;
-                }
-            }
-            if (!indexExists) {
-                log.info("Creating index for label " + label + " on property " + key + " (unique: " + unique + ").");
-                // IndexDefinition indexDefinition;
-                // indexDefinition = schema.indexFor(label).on(key).create();
-                schema.constraintFor(label).assertPropertyIsUnique(key).create();
-                // schema.awaitIndexOnline(indexDefinition, 15,
-                // TimeUnit.MINUTES);
-                tx.commit();
-            }
-        }
-    }
-
-    /**
      * Creates a relationship of type <tt>type</tt> from <tt>source</tt> to
      * <tt>target</tt>, if this relationship does not already exist.
      *
@@ -559,29 +533,6 @@ public class ConceptManager {
     }
 
     /**
-     * Creates uniqueness constraints (and thus, indexes), on the following label / property combinations:
-     * <ul>
-     *
-     * <li>CONCEPT /  ConceptConstants.PROP_ID</li>
-     * <li> CONCEPT / ConceptConstants.PROP_ORG_ID</li>
-     * <li>FACET / FacetConstants.PROP_ID</li>
-     * <li>NO_FACET /  FacetConstants.PROP_ID</li>
-     * <li>ROOT / NodeConstants.PROP_NAME</li>
-     *  This should be done after the main initial import because node insertion with uniqueness switched on costs significant insertion performance.
-     * </ul>
-     */
-    @PUT
-    @javax.ws.rs.Path("/{" + CREATE_SCHEMA_INDEXES + "}")
-    public void createSchemaIndexes() {
-        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        createIndexIfAbsent(graphDb, ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, true);
-        createIndexIfAbsent(graphDb, ConceptLabel.CONCEPT, ConceptConstants.PROP_ORG_ID, true);
-        createIndexIfAbsent(graphDb, FacetLabel.FACET, FacetConstants.PROP_ID, true);
-        createIndexIfAbsent(graphDb, FacetLabel.NO_FACET, FacetConstants.PROP_ID, true);
-        createIndexIfAbsent(graphDb, NodeConstants.Labels.ROOT, NodeConstants.PROP_NAME, true);
-    }
-
-    /**
      * <p>
      * Returns all non-hollow children of concepts identified via the  KEY_CONCEPT_IDS
      * parameter. The return format is a map from the children's id
@@ -602,7 +553,8 @@ public class ConceptManager {
     @javax.ws.rs.Path("/{" + GET_CHILDREN_OF_CONCEPTS + "}")
     public MappingRepresentation getChildrenOfConcepts(String parameterObject) throws IOException {
         ObjectMapper om = new ObjectMapper();
-        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {});
+        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {
+        });
 
         Label label = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL)) : ConceptLabel.CONCEPT;
         final List<String> conceptIds = (List<String>) parameterMap.get(KEY_CONCEPT_IDS);
@@ -646,6 +598,7 @@ public class ConceptManager {
      *     <li>{@link #KEY_SORT_RESULT}: Boolean indicator if the result paths should be sorted by length.</li>
      *     <li>{@link #KEY_FACET_ID}: Optional. The facet ID to restrict the root nodes to.</li>
      * </ul>
+     *
      * @param parameterObject
      * @return
      * @throws IOException
@@ -655,7 +608,8 @@ public class ConceptManager {
     @javax.ws.rs.Path("/{" + GET_PATHS_FROM_FACETROOTS + "}")
     public Representation getPathsFromFacetRoots(String parameterObject) throws IOException {
         ObjectMapper om = new ObjectMapper();
-        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {});
+        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {
+        });
         final List<String> conceptIds = (List<String>) parameterMap.get(KEY_CONCEPT_IDS);
         final Boolean sort = (Boolean) parameterMap.get(KEY_SORT_RESULT);
         final String facetId = (String) parameterMap.get(KEY_FACET_ID);
@@ -1613,7 +1567,7 @@ public class ConceptManager {
         Map<String, Object> parameterMap = om.readValue(parameterObject, Map.class);
         Map<String, List<String>> conceptIdsObject = (Map<String, List<String>>) parameterMap.get(KEY_CONCEPT_IDS);
         Map<String, Object> facetRoots = new HashMap<>();
-        int maxRoots = parameterMap.containsKey(KEY_MAX_ROOTS) ? (int) parameterMap.get(KEY_MAX_ROOTS) :0;
+        int maxRoots = parameterMap.containsKey(KEY_MAX_ROOTS) ? (int) parameterMap.get(KEY_MAX_ROOTS) : 0;
 
         List<String> facetIdsArray = (List<String>) parameterMap.get(KEY_FACET_ID);
         Set<String> requestedFacetIds = new HashSet<>();

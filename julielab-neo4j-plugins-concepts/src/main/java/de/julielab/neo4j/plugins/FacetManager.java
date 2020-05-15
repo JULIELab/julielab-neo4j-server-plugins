@@ -217,6 +217,11 @@ public class FacetManager {
         return facetGroupsNode;
     }
 
+    public static void createIndexes(Transaction tx) {
+        Indexes.createSinglePropertyIndexIfAbsent(tx, FacetLabel.FACET, FacetConstants.PROP_ID, true);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, FacetLabel.NO_FACET, FacetConstants.PROP_ID, true);
+    }
+
     public static Node getFacetNode(Transaction tx, String facetId) {
         return NodeUtilities.findSingleNodeByLabelAndProperty(tx, FacetLabel.FACET, PROP_ID, facetId);
     }

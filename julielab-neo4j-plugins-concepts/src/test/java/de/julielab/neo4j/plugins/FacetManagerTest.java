@@ -297,6 +297,7 @@ public class FacetManagerTest {
 
     @Test
     public void testGetFacetSize() throws Exception {
+        new Indexes(graphDBMS).createIndexes(null);
         int amount = 10;
         String facet = "fid0";
 

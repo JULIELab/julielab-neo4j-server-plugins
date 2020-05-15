@@ -8,7 +8,11 @@ import java.util.stream.Stream;
 
 public class FullTextIndexUtils {
     public static void createTextIndex(Transaction tx, String indexName, Label[] labels, String[] properties) {
-        createTextIndex(tx, indexName, labels, properties);
+        createTextIndex(tx, indexName, null, labels, properties);
+    }
+
+    public static void createTextIndex(Transaction tx, String indexName, Label label, String property) {
+        createTextIndex(tx, indexName, new Label[]{label}, new String[]{property});
     }
 
     public static void createTextIndex(Transaction tx, String indexName, @Nullable Map<String, String> indexSettings, Label[] labels, String[] properties) {
@@ -25,7 +29,7 @@ public class FullTextIndexUtils {
 
     public static ResourceIterator<Object> getNodes(Transaction tx, String indexName, String property, String propertyValue) {
         // after https://neo4j.com/docs/java-reference/current/java-embedded/unique-nodes/
-        return tx.execute("CALL db.index.fulltext.queryNodes(indexName, $query)", Map.of("indexName", indexName, "query", property + ":" + propertyValue)).columnAs("n");
+        return tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":" + propertyValue)).columnAs("node");
     }
 
     public static Node getNode(Transaction tx, String indexName, String property, String propertyValue) {
