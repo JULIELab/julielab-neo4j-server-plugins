@@ -84,6 +84,7 @@ public class ConceptManagerTest {
     @Before
     public void cleanForTest() {
         TestUtilities.deleteEverythingInDB(graphDb);
+        new Indexes(graphDBMS).createIndexes(null);
     }
 
     @Test

@@ -218,8 +218,8 @@ public class FacetManager {
     }
 
     public static void createIndexes(Transaction tx) {
-        Indexes.createSinglePropertyIndexIfAbsent(tx, FacetLabel.FACET, FacetConstants.PROP_ID, true);
-        Indexes.createSinglePropertyIndexIfAbsent(tx, FacetLabel.NO_FACET, FacetConstants.PROP_ID, true);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, FacetLabel.FACET, true, FacetConstants.PROP_ID);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, FacetLabel.NO_FACET, true, FacetConstants.PROP_ID);
     }
 
     public static Node getFacetNode(Transaction tx, String facetId) {

@@ -131,9 +131,11 @@ public class ConceptManager {
     }
 
     public static void createIndexes(Transaction tx) {
-        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, true);
-        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, ConceptConstants.PROP_ORG_ID, true);
-        Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, NodeConstants.PROP_NAME, true);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, true, ConceptConstants.PROP_ID);
+        // The org ID can actually be duplicated. Only the composite (orgId,orgSource) should be unique but this isn't supported
+        // by schema indexes it seems
+        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, false, ConceptConstants.PROP_ORG_ID);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, true, NodeConstants.PROP_NAME);
         FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, ConceptLabel.CONCEPT, PROP_SRC_IDS);
     }
 
