@@ -28,11 +28,15 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.MultivaluedMap;
+import javax.ws.rs.core.UriInfo;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static de.julielab.neo4j.plugins.ConceptManager.CM_REST_ENDPOINT;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
 import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
@@ -40,8 +44,10 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstan
 import static java.util.stream.Collectors.joining;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-@javax.ws.rs.Path("/concept_manager")
+@javax.ws.rs.Path("/"+CM_REST_ENDPOINT)
 public class ConceptManager {
+
+    public static final String CM_REST_ENDPOINT = "concept_manager";
 
     public static final String INSERT_MAPPINGS = "insert_mappings";
     public static final String BUILD_AGGREGATES_BY_NAME_AND_SYNONYMS = "build_aggregates_by_name_and_synonyms";
@@ -154,7 +160,7 @@ public class ConceptManager {
      */
     @PUT
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + BUILD_AGGREGATES_BY_MAPPINGS + "}")
+    @javax.ws.rs.Path(BUILD_AGGREGATES_BY_MAPPINGS)
     public void buildAggregatesByMappings(String jsonParameterObject)
             throws IOException {
         ObjectMapper om = new ObjectMapper();
@@ -184,7 +190,7 @@ public class ConceptManager {
      */
     @DELETE
     @Consumes(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path("/{" + DELETE_AGGREGATES + "}")
+    @javax.ws.rs.Path(DELETE_AGGREGATES)
     public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
         Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
@@ -196,7 +202,7 @@ public class ConceptManager {
 
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + COPY_AGGREGATE_PROPERTIES + "}")
+    @javax.ws.rs.Path(COPY_AGGREGATE_PROPERTIES)
     public Representation copyAggregateProperties() {
         int numAggregates = 0;
         CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
@@ -554,7 +560,7 @@ public class ConceptManager {
      */
     @POST
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + GET_CHILDREN_OF_CONCEPTS + "}")
+    @javax.ws.rs.Path(GET_CHILDREN_OF_CONCEPTS)
     public MappingRepresentation getChildrenOfConcepts(String parameterObject) throws IOException {
         ObjectMapper om = new ObjectMapper();
         final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {
@@ -610,7 +616,7 @@ public class ConceptManager {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + GET_PATHS_FROM_FACETROOTS + "}")
+    @javax.ws.rs.Path(GET_PATHS_FROM_FACETROOTS)
     public Representation getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_ID_PROPERTY)String idProperty,@QueryParam(KEY_RETURN_ID_PROPERTY) String returnIdProperty, @QueryParam(KEY_SORT_RESULT) boolean sort, @QueryParam(KEY_FACET_ID) String facetId)  {
         final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
 
@@ -1180,7 +1186,7 @@ public class ConceptManager {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + INSERT_CONCEPTS + "}")
+    @javax.ws.rs.Path(INSERT_CONCEPTS)
     public Representation insertConcepts(String jsonParameterObject)
             throws ConceptInsertionException, IOException {
         log.info("{} was called", INSERT_CONCEPTS);
@@ -1404,7 +1410,7 @@ public class ConceptManager {
      * the concept in question has children in the facet it is shown in or not.
      */
     @POST
-    @javax.ws.rs.Path("/{" + UPDATE_CHILD_INFORMATION + "}")
+    @javax.ws.rs.Path(UPDATE_CHILD_INFORMATION)
     public void updateChildrenInformation() {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
@@ -1453,7 +1459,7 @@ public class ConceptManager {
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + INSERT_MAPPINGS + "}")
+    @javax.ws.rs.Path(INSERT_MAPPINGS)
     public int insertMappings(String mappingsJson) throws IOException {
         final ObjectMapper om = new ObjectMapper();
         final List<Map<String, String>> mappings = om.readValue(mappingsJson, new TypeReference<List<Map<String, String>>>() {
@@ -1554,35 +1560,30 @@ public class ConceptManager {
      * @return
      * @throws IOException
      */
-    @POST
-    @Consumes(MediaType.APPLICATION_JSON)
+    @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + GET_FACET_ROOTS + "}")
-    public MappingRepresentation getFacetRoots(String parameterObject) throws IOException {
-        final ObjectMapper om = new ObjectMapper();
-        Map<String, Object> parameterMap = om.readValue(parameterObject, Map.class);
-        Map<String, List<String>> conceptIdsObject = (Map<String, List<String>>) parameterMap.get(KEY_CONCEPT_IDS);
-        Map<String, Object> facetRoots = new HashMap<>();
-        int maxRoots = parameterMap.containsKey(KEY_MAX_ROOTS) ? (int) parameterMap.get(KEY_MAX_ROOTS) : 0;
-
-        List<String> facetIdsArray = (List<String>) parameterMap.get(KEY_FACET_ID);
-        Set<String> requestedFacetIds = new HashSet<>();
-        for (String value : facetIdsArray) requestedFacetIds.add(value);
-
-        Map<String, Set<String>> requestedConceptIds = null;
-        if (conceptIdsObject != null) {
-            requestedConceptIds = new HashMap<>();
-            for (String facetId : conceptIdsObject.keySet()) {
-                List<String> requestedRootIdsForFacet = conceptIdsObject.get(facetId);
-                Set<String> idSet = new HashSet<>();
-                for (String s : requestedRootIdsForFacet) idSet.add(s);
-                requestedConceptIds.put(facetId, idSet);
+    @javax.ws.rs.Path(GET_FACET_ROOTS)
+    public MappingRepresentation getFacetRoots(@Context UriInfo uriInfo) {
+        Set<String> requestedFacetId = new HashSet<>();
+        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+        Map<String, Set<String>> requestedConceptIds = new HashMap<>();
+        int maxRoots = 0;
+        for (String param : queryParameters.keySet()) {
+            if (param.equals(KEY_FACET_IDS))
+                Stream.of(queryParameters.getFirst(param).split(",")).forEach(requestedFacetId::add);
+            else if (param.equals(KEY_MAX_ROOTS))
+                maxRoots = Integer.parseInt(queryParameters.getFirst(param));
+            else {
+                requestedFacetId.add(param);
+                requestedConceptIds.put(param, Set.of(queryParameters.getFirst(param).split(",")));
             }
         }
+        Map<String, Object> facetRoots = new HashMap<>();
+
 
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            log.info("Returning roots for facets " + requestedFacetIds);
+            log.info("Returning roots for facets " + requestedFacetId);
             Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
             TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(tx, null, null);
             Traverser traverse = facetTraversal.traverse(facetGroupsNode);
@@ -1597,7 +1598,7 @@ public class ConceptManager {
                 Set<String> requestedIdSet = null;
                 if (null != requestedConceptIds)
                     requestedIdSet = requestedConceptIds.get(facetId);
-                if (requestedFacetIds.contains(facetId)) {
+                if (requestedFacetId.contains(facetId)) {
                     List<Node> roots = new ArrayList<>();
                     Iterable<Relationship> relationships = facetNode.getRelationships(Direction.OUTGOING,
                             EdgeTypes.HAS_ROOT_CONCEPT);
@@ -1619,7 +1620,6 @@ public class ConceptManager {
                                 + " root concepts (" + roots.size() + ").");
                 }
             }
-            tx.commit();
         }
 
         return new RecursiveMappingRepresentation(Representation.MAP, facetRoots);
@@ -1643,7 +1643,7 @@ public class ConceptManager {
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + ADD_CONCEPT_TERM + "}")
+    @javax.ws.rs.Path(ADD_CONCEPT_TERM)
     public void addWritingVariants(String jsonParameterObject) throws IOException {
         ObjectMapper om = new ObjectMapper();
         Map<String, String> parameterMap = om.readValue(jsonParameterObject, Map.class);

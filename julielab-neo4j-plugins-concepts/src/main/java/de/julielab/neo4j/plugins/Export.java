@@ -60,7 +60,7 @@ public class Export {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + CONCEPT_ID_MAPPING + "}")
+    @javax.ws.rs.Path("/" + CONCEPT_ID_MAPPING)
     public Representation exportIdMapping(@QueryParam(PARAM_ID_PROPERTY) String idProperty, @QueryParam(PARAM_LABELS) String labelStrings) throws Exception {
         final ObjectMapper om = new ObjectMapper();
         log.info("Exporting ID mapping data.");
@@ -109,7 +109,7 @@ public class Export {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + HYPERNYMS + "}")
+    @javax.ws.rs.Path("/"+HYPERNYMS)
     public Representation exportHypernyms(
             @QueryParam(PARAM_LABELS) String facetLabelStrings,
             @QueryParam(PARAM_LABEL) String conceptLabel)
@@ -254,7 +254,7 @@ public class Export {
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path("/{" + LINGPIPE_DICT + "}")
+    @javax.ws.rs.Path("/"+LINGPIPE_DICT)
     public String exportLingpipeDictionary(
             @QueryParam(PARAM_LABEL) String labelString,
             @QueryParam(PARAM_EXCLUSION_LABEL) String exclusionLabelString,
@@ -393,7 +393,7 @@ public class Export {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/{" + CONCEPT_TO_FACET + "}")
+    @javax.ws.rs.Path("/" + CONCEPT_TO_FACET)
     public Representation exportTermFacetMapping(
             @QueryParam(PARAM_LABEL) String labelString)
             throws IOException {

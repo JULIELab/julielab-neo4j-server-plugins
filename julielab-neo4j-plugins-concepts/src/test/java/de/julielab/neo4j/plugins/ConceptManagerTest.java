@@ -1359,7 +1359,7 @@ public class ConceptManagerTest {
         }
         assertEquals("Wrong number of paths", 2, paths.size());
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source15", PROP_SRC_IDS,null, false, "fid0");
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS,null, false, "fid0");
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid1", "tid2", "tid3", "tid4"}, paths.get(0));
@@ -1735,114 +1735,8 @@ public class ConceptManagerTest {
     // }
     // }
 
-    @SuppressWarnings("unchecked")
-    @Test
-    public void testGetAllFacetRoots() throws Exception {
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestTerms(3);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        // Insert two times so we have two facets
-        testTerms.getFacet().setName("secondfacet");
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm
-                .getFacetRoots(ConceptsJsonSerializer.toJson(Map.of(KEY_FACET_IDS, List.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1))));
-        Map<String, Object> map = facetRoots.getUnderlyingMap();
 
-        try (Transaction ignored = graphDb.beginTx()) {
-            // Roots of two facets
-            assertEquals(2, map.size());
-            List<Node> roots = (List<Node>) map.get(NodeIDPrefixConstants.FACET + 0);
-            List<String> rootIds = new ArrayList<>();
-            for (Node root : roots)
-                rootIds.add((String) root.getProperty(PROP_ID));
 
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
-
-            roots = (List<Node>) map.get(NodeIDPrefixConstants.FACET + 1);
-            rootIds = new ArrayList<>();
-            for (Node root : roots)
-                rootIds.add((String) root.getProperty(PROP_ID));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
-        }
-    }
-
-    @Test
-    public void testGetFacetRootsWithLimit() throws Exception {
-        // the exact same test as testGetAllFacetRoots() but with a limit on
-        // maximum roots
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestTerms(3);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        // Insert two times so we have two facets
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm
-                .getFacetRoots(
-                        ConceptsJsonSerializer.toJson(Map.of(KEY_FACET_IDS,
-                                List.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), KEY_MAX_ROOTS, 2)));
-        Map<String, Object> map = facetRoots.getUnderlyingMap();
-
-        try (Transaction ignored = graphDb.beginTx()) {
-            // Roots of two facets
-            assertEquals(0, map.size());
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    @Test
-    public void testGetSpecificFacetRoots() throws Exception {
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestTerms(3);
-        // Insert three times so we have three facets
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        testTerms.getFacet().setName("secondfacet");
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        testTerms.getFacet().setName("thirdfacet");
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-
-        Map<String, List<String>> requestedRoots = new HashMap<>();
-        requestedRoots.put(NodeIDPrefixConstants.FACET + 0, Lists.newArrayList(NodeIDPrefixConstants.TERM + 0));
-        requestedRoots.put(NodeIDPrefixConstants.FACET + 1,
-                Lists.newArrayList(NodeIDPrefixConstants.TERM + 1, NodeIDPrefixConstants.TERM + 2));
-        // for the third facet, we want all roots returned
-
-        RecursiveMappingRepresentation facetRoots = (RecursiveMappingRepresentation) tm.getFacetRoots(
-                ConceptsJsonSerializer.toJson(Map.of(KEY_FACET_IDS, List.of(NodeIDPrefixConstants.FACET + 0,
-                        NodeIDPrefixConstants.FACET + 1, NodeIDPrefixConstants.FACET + 2), KEY_CONCEPT_IDS, requestedRoots)));
-        Map<String, Object> map = facetRoots.getUnderlyingMap();
-
-        try (Transaction ignored = graphDb.beginTx()) {
-            // Roots of two facets
-            assertEquals(3, map.size());
-            List<Node> roots = (List<Node>) map.get(NodeIDPrefixConstants.FACET + 0);
-            List<String> rootIds = new ArrayList<>();
-            for (Node root : roots)
-                rootIds.add((String) root.getProperty(PROP_ID));
-
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
-            assertFalse(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
-            assertFalse(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
-
-            roots = (List<Node>) map.get(NodeIDPrefixConstants.FACET + 1);
-            rootIds = new ArrayList<>();
-            for (Node root : roots)
-                rootIds.add((String) root.getProperty(PROP_ID));
-            assertFalse(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
-
-            roots = (List<Node>) map.get(NodeIDPrefixConstants.FACET + 2);
-            rootIds = new ArrayList<>();
-            for (Node root : roots)
-                rootIds.add((String) root.getProperty(PROP_ID));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
-            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
-        }
-    }
 
     @Test
     public void testAddFacetTwice() throws Exception {
