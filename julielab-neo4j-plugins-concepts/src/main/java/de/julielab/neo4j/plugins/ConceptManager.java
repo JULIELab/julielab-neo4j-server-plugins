@@ -34,6 +34,7 @@ import java.util.*;
 import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
+import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static java.util.stream.Collectors.joining;
@@ -60,7 +61,8 @@ public class ConceptManager {
     public static final String KEY_FACET_IDS = "facetIds";
     public static final String KEY_FACET_PROP_KEY = "propertyKey";
     public static final String KEY_FACET_PROP_VALUE = "propertyValue";
-    public static final String KEY_ID_TYPE = "idType";
+    public static final String KEY_ID_PROPERTY = "id_property";
+    public static final String KEY_RETURN_ID_PROPERTY = "return_id_property";
     public static final String KEY_IMPORT_OPTIONS = "importOptions";
     public static final String KEY_LABEL = "label";
     public static final String KEY_SORT_RESULT = "sortResult";
@@ -601,20 +603,16 @@ public class ConceptManager {
      *     <li>{@link #KEY_FACET_ID}: Optional. The facet ID to restrict the root nodes to.</li>
      * </ul>
      *
-     * @param parameterObject
-     * @return
-     * @throws IOException
+     * @param conceptIdsCsv The concept Ids, separated with commas.
+     * @param sort Whether or not to sort the result paths by length.
+     * @param facetId Optional. A facet ID to restrict all paths to.
+     * @return Paths from facet root concept nodes to the given concept nodes.
      */
-    @POST
+    @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path("/{" + GET_PATHS_FROM_FACETROOTS + "}")
-    public Representation getPathsFromFacetRoots(String parameterObject) throws IOException {
-        ObjectMapper om = new ObjectMapper();
-        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {
-        });
-        final List<String> conceptIds = (List<String>) parameterMap.get(KEY_CONCEPT_IDS);
-        final Boolean sort = (Boolean) parameterMap.get(KEY_SORT_RESULT);
-        final String facetId = (String) parameterMap.get(KEY_FACET_ID);
+    public Representation getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_ID_PROPERTY)String idProperty,@QueryParam(KEY_RETURN_ID_PROPERTY) String returnIdProperty, @QueryParam(KEY_SORT_RESULT) boolean sort, @QueryParam(KEY_FACET_ID) String facetId)  {
+        final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
 
         Evaluator rootConceptEvaluator = path -> {
             Node endNode = path.endNode();
@@ -643,7 +641,9 @@ public class ConceptManager {
             Node[] startNodes = new Node[conceptIds.size()];
             for (int i = 0; i < conceptIds.size(); i++) {
                 String conceptId = conceptIds.get(i);
-                Node node = tx.findNode(ConceptLabel.CONCEPT, PROP_ID, conceptId);
+                Node node = idProperty.equals(PROP_SRC_IDS) ? FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, idProperty, conceptId) : tx.findNode(ConceptLabel.CONCEPT, idProperty, conceptId);
+                if (node == null)
+                    throw new IllegalArgumentException("Could not find a node with ID " + conceptId + " for property " + idProperty);
                 startNodes[i] = node;
             }
 
@@ -663,13 +663,13 @@ public class ConceptManager {
                         n = nodesIt.next();
                     else
                         throw new IllegalStateException("Length of path wrong, more nodes expected.");
-                    if (!n.hasProperty(PROP_ID)) {
+                    if (!n.hasProperty(idProperty)) {
                         log.warn("Came across the concept " + n + " (" + NodeUtilities.getNodePropertiesAsString(n)
                                 + ") when computing root paths. But this concept does not have an ID.");
                         error = true;
                         break;
                     }
-                    pathConceptIds[i] = (String) n.getProperty(PROP_ID);
+                    pathConceptIds[i] = (String) n.getProperty(returnIdProperty != null ? returnIdProperty : PROP_ID);
                 }
                 if (!error)
                     pathsConceptIds.add(pathConceptIds);
@@ -682,12 +682,7 @@ public class ConceptManager {
         }
     }
 
-    private String[] getSourceIds(Node concept) {
-        String sourceIdString = (String) concept.getProperty(PROP_SRC_IDS);
-        if (sourceIdString != null)
-            return sourceIdString.split("\\s+");
-        return null;
-    }
+
     /**
      * Adds an aggregate concept. An aggregate concept is a concept of the following
      * input form:<br/>

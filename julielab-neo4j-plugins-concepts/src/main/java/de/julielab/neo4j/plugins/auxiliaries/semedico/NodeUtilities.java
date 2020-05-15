@@ -52,7 +52,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     public static Set<String> getSourcesForSourceId(Node conceptNode, String sourceId) {
         Set<String> sourcesForSourceId = new HashSet<>();
 
-        String[] conceptSrcIds = (String[]) conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS);
+        String[] conceptSrcIds = getSourceIds(conceptNode);
         String[] conceptSources = conceptNode.hasProperty(PROP_SOURCES)
                 ? (String[]) conceptNode.getProperty(PROP_SOURCES) : new String[0];
         if (conceptSources.length > 0 && conceptSrcIds.length != conceptSources.length) {
@@ -68,7 +68,12 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 
         return sourcesForSourceId;
     }
-
+    public static String[] getSourceIds(Node concept) {
+        String sourceIdString = (String) concept.getProperty(PROP_SRC_IDS);
+        if (sourceIdString != null)
+            return sourceIdString.split("\\s+");
+        return null;
+    }
     /**
      * Iterates over source IDs and source ID unique markers. If at least one
      * unique marker for <tt>srcId</tt> (which might occur multiple times from

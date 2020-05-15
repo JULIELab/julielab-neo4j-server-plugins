@@ -1251,8 +1251,7 @@ public class ConceptManagerTest {
         RecursiveMappingRepresentation pathsFromFacetroots;
         List<String[]> paths;
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source1", "source3"), KEY_SORT_RESULT, false)));
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source1,source3",PROP_SRC_IDS, null, false, null);
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect one path with a single node, i.e. source1 and two paths
@@ -1274,8 +1273,7 @@ public class ConceptManagerTest {
         }
         assertEquals("Wrong number of paths", 3, paths.size());
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source4", "source6"), KEY_SORT_RESULT, false)));
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source4,source6", PROP_SRC_IDS, null, false, null);
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         String[] expectedPath1 = new String[]{NodeIDPrefixConstants.TERM + 0, NodeIDPrefixConstants.TERM + 2,
                 NodeIDPrefixConstants.TERM + 3};
@@ -1350,8 +1348,7 @@ public class ConceptManagerTest {
         RecursiveMappingRepresentation pathsFromFacetroots;
         List<String[]> paths;
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source5"), KEY_SORT_RESULT, false)));
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS,null, false, null);
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect two paths, both chains that have been defined by the
@@ -1362,14 +1359,12 @@ public class ConceptManagerTest {
         }
         assertEquals("Wrong number of paths", 2, paths.size());
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source15"), KEY_SORT_RESULT, false, KEY_FACET_ID, "fid0")));
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source15", PROP_SRC_IDS,null, false, "fid0");
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid1", "tid2", "tid3", "tid4"}, paths.get(0));
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots(
-                ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("source5"), KEY_SORT_RESULT, false, KEY_FACET_ID, "fid1")));
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, "fid1");
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid5", "tid4"}, paths.get(0));
