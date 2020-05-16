@@ -51,7 +51,7 @@ public class ExportTest {
 
     @Test
     public void createIdMappingOneFacetSourceIds() throws Exception {
-        new Indexes(graphDBMS).createIndexes(null);
+        new Indexes(graphDBMS).createIndexes((String) null);
 
         ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(10);
         importConcepts.getFacet().setName("facet1");
@@ -143,7 +143,7 @@ public class ExportTest {
 
     @Test
     public void createIdMappingOneFacetOriginalId() throws Exception {
-        new Indexes(graphDBMS).createIndexes(null);
+        new Indexes(graphDBMS).createIndexes((String) null);
         ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(10);
         for (ImportConcept term : importConcepts.getConcepts()) {
             term.generalLabels = Lists.newArrayList("TESTLABEL");

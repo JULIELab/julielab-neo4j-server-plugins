@@ -2,6 +2,7 @@ package de.julielab.neo4j.plugins;
 
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
 import org.neo4j.dbms.api.DatabaseManagementService;
+import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.schema.IndexCreator;
@@ -81,7 +82,12 @@ public class Indexes {
     @javax.ws.rs.Path("/{" + CREATE_INDEXES + "}")
     public void createIndexes(@QueryParam(DB_NAME) String databaseName) {
         final String effectiveDbName = databaseName == null ? DEFAULT_DATABASE_NAME : databaseName;
-        try (Transaction tx = dbms.database(effectiveDbName).beginTx()) {
+        GraphDatabaseService graphDb = dbms.database(effectiveDbName);
+        createIndexes(graphDb);
+    }
+
+    public void createIndexes(GraphDatabaseService graphDb) {
+        try (Transaction tx = graphDb.beginTx()) {
             ConceptManager.createIndexes(tx);
             SequenceManager.createIndexes(tx);
             FacetManager.createIndexes(tx);

@@ -26,10 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.*;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.MultivaluedMap;
-import javax.ws.rs.core.UriInfo;
+import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.*;
@@ -144,7 +141,7 @@ public class ConceptManager {
         // by schema indexes it seems
         Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, false, ConceptConstants.PROP_ORG_ID);
         Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, true, NodeConstants.PROP_NAME);
-        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT, Mini.ConceptLabel.HOLLOW}, new String[]{PROP_SRC_IDS});
+        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT, ConceptLabel.HOLLOW}, new String[]{PROP_SRC_IDS});
     }
 
     /**
@@ -1127,7 +1124,6 @@ public class ConceptManager {
 
         }
         // Finished getting existing nodes and creating HOLLOW nodes
-
         for (ConceptCoordinates coordinates : toBeCreated) {
             Node conceptNode = registerNewHollowConceptNode(tx, coordinates);
             ++insertionReport.numConcepts;
@@ -1135,8 +1131,9 @@ public class ConceptManager {
             nodesByCoordinates.put(coordinates, conceptNode);
         }
 
-        log.info("removing " + importConceptsToRemove.size()
-                + " input concepts that should be omitted because we are merging and don't have them in the database");
+        if (!importConceptsToRemove.isEmpty())
+            log.info("removing " + importConceptsToRemove.size()
+                    + " input concepts that should be omitted because we are merging and don't have them in the database");
         for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
             jsonConcepts.remove(importConceptsToRemove.get(index));
 
@@ -1189,90 +1186,94 @@ public class ConceptManager {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(INSERT_CONCEPTS)
-    public Representation insertConcepts(String jsonParameterObject)
+    public Object insertConcepts(String jsonParameterObject)
             throws ConceptInsertionException, IOException {
-        log.info("{} was called", INSERT_CONCEPTS);
-        long time = System.currentTimeMillis();
+        try {
+            log.info("{} was called", INSERT_CONCEPTS);
+            long time = System.currentTimeMillis();
 
-        final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(jsonParameterObject, ImportConcepts.class);
-        ImportFacet jsonFacet = importConcepts.getFacet();
-        List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
-        log.info("Got {} input concepts for import.", jsonConcepts != null ? jsonConcepts.size() : 0);
-        ImportOptions importOptions = importConcepts.getImportOptions() != null ? importConcepts.getImportOptions() : new ImportOptions();
+            final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(jsonParameterObject, ImportConcepts.class);
+            ImportFacet jsonFacet = importConcepts.getFacet();
+            List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
+            log.info("Got {} input concepts for import.", jsonConcepts != null ? jsonConcepts.size() : 0);
+            ImportOptions importOptions = importConcepts.getImportOptions() != null ? importConcepts.getImportOptions() : new ImportOptions();
 
-        Map<String, Object> report = new HashMap<>();
-        InsertionReport insertionReport = new InsertionReport();
-        log.debug("Beginning processing of concept insertion.");
-        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (Transaction tx = graphDb.beginTx()) {
-            Node facet = null;
-            String facetId = null;
-            // The facet Id will be added to the facets-property of the concept
-            // nodes.
-            log.debug("Handling import of facet.");
-            if (null != jsonFacet && jsonFacet.getId() != null) {
-                facetId = jsonFacet.getId();
-                log.info("Facet ID {} has been given to add the concepts to.", facetId);
-                boolean isNoFacet = jsonFacet.isNoFacet();
-                if (isNoFacet)
-                    facet = FacetManager.getNoFacet(tx, facetId);
-                else
-                    facet = FacetManager.getFacetNode(tx, facetId);
-                if (null == facet)
-                    throw new IllegalArgumentException("The facet with ID \"" + facetId
-                            + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
-            } else if (null != jsonFacet && jsonFacet.getName() != null) {
-                ResourceIterator<Node> facetIterator = tx.findNodes(FacetLabel.FACET);
-                while (facetIterator.hasNext()) {
-                    facet = facetIterator.next();
-                    if (facet.getProperty(FacetConstants.PROP_NAME)
-                            .equals(jsonFacet.getName()))
-                        break;
-                    facet = null;
+            Map<String, Object> report = new HashMap<>();
+            InsertionReport insertionReport = new InsertionReport();
+            log.debug("Beginning processing of concept insertion.");
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+            try (Transaction tx = graphDb.beginTx()) {
+                Node facet = null;
+                String facetId = null;
+                // The facet Id will be added to the facets-property of the concept
+                // nodes.
+                log.debug("Handling import of facet.");
+                if (null != jsonFacet && jsonFacet.getId() != null) {
+                    facetId = jsonFacet.getId();
+                    log.info("Facet ID {} has been given to add the concepts to.", facetId);
+                    boolean isNoFacet = jsonFacet.isNoFacet();
+                    if (isNoFacet)
+                        facet = FacetManager.getNoFacet(tx, facetId);
+                    else
+                        facet = FacetManager.getFacetNode(tx, facetId);
+                    if (null == facet)
+                        throw new IllegalArgumentException("The facet with ID \"" + facetId
+                                + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
+                } else if (null != jsonFacet && jsonFacet.getName() != null) {
+                    ResourceIterator<Node> facetIterator = tx.findNodes(FacetLabel.FACET);
+                    while (facetIterator.hasNext()) {
+                        facet = facetIterator.next();
+                        if (facet.getProperty(FacetConstants.PROP_NAME)
+                                .equals(jsonFacet.getName()))
+                            break;
+                        facet = null;
+                    }
+
+                }
+                if (null != jsonFacet && null == facet) {
+                    // No existing ID is given, create a new facet.
+                    facet = FacetManager.createFacet(tx, jsonFacet);
+                }
+                if (null != facet) {
+                    facetId = (String) facet.getProperty(PROP_ID);
+                    log.debug("Facet {} was successfully created or determined by ID.", facetId);
+                } else {
+                    log.debug(
+                            "No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
+                    importOptions.merge = true;
                 }
 
-            }
-            if (null != jsonFacet && null == facet) {
-                // No existing ID is given, create a new facet.
-                facet = FacetManager.createFacet(tx, jsonFacet);
-            }
-            if (null != facet) {
-                facetId = (String) facet.getProperty(PROP_ID);
-                log.debug("Facet {} was successfully created or determined by ID.", facetId);
-            } else {
-                log.debug(
-                        "No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
-                importOptions.merge = true;
-            }
+                if (null != jsonConcepts) {
+                    log.debug("Beginning to create concept nodes and relationships.");
+                    CoordinatesMap nodesByCoordinates = new CoordinatesMap();
+                    insertionReport = insertConcepts(tx, jsonConcepts, facetId, nodesByCoordinates, importOptions);
+                    // If the nodesBySrcId map is empty we either have no concepts or
+                    // at least no concepts with a source ID. Then,
+                    // relationship creation is currently not supported.
+                    if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
+                        createRelationships(tx, jsonConcepts, facet, nodesByCoordinates, importOptions,
+                                insertionReport);
+                    else
+                        log.info("This is a property merging import, no relationships are created.");
+                    report.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
+                    report.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
+                    log.debug("Done creating concepts and relationships.");
+                } else {
+                    log.info("No concepts were included in the request.");
+                }
 
-            if (null != jsonConcepts) {
-                log.debug("Beginning to create concept nodes and relationships.");
-                CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                insertionReport = insertConcepts(tx, jsonConcepts, facetId, nodesByCoordinates, importOptions);
-                // If the nodesBySrcId map is empty we either have no concepts or
-                // at least no concepts with a source ID. Then,
-                // relationship creation is currently not supported.
-                if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
-                    createRelationships(tx, jsonConcepts, facet, nodesByCoordinates, importOptions,
-                            insertionReport);
-                else
-                    log.info("This is a property merging import, no relationships are created.");
-                report.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
-                report.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
-                log.debug("Done creating concepts and relationships.");
-            } else {
-                log.info("No concepts were included in the request.");
+                time = System.currentTimeMillis() - time;
+                report.put(KEY_TIME, time);
+                report.put(KEY_FACET_ID, facetId);
+                tx.commit();
             }
-
-            time = System.currentTimeMillis() - time;
-            report.put(KEY_TIME, time);
-            report.put(KEY_FACET_ID, facetId);
-            tx.commit();
+            log.info("Concept insertion complete.");
+            log.info(INSERT_CONCEPTS + " is finished processing after " + time + " ms. " + insertionReport.numConcepts
+                    + " concepts and " + insertionReport.numRelationships + " relationships have been created.");
+            return Response.ok(report).build();
+        } catch (Throwable throwable) {
+            return Response.serverError().entity(throwable.getMessage() != null ? throwable.getMessage() : throwable).build();
         }
-        log.info("Concept insertion complete.");
-        log.info(INSERT_CONCEPTS + " is finished processing after " + time + " ms. " + insertionReport.numConcepts
-                + " concepts and " + insertionReport.numRelationships + " relationships have been created.");
-        return new RecursiveMappingRepresentation(Representation.MAP, report);
     }
 
     /**

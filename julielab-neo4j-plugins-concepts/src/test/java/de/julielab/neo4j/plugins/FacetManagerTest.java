@@ -223,7 +223,7 @@ public class FacetManagerTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testGetFacets() throws Exception {
-        new Indexes(graphDBMS).createIndexes(null);
+        new Indexes(graphDBMS).createIndexes((String) null);
         // To be able to get facets, we first have to insert a few.
         List<ImportFacet> facetMaps = new ArrayList<>();
         facetMaps.add(getTestFacetMap(1));
@@ -285,7 +285,7 @@ public class FacetManagerTest {
 
     @Test
     public void testGetFacetSize() throws Exception {
-        new Indexes(graphDBMS).createIndexes(null);
+        new Indexes(graphDBMS).createIndexes((String) null);
         int amount = 10;
         String facet = "fid0";
 

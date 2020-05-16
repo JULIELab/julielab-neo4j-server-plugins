@@ -15,6 +15,7 @@ import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
+import org.glassfish.jersey.message.internal.OutboundJaxrsResponse;
 import org.junit.*;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphalgo.BasicEvaluationContext;
@@ -88,7 +89,7 @@ public class ConceptManagerTest {
     @Before
     public void cleanForTest() {
         TestUtilities.deleteEverythingInDB(graphDb);
-        new Indexes(graphDBMS).createIndexes(null);
+        new Indexes(graphDBMS).createIndexes((String) null);
     }
 
     @Test
@@ -1043,9 +1044,9 @@ public class ConceptManagerTest {
         termAndFacet.setImportOptions(new ImportOptions());
         termAndFacet.getImportOptions().doNotCreateHollowParents = false;
         ConceptManager ftm = new ConceptManager(graphDBMS);
-        RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) ftm.insertConcepts(
+        OutboundJaxrsResponse report = (OutboundJaxrsResponse) ftm.insertConcepts(
                 ConceptsJsonSerializer.toJson(termAndFacet));
-        Map<String, ?> reportMap = report.getUnderlyingMap();
+        Map<String, ?> reportMap = (Map<String, ?>) report.getEntity();
         assertEquals("Number of inserted terms", 2, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_CONCEPTS));
         // we expect relations for the root term, broader than and broader than fid0
         assertEquals("Number of inserted relationships", 3, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_RELS));
