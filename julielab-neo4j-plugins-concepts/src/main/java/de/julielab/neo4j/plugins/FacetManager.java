@@ -197,7 +197,7 @@ public class FacetManager {
     }
 
     public static Node getFacetGroupsNode(Transaction tx) {
-        Node facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, NodeConstants.Labels.ROOT,
+        Node facetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
                 PROP_NAME, NAME_FACET_GROUPS);
         if (null == facetGroupsNode) {
             facetGroupsNode = tx.createNode(NodeConstants.Labels.ROOT);
@@ -208,7 +208,7 @@ public class FacetManager {
 
     public static Node getNoFacetGroupsNode(Transaction tx) {
         Node facetGroupsNode;
-        facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, NodeConstants.Labels.ROOT,
+        facetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
                 PROP_NAME, NAME_NO_FACET_GROUPS);
         if (null == facetGroupsNode) {
             facetGroupsNode = tx.createNode(NodeConstants.Labels.ROOT);
@@ -223,11 +223,11 @@ public class FacetManager {
     }
 
     public static Node getFacetNode(Transaction tx, String facetId) {
-        return NodeUtilities.findSingleNodeByLabelAndProperty(tx, FacetLabel.FACET, PROP_ID, facetId);
+        return tx.findNode(FacetLabel.FACET, PROP_ID, facetId);
     }
 
     public static Node getNoFacet(Transaction tx, String facetId) {
-        Node noFacetNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, FacetLabel.NO_FACET, PROP_ID,
+        Node noFacetNode = tx.findNode(FacetLabel.NO_FACET, PROP_ID,
                 facetId);
         if (null == noFacetNode) {
             Node facetNode = getFacetNode(tx, facetId);

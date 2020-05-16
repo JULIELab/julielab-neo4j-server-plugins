@@ -20,14 +20,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
-import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_IDS;
-import static de.julielab.neo4j.plugins.ConceptManager.KEY_LABEL;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
@@ -199,10 +196,7 @@ public class ConceptAggregateBuilderTest {
         // elements via the respective FacetManager
         // method
         try (Transaction tx = graphDb.beginTx()) {
-            RecursiveMappingRepresentation responseMap = (RecursiveMappingRepresentation) tm.getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS,
-                    List.of(NodeIDPrefixConstants.AGGREGATE_TERM + 0), KEY_LABEL, aggregatedTermsLabel.name())));
-            Map<String, Object> map = (Map<String, Object>) responseMap.getUnderlyingMap()
-                    .get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
+            Map<String, Object> map = (Map<String, Object>) tm.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + 0), aggregatedTermsLabel).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
             Map<String, List<String>> reltypes = (Map<String, List<String>>) map.get(ConceptManager.RET_KEY_RELTYPES);
             List<String> list1 = reltypes.get(NodeIDPrefixConstants.TERM + 1);
             assertEquals("HAS_ELEMENT", list1.get(0));
@@ -211,7 +205,7 @@ public class ConceptAggregateBuilderTest {
             Set<Node> children = (Set<Node>) map.get(ConceptManager.RET_KEY_CHILDREN);
             Set<String> childrenIds = new HashSet<>();
             for (Node term : children)
-                childrenIds.add(((String[]) term.getProperty(ConceptConstants.PROP_SRC_IDS))[0]);
+                childrenIds.add(NodeUtilities.getSourceIds(term)[0]);
             assertTrue(childrenIds.contains(t12.coordinates.sourceId));
             assertTrue(childrenIds.contains(t21.coordinates.sourceId));
         }

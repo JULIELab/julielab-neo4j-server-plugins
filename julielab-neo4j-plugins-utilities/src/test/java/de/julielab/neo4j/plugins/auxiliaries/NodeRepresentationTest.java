@@ -41,7 +41,7 @@ public class NodeRepresentationTest {
 			Node node = tx.createNode(Label.label("label1"), Label.label("label2"));
 			node.setProperty("property", "value");
 			NodeRepresentation nodeRepresentation = new NodeRepresentation(node);
-			Map<String, Object> map = nodeRepresentation.getUnderlyingMap();
+			Map<String, ?> map = nodeRepresentation.getUnderlyingMap();
 			String[] labels = (String[]) map.get(NodeConstants.KEY_LABELS);
 			List<String> labelList = Lists.newArrayList(labels);
 			assertTrue(labelList.contains("label1"));

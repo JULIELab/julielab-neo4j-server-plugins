@@ -32,31 +32,6 @@ public class NodeUtilities extends PropertyUtilities {
 		return node;
 	}
 
-	public static Node findSingleNodeByLabelAndProperty(Transaction tx, Label label, String key,
-			String value) {
-		Node node = null;
-		ResourceIterator<Node> resourceIterator = tx.findNodes(label, key, value);
-		if (resourceIterator.hasNext()) {
-			node = resourceIterator.next();
-			if (resourceIterator.hasNext()) {
-				List<String> properties = new ArrayList<>();
-				for (String propKey : node.getPropertyKeys())
-					properties.add(node.getProperty(propKey).toString());
-				throw new IllegalStateException("There is more then one node with label \"" + label
-						+ "\" and property value \""
-						+ value
-						+ "\" for the property \""
-						+ key
-						+ "\". First node was: "
-						+ node
-						+ " (properties: \""
-						+ StringUtils.join(properties, " ; ")
-						+ "\").");
-			}
-		}
-		return node;
-	}
-
 	public static Node getSingleOtherNode(Node node, RelationshipType type) {
 		Node otherNode = null;
 		Iterator<Relationship> it = node.getRelationships(type).iterator();

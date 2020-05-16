@@ -18,9 +18,9 @@ import java.util.*;
  */
 public class RecursiveMappingRepresentation extends MappingRepresentation {
 
-	private Map<String, Object> map;
+	private Map<String, ?> map;
 
-	public RecursiveMappingRepresentation(String type, Map<String, Object> map) {
+	public RecursiveMappingRepresentation(String type, Map<String, ?> map) {
 		super(type);
 		this.map = map;
 	}
@@ -31,7 +31,7 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 
 	@Override
 	protected void serialize(final MappingSerializer serializer) {
-		for (Map.Entry<String, Object> pair : map.entrySet()) {
+		for (Map.Entry<String, ?> pair : map.entrySet()) {
 			serialize(pair.getKey(), pair.getValue(), serializer);
 		}
 	}
@@ -42,7 +42,7 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 	 * 
 	 * @return The underlying Java map object.
 	 */
-	public Map<String, Object> getUnderlyingMap() {
+	public Map<String, ?> getUnderlyingMap() {
 		return map;
 	}
 
@@ -162,8 +162,7 @@ public class RecursiveMappingRepresentation extends MappingRepresentation {
 	public static ListRepresentation getIterableRepresentation(Iterable<?> value) {
 		ListRepresentation rep;
 		List<Representation> repList = new ArrayList<>();
-		Iterable<?> iterable = (Iterable<?>) value;
-		for (Object o : iterable)
+		for (Object o : value)
 			repList.add(getObjectRepresentation(o));
 		// I have absolutely no idea what this "type" should be good for.
 		rep = new ListRepresentation(RepresentationType.TEMPLATE, repList);

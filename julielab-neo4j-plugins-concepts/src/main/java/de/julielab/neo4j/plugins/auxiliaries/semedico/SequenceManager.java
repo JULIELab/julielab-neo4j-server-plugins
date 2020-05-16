@@ -14,10 +14,12 @@ public class SequenceManager {
 
     public static int getNextSequenceValue(Transaction tx, String sequenceName) {
         Node sequence = getSequence(tx, sequenceName);
-        tx.acquireReadLock(sequence);
-        tx.acquireWriteLock(sequence);
+        Lock readLock = tx.acquireReadLock(sequence);
+        Lock writeLock = tx.acquireWriteLock(sequence);
         int currentSequenceValue = (Integer) sequence.getProperty(PROP_VALUE);
         sequence.setProperty(PROP_VALUE, currentSequenceValue + 1);
+        readLock.release();
+        writeLock.release();
         return currentSequenceValue;
     }
 

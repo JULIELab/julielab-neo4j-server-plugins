@@ -2,7 +2,6 @@ package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
-import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.*;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
@@ -110,7 +109,7 @@ public class FacetManagerTest {
     public void testGetFacetGroupsNode() {
         try (Transaction tx = graphDb.beginTx()) {
             assertNull("In the beginning, there was no facet groups node",
-                    NodeUtilities.findSingleNodeByLabelAndProperty(tx,
+                    tx.findNode(
                             NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS));
             Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
             assertNotNull("One facet groups node should be there.", facetGroupsNode);
@@ -118,7 +117,7 @@ public class FacetManagerTest {
             FacetManager.getFacetGroupsNode(tx);
             FacetManager.getFacetGroupsNode(tx);
             FacetManager.getFacetGroupsNode(tx);
-            facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx,
+            facetGroupsNode = tx.findNode(
                     NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
             assertNotNull("There is one facet groups node", facetGroupsNode);
         }
@@ -265,7 +264,7 @@ public class FacetManagerTest {
 
         // Get the facets and check that everything is alright.
         RecursiveMappingRepresentation facetRep = (RecursiveMappingRepresentation) fm.getFacets(false);
-        Map<String, Object> underlyingMap = facetRep.getUnderlyingMap();
+        Map<String, ?> underlyingMap = facetRep.getUnderlyingMap();
         // There should be one element, viz. "facetGroups".
         assertEquals(1, underlyingMap.size());
         // Lets check the facet group itself.

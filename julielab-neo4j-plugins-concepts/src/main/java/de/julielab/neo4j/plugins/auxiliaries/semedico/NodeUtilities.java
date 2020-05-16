@@ -68,12 +68,14 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 
         return sourcesForSourceId;
     }
+
     public static String[] getSourceIds(Node concept) {
         String sourceIdString = (String) concept.getProperty(PROP_SRC_IDS);
         if (sourceIdString != null)
             return sourceIdString.split("\\s+");
         return null;
     }
+
     /**
      * Iterates over source IDs and source ID unique markers. If at least one
      * unique marker for <tt>srcId</tt> (which might occur multiple times from
@@ -86,7 +88,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
      * marked as unique.
      */
     public static boolean isSourceUnique(Node conceptNode, String srcId) {
-        String[] conceptSrcIds = ((String)conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS)).split("\\s+");
+        String[] conceptSrcIds = ((String) conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS)).split("\\s+");
         boolean[] conceptUniqueSrcIds = (boolean[]) conceptNode.getProperty(ConceptConstants.PROP_UNIQUE_SRC_ID);
         if (conceptSrcIds.length > 0 && conceptSrcIds.length != conceptUniqueSrcIds.length) {
             throw new IllegalStateException("Concept " + NodeUtilities.getNodePropertiesAsString(conceptNode)
@@ -102,7 +104,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     public static Node mergeConceptNodesWithUniqueSourceId(Transaction tx, String srcId, List<Node> obsoleteNodes) {
         ResourceIterator<Object> conceptNodesIt = FullTextIndexUtils.getNodes(tx, ConceptManager.FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
         Node firstNode = null;
-        for (Object o : (Iterable<Object>)() -> conceptNodesIt) {
+        for (Object o : (Iterable<Object>) () -> conceptNodesIt) {
             Node conceptNode = (Node) o;
             if (firstNode == null) {
                 firstNode = conceptNode;

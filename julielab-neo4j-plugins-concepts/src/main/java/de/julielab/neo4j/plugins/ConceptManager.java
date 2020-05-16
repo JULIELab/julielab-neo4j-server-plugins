@@ -44,7 +44,7 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstan
 import static java.util.stream.Collectors.joining;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-@javax.ws.rs.Path("/"+CM_REST_ENDPOINT)
+@javax.ws.rs.Path("/" + CM_REST_ENDPOINT)
 public class ConceptManager {
 
     public static final String CM_REST_ENDPOINT = "concept_manager";
@@ -144,7 +144,7 @@ public class ConceptManager {
         // by schema indexes it seems
         Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, false, ConceptConstants.PROP_ORG_ID);
         Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, true, NodeConstants.PROP_NAME);
-        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), ConceptLabel.CONCEPT, PROP_SRC_IDS);
+        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT, Mini.ConceptLabel.HOLLOW}, new String[]{PROP_SRC_IDS});
     }
 
     /**
@@ -558,47 +558,48 @@ public class ConceptManager {
      *     </ul>
      * </p>
      */
-    @POST
+    @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(GET_CHILDREN_OF_CONCEPTS)
-    public MappingRepresentation getChildrenOfConcepts(String parameterObject) throws IOException {
-        ObjectMapper om = new ObjectMapper();
-        final Map<String, Object> parameterMap = om.readValue(parameterObject, new TypeReference<Map<String, Object>>() {
-        });
-
-        Label label = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL)) : ConceptLabel.CONCEPT;
-        final List<String> conceptIds = (List<String>) parameterMap.get(KEY_CONCEPT_IDS);
+    public MappingRepresentation getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_LABEL) String labelString) throws IOException {
+        Label label = labelString != null ? Label.label(labelString) : ConceptLabel.CONCEPT;
+        final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            Map<String, Object> childrenByConceptId = new HashMap<>();
-            for (String id : conceptIds) {
-                Map<String, List<String>> reltypesByNodeId = new HashMap<>();
-                Set<Node> childList = new HashSet<>();
-                String conceptId = id;
-                Node concept = NodeUtilities.findSingleNodeByLabelAndProperty(tx, label, PROP_ID, conceptId);
-                if (null != concept) {
-                    for (Relationship rel : concept.getRelationships(Direction.OUTGOING)) {
-                        String reltype = rel.getType().name();
-                        Node child = rel.getEndNode();
-                        boolean isHollow = false;
-                        for (Label l : child.getLabels())
-                            if (l.equals(ConceptLabel.HOLLOW))
-                                isHollow = true;
-                        if (isHollow)
-                            continue;
-                        String childId = (String) child.getProperty(PROP_ID);
-                        List<String> reltypeList = reltypesByNodeId.computeIfAbsent(childId, k -> new ArrayList<>());
-                        reltypeList.add(reltype);
-                        childList.add(child);
-                    }
-                    Map<String, Object> childrenAndReltypes = new HashMap<>();
-                    childrenAndReltypes.put(RET_KEY_CHILDREN, childList);
-                    childrenAndReltypes.put(RET_KEY_RELTYPES, reltypesByNodeId);
-                    childrenByConceptId.put(conceptId, childrenAndReltypes);
-                }
-            }
+            Map<String, Object> childrenByConceptId = getChildrenOfConcepts(tx, conceptIds, label);
             return new RecursiveMappingRepresentation(Representation.MAP, childrenByConceptId);
         }
+    }
+
+    public Map<String, Object> getChildrenOfConcepts(Transaction tx, List<String> conceptIds, Label label) throws IOException {
+        Map<String, Object> childrenByConceptId = new HashMap<>();
+        for (String id : conceptIds) {
+            Map<String, List<String>> reltypesByNodeId = new HashMap<>();
+            Set<Node> childList = new HashSet<>();
+            String conceptId = id;
+            Node concept = tx.findNode(label, PROP_ID, conceptId);
+            if (null != concept) {
+                for (Relationship rel : concept.getRelationships(Direction.OUTGOING)) {
+                    String reltype = rel.getType().name();
+                    Node child = rel.getEndNode();
+                    boolean isHollow = false;
+                    for (Label l : child.getLabels())
+                        if (l.equals(ConceptLabel.HOLLOW))
+                            isHollow = true;
+                    if (isHollow)
+                        continue;
+                    String childId = (String) child.getProperty(PROP_ID);
+                    List<String> reltypeList = reltypesByNodeId.computeIfAbsent(childId, k -> new ArrayList<>());
+                    reltypeList.add(reltype);
+                    childList.add(child);
+                }
+                Map<String, Object> childrenAndReltypes = new HashMap<>();
+                childrenAndReltypes.put(RET_KEY_CHILDREN, childList);
+                childrenAndReltypes.put(RET_KEY_RELTYPES, reltypesByNodeId);
+                childrenByConceptId.put(conceptId, childrenAndReltypes);
+            }
+        }
+        return childrenByConceptId;
     }
 
     /**
@@ -610,14 +611,14 @@ public class ConceptManager {
      * </ul>
      *
      * @param conceptIdsCsv The concept Ids, separated with commas.
-     * @param sort Whether or not to sort the result paths by length.
-     * @param facetId Optional. A facet ID to restrict all paths to.
+     * @param sort          Whether or not to sort the result paths by length.
+     * @param facetId       Optional. A facet ID to restrict all paths to.
      * @return Paths from facet root concept nodes to the given concept nodes.
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(GET_PATHS_FROM_FACETROOTS)
-    public Representation getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_ID_PROPERTY)String idProperty,@QueryParam(KEY_RETURN_ID_PROPERTY) String returnIdProperty, @QueryParam(KEY_SORT_RESULT) boolean sort, @QueryParam(KEY_FACET_ID) String facetId)  {
+    public Representation getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_ID_PROPERTY) String idProperty, @QueryParam(KEY_RETURN_ID_PROPERTY) String returnIdProperty, @QueryParam(KEY_SORT_RESULT) boolean sort, @QueryParam(KEY_FACET_ID) String facetId) {
         final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
 
         Evaluator rootConceptEvaluator = path -> {
@@ -794,11 +795,12 @@ public class ConceptManager {
 
             // Set the aggregate's properties
             if (null != aggSrcId) {
-                int idIndex = Arrays.asList(getSourceIds(aggregate)).indexOf(aggSrcId);
+                int idIndex = aggregate.hasProperty(PROP_SRC_IDS) ? Arrays.asList(getSourceIds(aggregate)).indexOf(aggSrcId) : -1;
                 int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
                 if (!StringUtils.isBlank(aggSrcId)
                         && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
-                    aggregate.setProperty(PROP_SRC_IDS, aggregate.getProperty(PROP_SRC_IDS + " " + aggOrgId));
+                    String newSourceIdString = aggregate.hasProperty(PROP_SRC_IDS) ? aggregate.getProperty(PROP_SRC_IDS) + " " + aggSrcId : aggSrcId;
+                    aggregate.setProperty(PROP_SRC_IDS, newSourceIdString);
                     addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
                 }
                 // if the aggregate has a source ID, add it to the respective
@@ -1564,65 +1566,79 @@ public class ConceptManager {
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(GET_FACET_ROOTS)
     public MappingRepresentation getFacetRoots(@Context UriInfo uriInfo) {
-        Set<String> requestedFacetId = new HashSet<>();
-        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-        Map<String, Set<String>> requestedConceptIds = new HashMap<>();
-        int maxRoots = 0;
-        for (String param : queryParameters.keySet()) {
-            if (param.equals(KEY_FACET_IDS))
-                Stream.of(queryParameters.getFirst(param).split(",")).forEach(requestedFacetId::add);
-            else if (param.equals(KEY_MAX_ROOTS))
-                maxRoots = Integer.parseInt(queryParameters.getFirst(param));
-            else {
-                requestedFacetId.add(param);
-                requestedConceptIds.put(param, Set.of(queryParameters.getFirst(param).split(",")));
-            }
-        }
-        Map<String, Object> facetRoots = new HashMap<>();
-
-
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            log.info("Returning roots for facets " + requestedFacetId);
-            Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
-            TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(tx, null, null);
-            Traverser traverse = facetTraversal.traverse(facetGroupsNode);
-            for (Path path : traverse) {
-                Node facetNode = path.endNode();
-                String facetId = (String) facetNode.getProperty(FacetConstants.PROP_ID);
-                if (maxRoots > 0 && facetNode.hasProperty(FacetConstants.PROP_NUM_ROOT_TERMS)
-                        && (long) facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) > maxRoots) {
-                    log.info("Skipping facet with ID {} because it has more than {} root concepts ({}).", facetId,
-                            maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
+            Set<String> requestedFacetId = new HashSet<>();
+            MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+            Map<String, Set<String>> requestedConceptIds = new HashMap<>();
+            int maxRoots = 0;
+            for (String param : queryParameters.keySet()) {
+                if (param.equals(KEY_FACET_IDS))
+                    Stream.of(queryParameters.getFirst(param).split(",")).forEach(requestedFacetId::add);
+                else if (param.equals(KEY_MAX_ROOTS))
+                    maxRoots = Integer.parseInt(queryParameters.getFirst(param));
+                else {
+                    requestedFacetId.add(param);
+                    requestedConceptIds.put(param, Set.of(queryParameters.getFirst(param).split(",")));
                 }
-                Set<String> requestedIdSet = null;
-                if (null != requestedConceptIds)
-                    requestedIdSet = requestedConceptIds.get(facetId);
-                if (requestedFacetId.contains(facetId)) {
-                    List<Node> roots = new ArrayList<>();
-                    Iterable<Relationship> relationships = facetNode.getRelationships(Direction.OUTGOING,
-                            EdgeTypes.HAS_ROOT_CONCEPT);
-                    for (Relationship rel : relationships) {
-                        Node rootConcept = rel.getEndNode();
-                        boolean include = true;
-                        if (null != requestedIdSet) {
-                            String rootId = (String) rootConcept.getProperty(PROP_ID);
-                            if (!requestedIdSet.contains(rootId))
-                                include = false;
-                        }
-                        if (include)
-                            roots.add(rootConcept);
+            }
+            Map<String, List<Node>> facetRoots = getFacetRoots(tx, requestedFacetId, requestedConceptIds, maxRoots);
+            return new RecursiveMappingRepresentation(Representation.MAP, facetRoots);
+        }
+    }
+
+    /**
+     * Convenience method for programmatical access.
+     *
+     * @param requestedFacetId    A set of facet IDs for which to return their root concepts.
+     * @param requestedConceptIds Optional. Groups concept root IDs to the facet they should be returned for.
+     * @return
+     * @see #getFacetRoots(UriInfo)
+     */
+    public Map<String, List<Node>> getFacetRoots(Transaction tx, Set<String> requestedFacetId, Map<String, Set<String>> requestedConceptIds, int maxRoots) {
+
+        Map<String, List<Node>> facetRoots = new HashMap<>();
+
+
+        log.info("Returning roots for facets " + requestedFacetId);
+        Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
+        TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(tx, null, null);
+        Traverser traverse = facetTraversal.traverse(facetGroupsNode);
+        for (Path path : traverse) {
+            Node facetNode = path.endNode();
+            String facetId = (String) facetNode.getProperty(FacetConstants.PROP_ID);
+            if (maxRoots > 0 && facetNode.hasProperty(FacetConstants.PROP_NUM_ROOT_TERMS)
+                    && (long) facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) > maxRoots) {
+                log.info("Skipping facet with ID {} because it has more than {} root concepts ({}).", facetId,
+                        maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
+            }
+            Set<String> requestedIdSet = null;
+            if (null != requestedConceptIds)
+                requestedIdSet = requestedConceptIds.get(facetId);
+            if (requestedFacetId.contains(facetId)) {
+                List<Node> roots = new ArrayList<>();
+                Iterable<Relationship> relationships = facetNode.getRelationships(Direction.OUTGOING,
+                        EdgeTypes.HAS_ROOT_CONCEPT);
+                for (Relationship rel : relationships) {
+                    Node rootConcept = rel.getEndNode();
+                    boolean include = true;
+                    if (null != requestedIdSet) {
+                        String rootId = (String) rootConcept.getProperty(PROP_ID);
+                        if (!requestedIdSet.contains(rootId))
+                            include = false;
                     }
-                    if (!roots.isEmpty() && (maxRoots <= 0 || roots.size() <= maxRoots))
-                        facetRoots.put(facetId, roots);
-                    else
-                        log.info("Skipping facet with ID " + facetId + " because it has more than " + maxRoots
-                                + " root concepts (" + roots.size() + ").");
+                    if (include)
+                        roots.add(rootConcept);
                 }
+                if (!roots.isEmpty() && (maxRoots <= 0 || roots.size() <= maxRoots))
+                    facetRoots.put(facetId, roots);
+                else
+                    log.info("Skipping facet with ID " + facetId + " because it has more than " + maxRoots
+                            + " root concepts (" + roots.size() + ").");
             }
         }
 
-        return new RecursiveMappingRepresentation(Representation.MAP, facetRoots);
+        return facetRoots;
     }
 
     /**

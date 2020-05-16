@@ -2,11 +2,13 @@ package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import de.julielab.neo4j.plugins.ConceptManager.*;
+import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.ConceptManager.MorphoLabel;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
-import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.*;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
@@ -26,12 +28,14 @@ import java.util.*;
 import java.util.stream.Stream;
 
 import static de.julielab.neo4j.plugins.ConceptManager.ConceptLabel.CONCEPT;
-import static de.julielab.neo4j.plugins.ConceptManager.*;
+import static de.julielab.neo4j.plugins.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
+import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_TERMS;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -115,11 +119,11 @@ public class ConceptManagerTest {
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node term = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node term = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             assertNotNull(term);
             assertEquals("orgId", term.getProperty(PROP_ORG_ID));
-            String[] sourceIds = (String[]) term.getProperty(PROP_SRC_IDS);
+            String[] sourceIds = de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds(term);
             String[] sources = (String[]) term.getProperty(ConceptConstants.PROP_SOURCES);
             assertArrayEquals(new String[]{"src1", "src2", "<unknown>"}, sources);
             assertArrayEquals(new String[]{"CONCEPT0", "CONCEPT0", "CONCEPT42"}, sourceIds);
@@ -127,6 +131,7 @@ public class ConceptManagerTest {
         }
 
     }
+
 
     @Test
     public void testMergeOnOriginalIdWithoutSourceId() throws Exception {
@@ -144,7 +149,7 @@ public class ConceptManagerTest {
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node term = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node term = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             assertNotNull(term);
             assertFalse(term.hasProperty(PROP_DESCRIPTIONS));
@@ -163,7 +168,7 @@ public class ConceptManagerTest {
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node term = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node term = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             assertNotNull(term);
             assertTrue(term.hasProperty(PROP_DESCRIPTIONS));
@@ -204,7 +209,7 @@ public class ConceptManagerTest {
             Set<String> idSet = Sets.newHashSet("src1", "src2");
             for (Node term : terms) {
                 assertEquals("orgId", term.getProperty(PROP_ORG_ID));
-                assertTrue(idSet.remove(term.getProperty(PROP_ORG_SRC)));
+                assertEquals(true, idSet.remove(term.getProperty(PROP_ORG_SRC)));
                 counter++;
             }
             // There should be two terms even though they have the same original
@@ -234,6 +239,7 @@ public class ConceptManagerTest {
         ImportFacet facetMap = FacetManagerTest.getImportFacet();
         try (Transaction tx = graphDb.beginTx()) {
             FacetManager.createFacet(tx, facetMap);
+            tx.commit();
         }
 
         // Do the term import and tests.
@@ -285,7 +291,7 @@ public class ConceptManagerTest {
 
         // Is the facet there?
         try (Transaction tx = graphDb.beginTx()) {
-            Node facet = NodeUtilities.findSingleNodeByLabelAndProperty(tx, FacetManager.FacetLabel.FACET, PROP_ID,
+            Node facet = tx.findNode(FacetManager.FacetLabel.FACET, PROP_ID,
                     "fid0");
             assertEquals("testfacet1", facet.getProperty(PROP_NAME));
 
@@ -296,20 +302,20 @@ public class ConceptManagerTest {
             assertEquals("prefname1", term1.getProperty(PROP_PREF_NAME));
             assertEquals(Lists.newArrayList("desc of term1"),
                     Arrays.asList((String[]) term1.getProperty(PROP_DESCRIPTIONS)));
-            assertArrayEquals(new String[]{"CONCEPT1"}, (String[]) term1.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT1", term1.getProperty(PROP_SRC_IDS));
 
             Node term2 = tx.findNode(CONCEPT, PROP_ID, "tid1");
             assertEquals("prefname2", term2.getProperty(PROP_PREF_NAME));
             assertEquals("orgId2", term2.getProperty(PROP_ORG_ID));
-            assertArrayEquals(new String[]{"CONCEPT2"}, (String[]) term2.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT2", term2.getProperty(PROP_SRC_IDS));
 
             Node term3 = tx.findNode(CONCEPT, PROP_ID, "tid2");
             assertEquals("prefname3", term3.getProperty(PROP_PREF_NAME));
-            assertArrayEquals(new String[]{"CONCEPT3"}, (String[]) term3.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT3", term3.getProperty(PROP_SRC_IDS));
 
             Node term4 = tx.findNode(CONCEPT, PROP_ID, "tid3");
             assertEquals("prefname4", term4.getProperty(PROP_PREF_NAME));
-            assertArrayEquals(new String[]{"CONCEPT4"}, (String[]) term4.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT4", term4.getProperty(PROP_SRC_IDS));
 
             // Are the relationships correct? Reminder, they should be:
             // Structure:
@@ -365,7 +371,7 @@ public class ConceptManagerTest {
         // The first facet will be sent with the term as whole facet definition.
         // The second facet will be created beforehand and then the term will
         // just be added to it.
-        ImportFacet facetMap = FacetManagerTest.getTestFacetMap(1);
+        ImportFacet importFacet = FacetManagerTest.getTestFacetMap(1);
 
         List<ImportConcept> termList = new ArrayList<>();
         termList.add(
@@ -375,22 +381,22 @@ public class ConceptManagerTest {
         ConceptManager ftm = new ConceptManager(graphDBMS);
 
         Map<String, Object> termsAndFacet = new HashMap<>();
-        termsAndFacet.put("facet", facetMap);
+        termsAndFacet.put("facet", importFacet);
         termsAndFacet.put("concepts", termList);
         String termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
         ftm.insertConcepts(termsAndFacetJson);
-
         try (Transaction tx = graphDb.beginTx()) {
             // Create the 2nd facet separately.
-            facetMap = FacetManagerTest.getTestFacetMap(2);
-            FacetManager.createFacet(tx, facetMap);
-
-            // ---------- SEND CONCEPT ONLY WITH FACET ID --------
-            facetMap = new ImportFacet("fid1");
-            termsAndFacet.put("facet", facetMap);
-            termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
-            ftm.insertConcepts(termsAndFacetJson);
-
+            importFacet = FacetManagerTest.getTestFacetMap(2);
+            FacetManager.createFacet(tx, importFacet);
+            tx.commit();
+        }
+        // ---------- SEND CONCEPT ONLY WITH FACET ID --------
+        importFacet = new ImportFacet("fid1");
+        termsAndFacet.put("facet", importFacet);
+        termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
+        ftm.insertConcepts(termsAndFacetJson);
+        try (Transaction tx = graphDb.beginTx()) {
             // ------------------ MAKE TESTS ---------------
 
             Node term = tx.findNode(CONCEPT, PROP_ID, "tid0");
@@ -415,10 +421,10 @@ public class ConceptManagerTest {
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, NodeConstants.Labels.ROOT,
+            Node facetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
                     NodeConstants.PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
             assertNull("The facet groups node exists although it should not.", facetGroupsNode);
-            Node noFacetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, NodeConstants.Labels.ROOT,
+            Node noFacetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
                     NodeConstants.PROP_NAME, FacetConstants.NAME_NO_FACET_GROUPS);
             assertNotNull("The no facet groups node does not exists although it should.", noFacetGroupsNode);
 
@@ -488,19 +494,19 @@ public class ConceptManagerTest {
         try (Transaction tx = graphDb.beginTx()) {
             assertEquals(1, tx.findNodes(CONCEPT).stream().count());
             // We only have one term, thus tid0.
-            Node term = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            Node concept1 = tx.findNode(CONCEPT, PROP_ID, "tid0");
 
-            assertEquals("prefname1", term.getProperty(PROP_PREF_NAME));
-            assertEquals("ORGID", term.getProperty(PROP_ORG_ID));
+            assertEquals("prefname1", concept1.getProperty(PROP_PREF_NAME));
+            assertEquals("ORGID", concept1.getProperty(PROP_ORG_ID));
 
-            String[] descs = (String[]) term.getProperty(PROP_DESCRIPTIONS);
+            String[] descs = (String[]) concept1.getProperty(PROP_DESCRIPTIONS);
             assertEquals(2, descs.length);
             Arrays.sort(descs);
             assertEquals(Lists.newArrayList("description1", "description2"), Arrays.asList(descs));
-            List<String> synList = Lists.newArrayList((String[]) term.getProperty(PROP_SYNONYMS));
+            List<String> synList = Lists.newArrayList((String[]) concept1.getProperty(PROP_SYNONYMS));
             assertTrue(synList.contains("syn1"));
             assertTrue(synList.contains("syn2"));
-            List<String> srcIdList = Lists.newArrayList((String[]) term.getProperty(PROP_SRC_IDS));
+            List<String> srcIdList = Arrays.asList(NodeUtilities.getSourceIds(concept1));
             assertTrue(srcIdList.contains("CONCEPT1"));
             assertTrue(srcIdList.contains("CONCEPT2"));
             assertTrue(srcIdList.contains("CONCEPT3"));
@@ -593,7 +599,7 @@ public class ConceptManagerTest {
         importTermAndFacet = new ImportConcepts(terms, importFacet);
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(importTermAndFacet));
         try (Transaction tx = graphDb.beginTx()) {
-            Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node n1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
             assertNotNull(n1);
             Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
@@ -608,7 +614,7 @@ public class ConceptManagerTest {
         importTermAndFacet = new ImportConcepts(terms, importFacet);
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(importTermAndFacet));
         try (Transaction tx = graphDb.beginTx()) {
-            Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node n1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
             Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
             assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
@@ -622,7 +628,7 @@ public class ConceptManagerTest {
         importTermAndFacet = new ImportConcepts(terms, importFacet);
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(importTermAndFacet));
         try (Transaction tx = graphDb.beginTx()) {
-            Node n1 = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node n1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
             Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
             assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
@@ -675,7 +681,7 @@ public class ConceptManagerTest {
             assertEquals("Preferred name", "prefname", concept.getProperty(PROP_PREF_NAME));
             assertEquals("Description", List.of("desc of term"),
                     List.of((String[]) concept.getProperty(PROP_DESCRIPTIONS)));
-            assertEquals("Source ID doesn't match", "CONCEPT", (String) concept.getProperty(PROP_SRC_IDS));
+            assertEquals("Source ID doesn't match", "CONCEPT", concept.getProperty(PROP_SRC_IDS));
             String[] synonyms = (String[]) concept.getProperty(PROP_SYNONYMS);
             assertEquals("Number of synonyms", 1, synonyms.length);
             assertEquals("Synonym", "othersynonym", synonyms[0]);
@@ -866,7 +872,7 @@ public class ConceptManagerTest {
             Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
             int numElementRels = 0;
             for (Relationship elementRel : elementRels) {
-                String[] termSrcIds = (String[]) elementRel.getEndNode().getProperty(PROP_SRC_IDS);
+                String[] termSrcIds = NodeUtilities.getSourceIds(elementRel.getEndNode());
                 assertTrue("Term is one of the defined aggregate elements",
                         aggregateElementSrcIds.contains(termSrcIds[0]));
                 numElementRels++;
@@ -885,7 +891,7 @@ public class ConceptManagerTest {
             // Now let's copy the term properties into the aggregate.
             RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) cm
                     .copyAggregateProperties();
-            Map<String, Object> reportMap = report.getUnderlyingMap();
+            Map<String, ?> reportMap = report.getUnderlyingMap();
             assertEquals("Number of aggregates", 1, reportMap.get(ConceptManager.RET_KEY_NUM_AGGREGATES));
             assertEquals("Number of element terms", 4, reportMap.get(ConceptManager.RET_KEY_NUM_ELEMENTS));
             assertEquals("Number of copied properties", 4 * 2, reportMap.get(ConceptManager.RET_KEY_NUM_PROPERTIES));
@@ -999,7 +1005,7 @@ public class ConceptManagerTest {
                     ConceptLabel.AGGREGATE);
             // first check if everything is alright, we expect on aggregate with
             // two elements
-            Node aggregate = NodeUtilities.findSingleNodeByLabelAndProperty(tx, ConceptLabel.AGGREGATE, PROP_ID,
+            Node aggregate = tx.findNode(ConceptLabel.AGGREGATE, PROP_ID,
                     NodeIDPrefixConstants.AGGREGATE_TERM + 0);
             assertNotNull("Aggregate node with ID " + NodeIDPrefixConstants.AGGREGATE_TERM + "0 could not be found",
                     aggregate);
@@ -1012,10 +1018,7 @@ public class ConceptManagerTest {
             assertEquals(2, relCount);
 
             // now: get the "children" of the aggregate (should be the elements)
-            RecursiveMappingRepresentation response = (RecursiveMappingRepresentation) cm.getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), KEY_LABEL, ConceptLabel.AGGREGATE.name())));
-            @SuppressWarnings("unchecked")
-            Map<String, Object> relAndChildMap = (Map<String, Object>) response.getUnderlyingMap()
-                    .get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
+            Map<String, Object> relAndChildMap = (Map<String, Object>) cm.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), ConceptLabel.AGGREGATE).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
             assertEquals(2, ((Map<?, ?>) relAndChildMap.get(ConceptManager.RET_KEY_RELTYPES)).size());
             assertEquals(2, ((Set<?>) relAndChildMap.get(ConceptManager.RET_KEY_CHILDREN)).size());
         }
@@ -1042,7 +1045,7 @@ public class ConceptManagerTest {
         ConceptManager ftm = new ConceptManager(graphDBMS);
         RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) ftm.insertConcepts(
                 ConceptsJsonSerializer.toJson(termAndFacet));
-        Map<String, Object> reportMap = report.getUnderlyingMap();
+        Map<String, ?> reportMap = report.getUnderlyingMap();
         assertEquals("Number of inserted terms", 2, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_CONCEPTS));
         // we expect relations for the root term, broader than and broader than fid0
         assertEquals("Number of inserted relationships", 3, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_RELS));
@@ -1185,7 +1188,7 @@ public class ConceptManagerTest {
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node noFacetGroups = NodeUtilities.findSingleNodeByLabelAndProperty(tx, NodeConstants.Labels.ROOT,
+            Node noFacetGroups = tx.findNode(NodeConstants.Labels.ROOT,
                     PROP_NAME, NAME_NO_FACET_GROUPS);
             assertNotNull("No-Facet group not found.", noFacetGroups);
             Iterator<Relationship> it = noFacetGroups.getRelationships(FacetManager.EdgeTypes.HAS_FACET_GROUP)
@@ -1210,7 +1213,7 @@ public class ConceptManagerTest {
             // Assert that the "not existing parent" of term 0 and 1 has been
             // cut, making terms 0 and1 the root terms of
             // the facet, although hollow terms are allowed.
-            Node facet = NodeUtilities.findSingleNodeByLabelAndProperty(tx, FacetManager.FacetLabel.FACET, PROP_ID,
+            Node facet = tx.findNode(FacetManager.FacetLabel.FACET, PROP_ID,
                     "fid0");
             for (Relationship relationship : facet.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT)) {
                 Node facetTerm = relationship.getEndNode();
@@ -1251,7 +1254,7 @@ public class ConceptManagerTest {
         RecursiveMappingRepresentation pathsFromFacetroots;
         List<String[]> paths;
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source1,source3",PROP_SRC_IDS, null, false, null);
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source1,source3", PROP_SRC_IDS, null, false, null);
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect one path with a single node, i.e. source1 and two paths
@@ -1348,7 +1351,7 @@ public class ConceptManagerTest {
         RecursiveMappingRepresentation pathsFromFacetroots;
         List<String[]> paths;
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS,null, false, null);
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, null);
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect two paths, both chains that have been defined by the
@@ -1359,7 +1362,7 @@ public class ConceptManagerTest {
         }
         assertEquals("Wrong number of paths", 2, paths.size());
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS,null, false, "fid0");
+        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, "fid0");
         paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid1", "tid2", "tid3", "tid4"}, paths.get(0));
@@ -1401,7 +1404,7 @@ public class ConceptManagerTest {
         ftm.updateChildrenInformation();
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node rootNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT, PROP_ID,
+            Node rootNode = tx.findNode(CONCEPT, PROP_ID,
                     NodeIDPrefixConstants.TERM + 0);
             List<String> facetsWithChildren = Lists
                     .newArrayList((String[]) rootNode.getProperty(ConceptConstants.PROP_CHILDREN_IN_FACETS));
@@ -1415,19 +1418,17 @@ public class ConceptManagerTest {
     @Test
     public void testGetTermChildren() throws Exception {
         ImportConcepts testTerms;
-        ConceptManager ftm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS);
         testTerms = getTestTerms(5);
         testTerms.getConcepts().get(1).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         testTerms.getConcepts().get(2).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         testTerms.getConcepts().get(3).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         testTerms.getConcepts().get(4).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT3", "TEST_DATA", SRC));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
-        try (Transaction ignored = graphDb.beginTx()) {
+        try (Transaction tx = graphDb.beginTx()) {
             // Get the children of a single node.
-            RecursiveMappingRepresentation childrenRepr = (RecursiveMappingRepresentation) ftm
-                    .getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("tid0"))));
-            Map<String, Object> childMap = childrenRepr.getUnderlyingMap();
+            Map<String, ?> childMap = cm.getChildrenOfConcepts(tx, List.of("tid0"), CONCEPT);
             // We asked for only one node, thus there should be one result
             assertEquals(1, childMap.size());
             Map<String, Object> term0Children = (Map<String, Object>) childMap.get(NodeIDPrefixConstants.TERM + 0);
@@ -1451,8 +1452,7 @@ public class ConceptManagerTest {
             // We get the children of three nodes, where two of queried nodes
             // are the same. This shouldn't change the
             // result, i.e. there should be two elements in the result map.
-            childrenRepr = (RecursiveMappingRepresentation) ftm.getChildrenOfConcepts(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_IDS, List.of("tid0", "tid3", "tid3"))));
-            childMap = childrenRepr.getUnderlyingMap();
+            childMap = cm.getChildrenOfConcepts(tx, List.of("tid0", "tid3", "tid3"), CONCEPT);
             // We asked for three nodes' children, however two were equal thus
             // there should be two elements.
             assertEquals(2, childMap.size());
@@ -1495,7 +1495,7 @@ public class ConceptManagerTest {
         assertEquals(2, numInsertedRels);
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node term0 = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node term0 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             Iterable<Relationship> relationships = term0.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
             int relCounter = 0;
@@ -1506,7 +1506,7 @@ public class ConceptManagerTest {
             }
             assertEquals(1, relCounter);
 
-            Node term1 = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node term1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
             relationships = term1.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
             relCounter = 0;
@@ -1536,7 +1536,7 @@ public class ConceptManagerTest {
         assertEquals(0, numInsertedRels);
         // But the relationship now should know both mapping types.
         try (Transaction tx = graphDb.beginTx()) {
-            Node term0 = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node term0 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             Iterable<Relationship> relationships = term0.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
             int relCounter = 0;
@@ -1628,7 +1628,7 @@ public class ConceptManagerTest {
 
             // Now test that the merged-in properties - and labels - are
             // actually there.
-            Node mergedTerm = NodeUtilities.findSingleNodeByLabelAndProperty(tx, Label.label("newlabel1"), PROP_ID,
+            Node mergedTerm = tx.findNode(Label.label("newlabel1"), PROP_ID,
                     "tid0");
             // have we found the term? Then it got its new label.
             assertNotNull(mergedTerm);
@@ -1636,7 +1636,7 @@ public class ConceptManagerTest {
             assertTrue(descriptions.contains("desc of term0"));
             assertTrue(descriptions.contains("newdescription1"));
 
-            Node facet = NodeUtilities.findSingleNodeByLabelAndProperty(tx, FacetManager.FacetLabel.FACET,
+            Node facet = tx.findNode(FacetManager.FacetLabel.FACET,
                     FacetConstants.PROP_ID, "fid0");
             Iterable<Relationship> rootTermRelations = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT);
             int rootTermCounter = 0;
@@ -1679,7 +1679,7 @@ public class ConceptManagerTest {
         tm.insertConcepts(ConceptsJsonSerializer.toJson(termsMap));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node termNode = NodeUtilities.findSingleNodeByLabelAndProperty(tx, CONCEPT,
+            Node termNode = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             assertEquals(42, termNode.getProperty("someIntegerProperty"));
             // the order should have been maintained
@@ -1734,8 +1734,6 @@ public class ConceptManagerTest {
     //// assertFalse(writingVariantsNode.hasProperty("prefname0"));
     // }
     // }
-
-
 
 
     @Test
@@ -1894,4 +1892,103 @@ public class ConceptManagerTest {
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
     }
 
+    @Test
+    public void testGetFacetRootsWithLimit() throws Exception {
+
+        // the exact same test as testGetAllFacetRoots() but with a limit on
+        // maximum roots
+        ConceptManager tm = new ConceptManager(graphDBMS);
+        ImportConcepts testTerms = getTestTerms(3);
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        // Insert two times so we have two facets
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        try (Transaction tx = graphDb.beginTx()) {
+            Map<String, List<Node>> facetRoots = tm
+                    .getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), null, 2);
+            assertThat(facetRoots).hasSize(0);
+        }
+    }
+
+    @Test
+    public void testGetSpecificFacetRoots() throws Exception {
+        ConceptManager tm = new ConceptManager(graphDBMS);
+        ImportConcepts testTerms = getTestTerms(3);
+        // Insert three times so we have three facets
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        testTerms.getFacet().setName("secondfacet");
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        testTerms.getFacet().setName("thirdfacet");
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+
+        Map<String, Set<String>> requestedRoots = new HashMap<>();
+        requestedRoots.put(NodeIDPrefixConstants.FACET + 0, Set.of(NodeIDPrefixConstants.TERM + 0));
+        requestedRoots.put(NodeIDPrefixConstants.FACET + 1,
+                Set.of(NodeIDPrefixConstants.TERM + 1, NodeIDPrefixConstants.TERM + 2));
+        // for the third facet, we want all roots returned
+
+        try (Transaction tx = graphDb.beginTx()) {
+            Map<String, List<Node>> facetRoots = tm.getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0,
+                    NodeIDPrefixConstants.FACET + 1, NodeIDPrefixConstants.FACET + 2), requestedRoots, 0);
+
+            // Roots of two facets
+            assertEquals(3, facetRoots.size());
+            List<Node> roots = facetRoots.get(NodeIDPrefixConstants.FACET + 0);
+            List<String> rootIds = new ArrayList<>();
+            for (Node root : roots)
+                rootIds.add((String) root.getProperty(PROP_ID));
+
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
+            assertFalse(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
+            assertFalse(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
+
+            roots = facetRoots.get(NodeIDPrefixConstants.FACET + 1);
+            rootIds = new ArrayList<>();
+            for (Node root : roots)
+                rootIds.add((String) root.getProperty(PROP_ID));
+            assertFalse(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
+
+            roots = facetRoots.get(NodeIDPrefixConstants.FACET + 2);
+            rootIds = new ArrayList<>();
+            for (Node root : roots)
+                rootIds.add((String) root.getProperty(PROP_ID));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
+        }
+    }
+
+    @Test
+    public void testGetAllFacetRoots() throws Exception {
+        ConceptManager tm = new ConceptManager(graphDBMS);
+        ImportConcepts testTerms = getTestTerms(3);
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        // Insert two times so we have two facets
+        testTerms.getFacet().setName("secondfacet");
+        tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        try (Transaction tx = graphDb.beginTx()) {
+            Map<String, List<Node>> facetRoots = tm
+                    .getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), null, 0);
+
+            // Roots of two facets
+            assertEquals(2, facetRoots.size());
+            List<Node> roots = facetRoots.get(NodeIDPrefixConstants.FACET + 0);
+            List<String> rootIds = new ArrayList<>();
+            for (Node root : roots)
+                rootIds.add((String) root.getProperty(PROP_ID));
+
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
+
+            roots = facetRoots.get(NodeIDPrefixConstants.FACET + 1);
+            rootIds = new ArrayList<>();
+            for (Node root : roots)
+                rootIds.add((String) root.getProperty(PROP_ID));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 0));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
+            assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
+        }
+    }
 }
