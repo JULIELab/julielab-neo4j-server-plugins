@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
@@ -85,9 +85,10 @@ public class Export {
                     for (ResourceIterator<Node> terms = tx.findNodes(label); terms.hasNext(); ) {
                         Node term = terms.next();
                         String termId = (String) term.getProperty(ConceptConstants.PROP_ID);
-                        Object idObject = PropertyUtilities.getNonNullNodeProperty(term, idProperty);
+                        Object idObject = idProperty.equals(PROP_SRC_IDS) ? NodeUtilities.getSourceIds(term) : PropertyUtilities.getNonNullNodeProperty(term, idProperty);
                         if (null == idObject)
                             continue;
+
                         if (idObject.getClass().isArray()) {
                             Object[] idArray = JulieNeo4jUtilities.convertArray(idObject);
                             for (Object id : idArray) {

@@ -5,11 +5,11 @@ import com.google.common.collect.Sets;
 import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.FacetManagerTest;
+import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder.CopyAggregatePropertiesStatistics;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
@@ -59,6 +59,7 @@ public class ConceptAggregateBuilderTest {
     @Before
     public void cleanForTest() {
         TestUtilities.deleteEverythingInDB(graphDb);
+        new Indexes(graphDBMS).createIndexes(DEFAULT_DATABASE_NAME);
     }
 
     @Test
@@ -181,7 +182,7 @@ public class ConceptAggregateBuilderTest {
                 Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
-                    String[] srcIds = (String[]) element.getProperty(ConceptConstants.PROP_SRC_IDS);
+                    String[] srcIds = NodeUtilities.getSourceIds(element);
                     elementIds.add(srcIds[0]);
                 }
                 assertTrue(elementIds.contains(t12.coordinates.sourceId));
@@ -267,7 +268,7 @@ public class ConceptAggregateBuilderTest {
                 Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
-                    String[] srcIds = (String[]) element.getProperty(ConceptConstants.PROP_SRC_IDS);
+                    String[] srcIds = NodeUtilities.getSourceIds(element);
                     elementIds.add(srcIds[0]);
                 }
                 assertTrue(aggregate.hasLabel(aggLabel));
@@ -330,7 +331,7 @@ public class ConceptAggregateBuilderTest {
                 Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
-                    String[] srcIds = (String[]) element.getProperty(ConceptConstants.PROP_SRC_IDS);
+                    String[] srcIds = NodeUtilities.getSourceIds(element);
                     elementIds.add(srcIds[0]);
                 }
                 if (elementIds.size() == 3) {
@@ -359,7 +360,7 @@ public class ConceptAggregateBuilderTest {
                         .getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
                 Iterator<Relationship> elementIt = elementRels.iterator();
                 if (!elementIt.hasNext()) {
-                    String[] srcIds = (String[]) aggregatedTerm.getProperty(ConceptConstants.PROP_SRC_IDS);
+                    String[] srcIds = NodeUtilities.getSourceIds(aggregatedTerm);
                     assertEquals(t6.coordinates.sourceId, srcIds[0]);
                 }
             }

@@ -1,6 +1,5 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.junit.AfterClass;
@@ -49,8 +48,6 @@ public class SequenceManagerTest {
 		// two sequence nodes (seq1 and seq2 from above) connected to it.
 		try (Transaction tx = graphDb.beginTx()) {
 			Node sequencesNode = SequenceManager.getSequenceRoot(tx);
-			assertEquals(SequenceConstants.NAME_SEQUENCES_ROOT, sequencesNode.getProperty(NodeConstants.PROP_NAME));
-
 			Iterable<Relationship> hasSequenceRels = sequencesNode.getRelationships(Direction.OUTGOING, SequenceManager.EdgeTypes.HAS_SEQUENCE);
 			Set<String> sequenceNames = new HashSet<>();
 			int count = 0;

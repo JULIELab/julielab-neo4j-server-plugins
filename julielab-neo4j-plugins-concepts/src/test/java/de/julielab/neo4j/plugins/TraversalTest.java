@@ -23,6 +23,8 @@ import org.neo4j.graphdb.traversal.Traverser;
 import java.io.IOException;
 import java.util.*;
 
+import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_ACRONYMS;
+import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_TERMS;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -40,6 +42,7 @@ public class TraversalTest {
 	@Before
 	public void cleanForTest() throws IOException {
 		TestUtilities.deleteEverythingInDB(graphDb);
+		new Indexes(graphDBMS).createIndexes(DEFAULT_DATABASE_NAME);
 	}
 
 	@AfterClass
@@ -66,7 +69,7 @@ public class TraversalTest {
 		acronymCounts.put("acro1", 4);
 		acronymCounts.put("acro3", 7);
 
-		tm.addWritingVariants(ConceptsJsonSerializer.toJson(acronyms));
+		tm.addWritingVariants(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_ACRONYMS, ConceptsJsonSerializer.toJson( acronyms))));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> acronymsNodes = tx.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
@@ -107,7 +110,7 @@ public class TraversalTest {
 		variantCounts.put("variant1", 4);
 		variantCounts.put("variant2", 7);
 
-		tm.addWritingVariants(ConceptsJsonSerializer.toJson(variants));
+		tm.addWritingVariants(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_TERMS, ConceptsJsonSerializer.toJson(variants))));
 
 		try (Transaction tx = graphDb.beginTx()) {
 			ResourceIterator<Node> variantsNodes = tx.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);
