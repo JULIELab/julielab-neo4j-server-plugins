@@ -1,30 +1,309 @@
-package de.julielab.neo4j.plugins.auxiliaries.semedico;
+package de.julielab.neo4j.plugins.concepts;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Multiset.Entry;
-import de.julielab.neo4j.plugins.ConceptManager;
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
-import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.TermNameAndSynonymComparator;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
+import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
+import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
 import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
+import org.apache.commons.lang.StringUtils;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.*;
-import java.util.logging.Logger;
 
-import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayProperty;
-import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.setNonNullNodeProperty;
+import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
+import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
+import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConcept;
+import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConceptBySourceId;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_SOURCE;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.getErrorResponse;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class ConceptAggregateBuilder {
+public class ConceptAggregateManager {
 
-    private static final Logger log = Logger.getLogger(ConceptAggregateBuilder.class.getName());
+    private final static Logger log = LoggerFactory.getLogger(ConceptAggregateManager.class);
+    private final DatabaseManagementService dbms;
+    public static final String COPY_AGGREGATE_PROPERTIES = "copy_aggregate_properties";
+    public static final String BUILD_AGGREGATES_BY_NAME_AND_SYNONYMS = "build_aggregates_by_name_and_synonyms";
+    public static final String BUILD_AGGREGATES_BY_MAPPINGS = "build_aggregates_by_mappings";
+    public static final String DELETE_AGGREGATES = "delete_aggregates";
+
+    public static final String KEY_LABEL = "label";
+    public static final String KEY_AGGREGATED_LABEL = "aggregatedLabel";
+    public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
+
+    public static final String RET_KEY_NUM_AGGREGATES = "numAggregates";
+    public static final String RET_KEY_NUM_ELEMENTS = "numElements";
+    public static final String RET_KEY_NUM_PROPERTIES = "numProperties";
+    public ConceptAggregateManager(@Context DatabaseManagementService dbms) {
+        this.dbms = dbms;
+    }
+    /**
+     * Adds an aggregate concept. An aggregate concept is a concept of the following
+     * input form:<br/>
+     *
+     * <pre>
+     * {
+     *     'aggregate':true,
+     *     'elementSrcIds':['id4','id29','id41']
+     *     'sources':['NCBI Gene'],
+     *     'copyProperties':['prefName','synonyms']
+     * }
+     * </pre>
+     * <p>
+     * I.e. a representative concept that has no distinct properties on its own. It
+     * will get links to the concept source IDs given in <code>elementSrcIds</code>
+     * with respect to <code>source</code>. The <code>copyProperties</code> property
+     * contains the properties of element concepts that should be copied into the
+     * aggregate and does not have to be present in which case nothing will be
+     * copied. The copy process will NOT be done in this method call but must be
+     * triggered manually via
+     * {@link #copyAggregateProperties()}.
+     *
+     * @param tx                 The current transaction.
+     * @param jsonConcept        The aggregate encoded into JSON format.
+     * @param nodesByCoordinates The currently imported nodes.
+     * @param insertionReport    The current insertion report.
+     * @param importOptions      The current import options.
+     * @throws AggregateConceptInsertionException If the aggregate could not be added.
+     */
+    static void insertAggregateConcept(Transaction tx, ImportConcept jsonConcept,
+                                        CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
+            throws AggregateConceptInsertionException {
+        try {
+            ConceptCoordinates aggCoordinates = jsonConcept.coordinates != null ? jsonConcept.coordinates
+                    : new ConceptCoordinates();
+            String aggOrgId = aggCoordinates.originalId;
+            String aggOrgSource = aggCoordinates.originalSource;
+            String aggSrcId = aggCoordinates.sourceId;
+            String aggSource = aggCoordinates.source;
+            if (null == aggSource)
+                aggSource = UNKNOWN_CONCEPT_SOURCE;
+            log.trace("Looking up aggregate ({}, {}) / ({}, {}), original/source coordinates.", aggOrgId, aggOrgSource,
+                    aggSrcId, aggSource);
+            Node aggregate = lookupConcept(tx, aggCoordinates);
+            if (null != aggregate) {
+                String isHollowMessage = "";
+                if (aggregate.hasLabel(ConceptLabel.HOLLOW))
+                    isHollowMessage = ", however it is hollow and its properties will be set now.";
+                log.trace("    aggregate does already exist {}", isHollowMessage);
+                if (!aggregate.hasLabel(ConceptLabel.HOLLOW))
+                    return;
+                // remove the HOLLOW label, we have to aggregate information now and
+                // will set it to the node in the following
+                aggregate.removeLabel(ConceptLabel.HOLLOW);
+                aggregate.addLabel(ConceptLabel.AGGREGATE);
+            }
+            if (aggregate == null) {
+                log.trace("    aggregate is being created");
+                aggregate = tx.createNode(ConceptLabel.AGGREGATE);
+            }
+            boolean includeAggreationInHierarchy = jsonConcept.aggregateIncludeInHierarchy;
+            // If the aggregate is to be included into the hierarchy, it also should
+            // be a CONCEPT for path creation
+            if (includeAggreationInHierarchy)
+                aggregate.addLabel(ConceptLabel.CONCEPT);
+            List<ConceptCoordinates> elementCoords = jsonConcept.elementCoordinates;
+            log.trace("    looking up aggregate elements");
+            for (ConceptCoordinates elementCoordinates : elementCoords) {
+                String elementSource = elementCoordinates.source;
+                if (null == elementCoordinates.source)
+                    elementSource = UNKNOWN_CONCEPT_SOURCE;
+                Node element = nodesByCoordinates.get(elementCoordinates);
+                if (null != element) {
+                    String[] srcIds = getSourceIds(element);
+                    String[] sources = element.hasProperty(PROP_SOURCES) ? (String[]) element.getProperty(PROP_SOURCES)
+                            : new String[0];
+                    for (int j = 0; j < srcIds.length; j++) {
+                        String srcId = srcIds[j];
+                        String source = sources.length > j ? sources[j] : null;
+                        // If the source ID matches but not the sources then this is
+                        // the wrong node.
+                        if (srcId.equals(elementCoordinates.sourceId)
+                                && !((elementSource == null && source == null) || (elementSource.equals(source))))
+                            element = null;
+                        else
+                            break;
+                    }
+                    if (null != element)
+                        log.trace("\tFound element with source ID and source ({}, {}) in in-memory map.", elementCoordinates.sourceId,
+                                elementSource);
+                }
+                if (null == element)
+                    element = lookupConceptBySourceId(tx, elementCoordinates.sourceId, elementSource, false);
+                if (null == element && importOptions.createHollowAggregateElements) {
+                    element = registerNewHollowConceptNode(tx, elementCoordinates);
+                    log.trace("    Creating HOLLOW element with source coordinates ({}, {})", elementCoordinates.sourceId,
+                            elementSource);
+                }
+                if (element != null) {
+                    aggregate.createRelationshipTo(element, EdgeTypes.HAS_ELEMENT);
+                }
+            }
+
+            // Set the aggregate's properties
+            if (null != aggSrcId) {
+                int idIndex = aggregate.hasProperty(PROP_SRC_IDS) ? Arrays.asList(getSourceIds(aggregate)).indexOf(aggSrcId) : -1;
+                int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
+                if (!StringUtils.isBlank(aggSrcId)
+                        && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
+                    String newSourceIdString = aggregate.hasProperty(PROP_SRC_IDS) ? aggregate.getProperty(PROP_SRC_IDS) + " " + aggSrcId : aggSrcId;
+                    aggregate.setProperty(PROP_SRC_IDS, newSourceIdString);
+                    addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
+                }
+                // if the aggregate has a source ID, add it to the respective
+                // map for later access during the relationship insertion phase
+                nodesByCoordinates.put(new ConceptCoordinates(aggCoordinates), aggregate);
+            }
+            if (null != aggOrgId)
+                aggregate.setProperty(PROP_ORG_ID, aggOrgId);
+            if (null != aggOrgSource)
+                aggregate.setProperty(PROP_ORG_SRC, aggOrgSource);
+            List<String> copyProperties = jsonConcept.copyProperties;
+            if (null != copyProperties && !copyProperties.isEmpty())
+                aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties.toArray(new String[0]));
+
+            List<String> generalLabels = jsonConcept.generalLabels;
+            for (int i = 0; null != generalLabels && i < generalLabels.size(); i++) {
+                aggregate.addLabel(Label.label(generalLabels.get(i)));
+            }
+
+            String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
+                    + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_AGGREGATE_TERM);
+            aggregate.setProperty(PROP_ID, aggregateId);
+
+            insertionReport.numConcepts++;
+        } catch (Exception e) {
+            throw new AggregateConceptInsertionException(
+                    "Aggregate concept creation failed for aggregate " + jsonConcept, e);
+        }
+    }
+
+    /**
+     * <ul>
+     *  <li>{@link #KEY_ALLOWED_MAPPING_TYPES}: The allowed types for IS_MAPPED_TO relationships to be included in aggregation building.</li>
+     *  <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm. Such concepts
+     *  can be aggregate concepts (with the label AGGREGATE) or just plain concepts (with the label CONCEPT) that are not an element of an aggregate.</li>
+     *  <li>{@link #KEY_LABEL}:Label to restrict the concepts to that are considered for aggregation creation. </li>
+     * </ul>
+     *
+     * @param jsonParameterObject The parameter JSON object.
+     * @throws IOException When the JSON parameter cannot be read.
+     */
+    @PUT
+    @Consumes(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path(BUILD_AGGREGATES_BY_MAPPINGS)
+    public void buildAggregatesByMappings(String jsonParameterObject)
+            throws IOException {
+        ObjectMapper om = new ObjectMapper();
+        Map<String, Object> parameterMap = om.readValue(jsonParameterObject, Map.class);
+        final Set<String> allowedMappingTypes = new HashSet<>((List<String>) parameterMap.get(KEY_ALLOWED_MAPPING_TYPES));
+        Label aggregatedConceptsLabel = Label.label((String) parameterMap.get(KEY_AGGREGATED_LABEL));
+        Label allowedConceptLabel = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL))
+                : null;
+        log.info("Creating mapping aggregates for concepts with label {} and mapping types {}", allowedConceptLabel,
+                allowedMappingTypes);
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        try (Transaction tx = graphDb.beginTx()) {
+            ConceptAggregateManager.buildAggregatesForMappings(tx, allowedMappingTypes, allowedConceptLabel,
+                    aggregatedConceptsLabel);
+            tx.commit();
+        }
+    }
+
+    /**
+     * <ul>
+     *     <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm.
+     *     Such concepts can be aggregate concepts (with the label AGGREGATE) or just plain concepts
+     *     (with the label CONCEPT) that are not an element of an aggregate.</li>
+     * </ul>
+     *
+     * @param aggregatedConceptsLabelString
+     */
+    @DELETE
+    @Consumes(MediaType.TEXT_PLAIN)
+    @javax.ws.rs.Path(DELETE_AGGREGATES)
+    public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
+        Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        try (Transaction tx = graphDb.beginTx()) {
+            ConceptAggregateManager.deleteAggregates(tx, aggregatedConceptsLabel);
+            tx.commit();
+        }
+    }
+
+
+    @PUT
+    @Produces(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path(COPY_AGGREGATE_PROPERTIES)
+    public Object copyAggregateProperties() {
+        try {
+            int numAggregates = 0;
+            CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+            try (Transaction tx = graphDb.beginTx()) {
+                try (ResourceIterator<Node> aggregateIt = tx.findNodes(ConceptLabel.AGGREGATE)) {
+                    while (aggregateIt.hasNext()) {
+                        Node aggregate = aggregateIt.next();
+                        numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, new HashSet<>());
+                    }
+                }
+                tx.commit();
+            }
+            Map<String, Object> reportMap = new HashMap<>();
+            reportMap.put(RET_KEY_NUM_AGGREGATES, numAggregates);
+            reportMap.put(RET_KEY_NUM_ELEMENTS, copyStats.numElements);
+            reportMap.put(RET_KEY_NUM_PROPERTIES, copyStats.numProperties);
+            return Response.ok(reportMap);
+        } catch (Throwable t) {
+            return getErrorResponse(t);
+        }
+    }
+
+    private int copyAggregatePropertiesRecursively(Node aggregate, CopyAggregatePropertiesStatistics copyStats,
+                                                   Set<Node> alreadySeen) {
+        if (alreadySeen.contains(aggregate))
+            return 0;
+        List<Node> elementAggregates = new ArrayList<>();
+        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT);
+        for (Relationship elementRel : elementRels) {
+            Node endNode = elementRel.getEndNode();
+            if (endNode.hasLabel(ConceptLabel.AGGREGATE) && !alreadySeen.contains(endNode))
+                elementAggregates.add(endNode);
+        }
+        for (Node elementAggregate : elementAggregates) {
+            copyAggregatePropertiesRecursively(elementAggregate, copyStats, alreadySeen);
+        }
+        if (aggregate.hasProperty(PROP_COPY_PROPERTIES)) {
+            String[] copyProperties = (String[]) aggregate.getProperty(PROP_COPY_PROPERTIES);
+            ConceptAggregateManager.copyAggregateProperties(aggregate, copyProperties, copyStats);
+        }
+        alreadySeen.add(aggregate);
+        return alreadySeen.size();
+    }
 
     /**
      * Aggregates terms that have equal preferred name and synonyms, after some
@@ -39,7 +318,7 @@ public class ConceptAggregateBuilder {
         TermNameAndSynonymComparator nameAndSynonymComparator = new TermNameAndSynonymComparator();
         // At first, delete all equal-name aggregates since they will be
         // built again afterwards.
-        ResourceIterable<Node> aggregates = () -> tx.findNodes(ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
+        ResourceIterable<Node> aggregates = () -> tx.findNodes(ConceptLabel.AGGREGATE_EQUAL_NAMES);
         for (Node aggregate : aggregates) {
             for (Relationship rel : aggregate.getRelationships())
                 rel.delete();
@@ -47,7 +326,7 @@ public class ConceptAggregateBuilder {
         }
 
         // Get all terms and sort them by name and synonyms
-        ResourceIterable<Node> termIterable = () -> tx.findNodes(ConceptManager.ConceptLabel.CONCEPT);
+        ResourceIterable<Node> termIterable = () -> tx.findNodes(ConceptLabel.CONCEPT);
         List<Node> terms = new ArrayList<>();
         for (Node term : termIterable) {
             terms.add(term);
@@ -64,8 +343,8 @@ public class ConceptAggregateBuilder {
                 equalNameTerms.add(term);
             } else if (equalNameTerms.size() > 1) {
                 createAggregate(tx, copyProperties, new HashSet<>(equalNameTerms),
-                        new String[]{ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()},
-                        ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
+                        new String[]{ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()},
+                        ConceptLabel.AGGREGATE_EQUAL_NAMES);
                 for (Node equalNameTerm : equalNameTerms)
                     NodeUtilities.mergeArrayProperty(equalNameTerm, termPropertyKey, propertyValues);
                 equalNameTerms.clear();
@@ -77,8 +356,8 @@ public class ConceptAggregateBuilder {
         }
         if (equalNameTerms.size() > 1)
             createAggregate(tx, copyProperties, new HashSet<>(equalNameTerms),
-                    new String[]{ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()},
-                    ConceptManager.ConceptLabel.AGGREGATE_EQUAL_NAMES);
+                    new String[]{ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()},
+                    ConceptLabel.AGGREGATE_EQUAL_NAMES);
         for (Node term : equalNameTerms)
             NodeUtilities.mergeArrayProperty(term, termPropertyKey, propertyValues);
 
@@ -129,7 +408,7 @@ public class ConceptAggregateBuilder {
 
         // Iterate through terms, look for mappings and generate mapping
         // aggregates
-        Label label = null == allowedTermLabel ? ConceptManager.ConceptLabel.CONCEPT : allowedTermLabel;
+        Label label = null == allowedTermLabel ? ConceptLabel.CONCEPT : allowedTermLabel;
         ResourceIterable<Node> termIterable = () -> tx.findNodes(label);
         for (Node term : termIterable) {
             // Determine recursively other nodes with which a new aggregate
@@ -182,7 +461,7 @@ public class ConceptAggregateBuilder {
         if (visited.contains(term))
             return;
         visited.add(term);
-        Iterable<Relationship> mappings = term.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
+        Iterable<Relationship> mappings = term.getRelationships(EdgeTypes.IS_MAPPED_TO);
         // Set<String> aggregateMappingTypes = new HashSet<>();
         for (Relationship mapping : mappings) {
             if (!mapping.hasProperty(ConceptRelationConstants.PROP_MAPPING_TYPE))
@@ -225,7 +504,7 @@ public class ConceptAggregateBuilder {
     protected static Set<Node> getMatchingAggregates(Node conceptNode, Set<String> allowedMappingTypes, Label aggregateLabel) {
         Set<Node> aggregateNodes;
         aggregateNodes = new HashSet<>();
-        Iterable<Relationship> elementRelationships = conceptNode.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
+        Iterable<Relationship> elementRelationships = conceptNode.getRelationships(EdgeTypes.HAS_ELEMENT);
         for (Relationship elementRelationship : elementRelationships) {
             Node aggregate = elementRelationship.getOtherNode(conceptNode);
             if (aggregate.hasLabel(aggregateLabel) && aggregate.hasLabel(ConceptLabel.AGGREGATE) && aggregate.hasProperty(ConceptConstants.PROP_MAPPING_TYPE)) {
@@ -256,14 +535,14 @@ public class ConceptAggregateBuilder {
         if (elementTerms.isEmpty())
             return null;
         Node aggregate = tx.createNode(labels);
-        aggregate.addLabel(ConceptManager.ConceptLabel.AGGREGATE);
+        aggregate.addLabel(ConceptLabel.AGGREGATE);
         aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties);
         aggregate.setProperty(ConceptConstants.PROP_MAPPING_TYPE, mappingTypes);
         for (Label termLabel : labels) {
             aggregate.addLabel(termLabel);
         }
         for (Node elementTerm : elementTerms) {
-            aggregate.createRelationshipTo(elementTerm, ConceptManager.EdgeTypes.HAS_ELEMENT);
+            aggregate.createRelationshipTo(elementTerm, EdgeTypes.HAS_ELEMENT);
         }
         String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
                 + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_AGGREGATE_TERM);

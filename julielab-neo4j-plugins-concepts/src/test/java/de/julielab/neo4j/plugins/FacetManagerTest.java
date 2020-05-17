@@ -2,6 +2,7 @@ package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.*;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;

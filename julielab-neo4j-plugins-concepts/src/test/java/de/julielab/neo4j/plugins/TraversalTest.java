@@ -1,7 +1,8 @@
 package de.julielab.neo4j.plugins;
 
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
@@ -23,8 +24,8 @@ import org.neo4j.graphdb.traversal.Traverser;
 import java.io.IOException;
 import java.util.*;
 
-import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_ACRONYMS;
-import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_TERMS;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_ACRONYMS;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 

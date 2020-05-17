@@ -1,5 +1,6 @@
 package de.julielab.neo4j.plugins;
 
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import org.junit.Rule;
 import org.junit.Test;

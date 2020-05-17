@@ -1,9 +1,9 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import de.julielab.neo4j.plugins.ConceptManager;
-import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager.EdgeTypes;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.*;
@@ -160,7 +160,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     }
 
     /**
-     * Returns nodes with the {@link de.julielab.neo4j.plugins.ConceptManager.ConceptLabel#AGGREGATE} label that have
+     * Returns nodes with the {@link ConceptManager.ConceptLabel#AGGREGATE} label that have
      * the given <tt>node</tt> as an element, which is that the aggregates have a relationship of type
      * {@link EdgeTypes#HAS_ELEMENT} to the passed node.
      *
@@ -186,7 +186,7 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
      * Returns nodes that are an element of the node <tt>aggregate</tt> which means that the aggregate has a relationship of type
      * {@link EdgeTypes#HAS_ELEMENT} to element nodes.
      *
-     * @param aggregate The node with the {@link de.julielab.neo4j.plugins.ConceptManager.ConceptLabel#AGGREGATE} label whose element nodes are requested.
+     * @param aggregate The node with the {@link ConceptManager.ConceptLabel#AGGREGATE} label whose element nodes are requested.
      * @return The element nodes of the passed aggregate.
      * @see #getAggregatingNodes(Node)
      */

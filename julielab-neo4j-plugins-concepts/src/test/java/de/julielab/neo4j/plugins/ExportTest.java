@@ -2,6 +2,7 @@ package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
@@ -24,7 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Method;
 import java.util.zip.GZIPInputStream;
 
-import static de.julielab.neo4j.plugins.ConceptManager.ConceptLabel.CONCEPT;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel.CONCEPT;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 

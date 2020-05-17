@@ -1,8 +1,8 @@
 package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
-import de.julielab.neo4j.plugins.ConceptManager;
 import de.julielab.neo4j.plugins.FacetManager;
 import de.julielab.neo4j.plugins.FacetManager.EdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.evaluators.FacetGroupPathEvaluator;
 import de.julielab.neo4j.plugins.evaluators.HasRelationShipEvaluator;
 import de.julielab.neo4j.plugins.evaluators.NodeLabelEvaluator;

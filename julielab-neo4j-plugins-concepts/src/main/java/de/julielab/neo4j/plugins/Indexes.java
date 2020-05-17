@@ -1,6 +1,7 @@
 package de.julielab.neo4j.plugins;
 
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;

@@ -2,13 +2,14 @@ package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
-import de.julielab.neo4j.plugins.ConceptManager.EdgeTypes;
-import de.julielab.neo4j.plugins.ConceptManager.MorphoLabel;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
+import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.concepts.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptManager.MorphoLabel;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.*;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
@@ -28,9 +29,9 @@ import java.io.IOException;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static de.julielab.neo4j.plugins.ConceptManager.ConceptLabel.CONCEPT;
-import static de.julielab.neo4j.plugins.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
-import static de.julielab.neo4j.plugins.ConceptManager.KEY_CONCEPT_TERMS;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel.CONCEPT;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
@@ -1002,7 +1003,7 @@ public class ConceptManagerTest {
 
 
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("loom"), CONCEPT,
+            ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("loom"), CONCEPT,
                     ConceptLabel.AGGREGATE);
             // first check if everything is alright, we expect on aggregate with
             // two elements

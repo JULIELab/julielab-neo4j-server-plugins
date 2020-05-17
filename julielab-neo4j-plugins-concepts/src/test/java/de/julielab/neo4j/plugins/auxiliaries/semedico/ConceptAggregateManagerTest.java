@@ -2,12 +2,13 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import de.julielab.neo4j.plugins.ConceptManager;
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.FacetManagerTest;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.ConceptAggregateBuilder.CopyAggregatePropertiesStatistics;
+import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager;
+import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager.CopyAggregatePropertiesStatistics;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
@@ -29,7 +30,7 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-public class ConceptAggregateBuilderTest {
+public class ConceptAggregateManagerTest {
     private static GraphDatabaseService graphDb;
     /**
      * Takes a source ID <code>srcId</code> and creates a coordinate for
@@ -92,7 +93,7 @@ public class ConceptAggregateBuilderTest {
 
             // Copy the element properties to the aggregate.
             CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
-            ConceptAggregateBuilder.copyAggregateProperties(aggregate, new String[]{"name", "geschmack", "synonyms"},
+            ConceptAggregateManager.copyAggregateProperties(aggregate, new String[]{"name", "geschmack", "synonyms"},
                     copyStats);
 
             // Check whether everything is as expected.
@@ -169,7 +170,7 @@ public class ConceptAggregateBuilderTest {
         Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
+            ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggregatedTermsLabel);
             int count = 0;
             for (Node aggregate : mappingAggregates) {
@@ -213,7 +214,7 @@ public class ConceptAggregateBuilderTest {
 
         // Now test whether the removal of aggregates is working as well
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateBuilder.deleteAggregates(tx, aggregatedTermsLabel);
+            ConceptAggregateManager.deleteAggregates(tx, aggregatedTermsLabel);
 
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggregatedTermsLabel);
             int count = 0;
@@ -256,7 +257,7 @@ public class ConceptAggregateBuilderTest {
         Label aggLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+            ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
                     aggLabel);
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggLabel);
             int count = 0;
@@ -314,7 +315,7 @@ public class ConceptAggregateBuilderTest {
         Label aggLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateBuilder.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
+            ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
                     aggLabel);
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggLabel);
             // Count of the aggregation terms, i.e. the representation terms
