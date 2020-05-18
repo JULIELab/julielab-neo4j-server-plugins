@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -72,7 +73,7 @@ public class ExportTest {
         ImportConcept term = new ImportConcept("Added Last PrefName", new ConceptCoordinates("addedLastSourceId", "TEST_SOURCE", "orgId2", "src2"));
         importConcepts.getConcepts().add(term);
         ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         // Get some more terms; those will be in another label and should be ignored here.
         importConcepts = ConceptManagerTest.getTestConcepts(15);
         importConcepts.getFacet().setName("facet2");
@@ -81,7 +82,7 @@ public class ExportTest {
             t.coordinates.originalSource = null;
         }
 
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         // Assure we have two facets.
         try (Transaction tx = graphDb.beginTx()) {
@@ -161,7 +162,7 @@ public class ExportTest {
         term.coordinates.originalSource = "src2";
         importConcepts.getConcepts().add(term);
         ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));;
 
         Method method = Export.class.getDeclaredMethod("createIdMapping", OutputStream.class, String.class, String.class,
                 String[].class);

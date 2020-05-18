@@ -17,12 +17,14 @@ import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
+import java.io.ByteArrayInputStream;
 import java.lang.reflect.Method;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.SRC_TYPE_HIERARCHICAL;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -256,10 +258,10 @@ public class FacetManagerTest {
                 NodeIDPrefixConstants.FACET + "3"));
 
         ConceptManager ftm = new ConceptManager(graphDBMS);
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts0));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts1));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts2));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts3));
+        ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts0).getBytes(UTF_8)));
+        ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts1).getBytes(UTF_8)));
+        ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts2).getBytes(UTF_8)));
+        ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts3).getBytes(UTF_8)));
 
         // Get the facets and check that everything is alright.
         RecursiveMappingRepresentation facetRep = (RecursiveMappingRepresentation) fm.getFacets(false);
@@ -290,7 +292,7 @@ public class FacetManagerTest {
 
         ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(amount);
         ConceptManager termManager = new ConceptManager(graphDBMS);
-        termManager.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
+        termManager.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));;
         FacetManager facetManager = new FacetManager(graphDBMS);
 
         assertEquals(amount, facetManager.getFacetSize(facet));

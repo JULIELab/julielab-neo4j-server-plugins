@@ -22,10 +22,12 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
 
+import java.io.ByteArrayInputStream;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_ACRONYMS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -55,7 +57,7 @@ public class TraversalTest {
 	public void testGetAcronymsTraversal() throws Exception {
 		ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(2);
 		ConceptManager tm = new ConceptManager(graphDBMS);
-		tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
+		tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));;
 
 		Map<String, Integer> acronymCounts = new HashMap<>();
 		// acro1 is a shared acronym
@@ -96,7 +98,7 @@ public class TraversalTest {
 		// instead of acronyms
 		ImportConcepts testTerms = ConceptManagerTest.getTestConcepts(2);
 		ConceptManager tm = new ConceptManager(graphDBMS);
-		tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+		tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
 
 		Map<String, Integer> variantCounts = new HashMap<>();
 		// acro1 is a shared acronym

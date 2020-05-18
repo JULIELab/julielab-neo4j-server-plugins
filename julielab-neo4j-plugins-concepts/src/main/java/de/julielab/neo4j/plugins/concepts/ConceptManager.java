@@ -3,12 +3,10 @@ package de.julielab.neo4j.plugins.concepts;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.Indexes;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
-import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.slf4j.Logger;
@@ -157,18 +155,16 @@ public class ConceptManager {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(INSERT_CONCEPTS)
-    public Object insertConcepts(String jsonParameterObject) {
+    public Object insertConcepts(InputStream is) {
         try {
             log.info("{} was called", INSERT_CONCEPTS);
-
-            final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(jsonParameterObject, ImportConcepts.class);
 
             InsertionReport insertionReport = new InsertionReport();
             log.debug("Beginning processing of concept insertion.");
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             Map<String, Object> response = new HashMap<>();
             try (Transaction tx = graphDb.beginTx()) {
-                insertionReport = ConceptInsertion.insertConcepts(tx, importConcepts, response, insertionReport);
+                insertionReport = ConceptInsertion.insertConcepts(tx, is, response, insertionReport);
                 tx.commit();
             }
             log.info("Concept insertion complete.");
