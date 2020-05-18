@@ -161,6 +161,7 @@ public class ConceptInsertion {
                                 createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_CONCEPT,
                                         insertionReport);
                             } else {
+                                assert facet != null;
                                 log.warn(
                                         "Creating hollow parents is switched off. Hence the concept will be added as root concept for its facet (\""
                                                 + facet.getProperty(FacetConstants.PROP_NAME) + "\").");
@@ -187,6 +188,7 @@ public class ConceptInsertion {
                     if (noFacetCmd != null && noFacetCmd.getParentCriteria()
                             .contains(AddToNonFacetGroupCommand.ParentCriterium.NO_PARENT)) {
                         if (null == noFacet) {
+                            assert facet != null;
                             noFacet = FacetManager.getNoFacet(tx, (String) facet.getProperty(PROP_ID));
                         }
 
@@ -254,9 +256,9 @@ public class ConceptInsertion {
      * Creates a node with the {@link ConceptLabel#HOLLOW} label, sets the given
      * coordinates and adds the node to the index.
      *
-     * @param tx
-     * @param coordinates
-     * @return
+     * @param tx The current transaction.
+     * @param coordinates The concept coordinates to register the hollow node for.
+     * @return The newly created hollow node.
      */
     static Node registerNewHollowConceptNode(Transaction tx, ConceptCoordinates coordinates,
                                              Label... additionalLabels) {
@@ -387,7 +389,7 @@ public class ConceptInsertion {
 
         // The source IDs are stored as whitespace-delimited string. The reason is that this allows us to use a
         // full text index on the source ID property.
-        List<String> presentSourceIds = Arrays.asList(getSourceIds(concept));
+        List<String> presentSourceIds = Arrays.asList(Objects.requireNonNull(getSourceIds(concept)));
         int sourceIndex = findFirstValueInArrayProperty(concept, PROP_SOURCES, source);
         int idIndex = presentSourceIds.indexOf(srcId);
         if (!StringUtils.isBlank(srcId) && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
@@ -455,15 +457,15 @@ public class ConceptInsertion {
      * the properties instead of creating a new relationship.
      * </p>
      *
-     * @param source
-     * @param target
-     * @param type
-     * @param insertionReport
-     * @param direction
+     * @param source The node to create a new relationship from (note that the relationship direction has yet to be considered).
+     * @param target The node to create the new relationship to (note that the relationship direction has yet to be considered).
+     * @param type The relationship type of new new relationship.
+     * @param insertionReport The insertion report keeping track of the number of inserted elements.
+     * @param direction The relationship direction.
      * @param properties      A sequence of property key and property values. These properties
-     *                        will be used to deconceptine whether a relationship - with those
+     *                        will be used to determine whether a relationship - with those
      *                        properties - already exists.
-     * @return
+     * @return The newly created relationship. Null if the relationship did already exist.
      */
     private static Relationship createRelationShipIfNotExists(Node source, Node target, RelationshipType type,
                                                               InsertionReport insertionReport, Direction direction, Object... properties) {
@@ -483,9 +485,7 @@ public class ConceptInsertion {
             Iterable<Relationship> relationships = source.getRelationships(direction, type);
             for (Relationship relationship : relationships) {
                 if (relationship.getEndNode().equals(target)) {
-                    relationShipExists = true;
-                    if (!PropertyUtilities.mergeProperties(relationship, properties))
-                        relationShipExists = false;
+                    relationShipExists = PropertyUtilities.mergeProperties(relationship, properties);
                 }
             }
         }
@@ -508,11 +508,11 @@ public class ConceptInsertion {
      * Creates a relationship of type <tt>type</tt> from <tt>source</tt> to
      * <tt>target</tt>, if this relationship does not already exist.
      *
-     * @param source
-     * @param target
-     * @param type
-     * @param insertionReport
-     * @return
+     * @param source The node to create a new relationship from (note that the relationship direction has yet to be considered).
+     * @param target The node to create the new relationship to (note that the relationship direction has yet to be considered).
+     * @param type The relationship type of new new relationship.
+     * @param insertionReport The insertion report keeping track of the number of inserted elements.
+     * @return The newly created relationship. Null if the relationship did already exist.
      */
     private static Relationship createRelationshipIfNotExists(Node source, Node target, RelationshipType type,
                                                               InsertionReport insertionReport) {
@@ -544,15 +544,16 @@ public class ConceptInsertion {
      *
      * </ul>
      *
-     * @param tx
-     * @param jsonConcepts
-     * @param facetId
-     * @param nodesByCoordinates
-     * @param importOptions
-     * @return
-     * @throws AggregateConceptInsertionException
+     * @param tx The current transaction.
+     * @param concepts The concepts to be imported.
+     * @param facetId The ID of the facet the imported concepts belong to.
+     * @param nodesByCoordinates The insertion process specific in-memory map keeping track of inserted nodes.
+     * @param importOptions The concept import options.
+     * @return The report of the insertions, counting created nodes, relationships and the passed time.
+     * @throws AggregateConceptInsertionException If the insertion of an aggregate concept failed.
+     * @throws ConceptInsertionException If concept insertion failed.
      */
-    static InsertionReport insertConcepts(Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
+    static InsertionReport insertConcepts(Transaction tx, List<ImportConcept> concepts, String facetId,
                                           CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         InsertionReport insertionReport = new InsertionReport();
@@ -570,7 +571,7 @@ public class ConceptInsertion {
 
         // When merging, we don't care about parents.
         if (!importOptions.merge) {
-            for (ImportConcept jsonConcept : jsonConcepts) {
+            for (ImportConcept jsonConcept : concepts) {
                 if (jsonConcept.parentCoordinates != null) {
                     for (ConceptCoordinates parentCoordinates : jsonConcept.parentCoordinates) {
                         Node parentNode = lookupConcept(tx, parentCoordinates);
@@ -595,8 +596,8 @@ public class ConceptInsertion {
         // HOLLOW nodes.
         // The following methods can then just access the nodes by their source
         // Id which ought to be unique for each import.
-        for (int i = 0; i < jsonConcepts.size(); i++) {
-            ImportConcept jsonConcept = jsonConcepts.get(i);
+        for (int i = 0; i < concepts.size(); i++) {
+            ImportConcept jsonConcept = concepts.get(i);
             ConceptCoordinates coordinates;
             if (jsonConcept.coordinates != null) {
                 coordinates = jsonConcept.coordinates;
@@ -630,7 +631,6 @@ public class ConceptInsertion {
                 // database; mark it for removal from the input data and
                 // continue
                 importConceptsToRemove.add(i);
-                continue;
             }
 
         }
@@ -646,10 +646,10 @@ public class ConceptInsertion {
             log.info("removing " + importConceptsToRemove.size()
                     + " input concepts that should be omitted because we are merging and don't have them in the database");
         for (int index = importConceptsToRemove.size() - 1; index >= 0; --index)
-            jsonConcepts.remove(importConceptsToRemove.get(index));
+            concepts.remove(importConceptsToRemove.get(index).intValue());
 
-        log.info("Starting to insert " + jsonConcepts.size() + " concepts.");
-        for (ImportConcept jsonConcept : jsonConcepts) {
+        log.info("Starting to insert " + concepts.size() + " concepts.");
+        for (ImportConcept jsonConcept : concepts) {
             boolean isAggregate = jsonConcept.aggregate;
             if (isAggregate) {
                 ConceptAggregateManager.insertAggregateConcept(tx, jsonConcept, nodesByCoordinates, insertionReport,
@@ -659,7 +659,7 @@ public class ConceptInsertion {
                         importOptions);
             }
         }
-        log.debug(jsonConcepts.size() + " concepts inserted.");
+        log.debug(concepts.size() + " concepts inserted.");
         time = System.currentTimeMillis() - time;
         log.info(insertionReport.numConcepts
                 + " new concepts - but not yet relationships - have been inserted. This took " + time + " ms ("
@@ -678,9 +678,7 @@ public class ConceptInsertion {
         // same source ID will be marked as unique which would cause an
         // inconsistent database state because then, the formerly imported
         // concepts with the same unique source ID should have been merged
-        if (!uniqueOnConcept && uniqueOnConcept != uniqueSourceId)
-            return true;
-        return false;
+        return !uniqueOnConcept && uniqueOnConcept != uniqueSourceId;
     }
 
     static int insertMappings(Transaction tx, List<Map<String, String>> mappings) {
@@ -736,9 +734,8 @@ public class ConceptInsertion {
                 // all I saw were errors.
                 String[] n1Facets = (String[]) n1.getProperty(PROP_FACETS);
                 String[] n2Facets = (String[]) n2.getProperty(PROP_FACETS);
-                Set<String> n1FacetSet = new HashSet<>();
                 Set<String> n2FacetSet = new HashSet<>();
-                n1FacetSet.addAll(Arrays.asList(n1Facets));
+                Set<String> n1FacetSet = new HashSet<>(Arrays.asList(n1Facets));
                 Collections.addAll(n2FacetSet, n2Facets);
                 if (!Sets.intersection(n1FacetSet, n2FacetSet).isEmpty()) {
                     // Of course an ontology might contain two equivalent

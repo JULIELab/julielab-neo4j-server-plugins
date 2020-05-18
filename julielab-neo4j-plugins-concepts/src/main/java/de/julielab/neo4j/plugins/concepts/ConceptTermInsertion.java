@@ -41,8 +41,8 @@ public class ConceptTermInsertion {
      * }
      * </pre>
      *
-     * @param conceptVariants
-     * @param type
+     * @param conceptVariants The concept term variants in the above described JSON format.
+     * @param type 'writingVariants' or 'acronyms'. Causes the given variants to appended to the respective {@link @MorphoLabel} nodes.
      */
     static void addConceptVariant(Transaction tx, String conceptVariants, String type) throws IOException {
         Label variantsAggregationLabel;

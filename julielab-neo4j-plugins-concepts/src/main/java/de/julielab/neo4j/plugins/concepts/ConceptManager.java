@@ -7,8 +7,6 @@ import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
@@ -18,12 +16,8 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
-import de.julielab.neo4j.plugins.util.ConceptInsertionException;
-import org.apache.commons.lang.StringUtils;
 import org.neo4j.dbms.api.DatabaseManagementService;
-import org.neo4j.graphdb.Path;
 import org.neo4j.graphdb.*;
-import org.neo4j.graphdb.traversal.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,11 +25,11 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Stream;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptInsertion.createRelationships;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.CM_REST_ENDPOINT;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_CHILDREN_IN_FACETS;
+import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -47,31 +41,20 @@ public class ConceptManager {
     public static final String INSERT_MAPPINGS = "insert_mappings";
 
 
-    public static final String GET_NUM_CONCEPTS = "get_num_concepts";
     public static final String GET_CHILDREN_OF_CONCEPTS = "get_children_of_concepts";
-    public static final String GET_PATHS_FROM_FACETROOTS = "get_paths_to_facetroots";
+    public static final String GET_PATHS_FROM_FACET_ROOTS = "get_paths_to_facetroots";
     public static final String INSERT_CONCEPTS = "insert_concepts";
     public static final String GET_FACET_ROOTS = "get_facet_roots";
     public static final String ADD_CONCEPT_TERM = "add_concept_term";
-    public static final String KEY_AMOUNT = "amount";
-    public static final String KEY_CREATE_HOLLOW_PARENTS = "createHollowParents";
     public static final String KEY_FACET = "facet";
     public static final String KEY_FACET_ID = "facetId";
     public static final String KEY_FACET_IDS = "facetIds";
-    public static final String KEY_FACET_PROP_KEY = "propertyKey";
-    public static final String KEY_FACET_PROP_VALUE = "propertyValue";
     public static final String KEY_ID_PROPERTY = "id_property";
     public static final String KEY_RETURN_ID_PROPERTY = "return_id_property";
-    public static final String KEY_IMPORT_OPTIONS = "importOptions";
     public static final String KEY_LABEL = "label";
     public static final String KEY_SORT_RESULT = "sortResult";
     public static final String KEY_CONCEPT_IDS = "conceptIds";
     public static final String KEY_MAX_ROOTS = "maxRoots";
-    public static final String KEY_CONCEPT_PROP_KEY = "conceptPropertyKey";
-    public static final String KEY_CONCEPT_PROP_VALUE = "conceptPropertyValue";
-    public static final String KEY_CONCEPT_PROP_VALUES = "conceptPropertyValues";
-    public static final String KEY_CONCEPT_PUSH_CMD = "conceptPushCommand";
-    public static final String KEY_AGGREGATED_LABEL = "aggregatedLabel";
     public static final String KEY_CONCEPT_TERMS = "conceptTerms";
     public static final String KEY_CONCEPT_ACRONYMS = "conceptAcronyms";
     /**
@@ -79,9 +62,6 @@ public class ConceptManager {
      */
     public static final String KEY_CONCEPTS = "concepts";
     public static final String KEY_TIME = "time";
-    public static final String KEY_MAPPINGS = "mappings";
-    public static final String POP_CONCEPTS_FROM_SET = "pop_concepts_from_set";
-    public static final String PUSH_CONCEPTS_TO_SET = "push_concepts_to_set";
     public static final String RET_KEY_CHILDREN = "children";
     public static final String RET_KEY_NUM_AGGREGATES = "numAggregates";
     public static final String RET_KEY_NUM_ELEMENTS = "numElements";
@@ -90,16 +70,12 @@ public class ConceptManager {
     public static final String RET_KEY_NUM_CREATED_CONCEPTS = "numCreatedConcepts";
     public static final String RET_KEY_PATHS = "paths";
     public static final String RET_KEY_RELTYPES = "reltypes";
-    public static final String RET_KEY_CONCEPTS = "concepts";
 
     public static final String FULLTEXT_INDEX_CONCEPTS = "concepts";
 
     public static final String UPDATE_CHILD_INFORMATION = "update_children_information";
     public static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
     private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
-    private static final int CONCEPT_INSERT_BATCH_SIZE = 10000;
-
-    private static final String INDEX_SRC_IDS = "index_src_ids";
 
     private final DatabaseManagementService dbms;
 
@@ -107,28 +83,7 @@ public class ConceptManager {
         this.dbms = dbms;
     }
 
-    /**
-     * Concatenates the values of the elements of <tt>aggregate</tt> and returns
-     * them as an array.
-     *
-     * @param aggregate The aggregate for whose elements properties are requested.
-     * @param property  The requested property.
-     * @return The values of property <tt>property</tt> in the elements of
-     * <tt>aggregate</tt>
-     */
-    public static String[] getPropertyValueOfElements(Node aggregate, String property) {
-        if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
-            throw new IllegalArgumentException(
-                    "Node " + NodeUtilities.getNodePropertiesAsString(aggregate) + " is not an aggregate.");
-        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT);
-        List<String> elementValues = new ArrayList<>();
-        for (Relationship elementRel : elementRels) {
-            String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(elementRel.getEndNode(), property);
-            for (int i = 0; value != null && i < value.length; i++)
-                elementValues.add(value[i]);
-        }
-        return elementValues.isEmpty() ? null : elementValues.toArray(new String[elementValues.size()]);
-    }
+
 
     public static void createIndexes(Transaction tx) {
         Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, true, ConceptConstants.PROP_ID);
@@ -162,13 +117,13 @@ public class ConceptManager {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(GET_CHILDREN_OF_CONCEPTS)
-    public Object getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_LABEL) String labelString) throws IOException {
+    public Object getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_LABEL) String labelString) {
         try {
             Label label = labelString != null ? Label.label(labelString) : ConceptLabel.CONCEPT;
             final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
-                Map<String, Object> childrenByConceptId = getChildrenOfConcepts(tx, conceptIds, label);
+                Map<String, Object> childrenByConceptId = ConceptRetrieval.getChildrenOfConcepts(tx, conceptIds, label);
                 return Response.ok(childrenByConceptId);
             }
         } catch (Throwable t) {
@@ -176,36 +131,7 @@ public class ConceptManager {
         }
     }
 
-    public Map<String, Object> getChildrenOfConcepts(Transaction tx, List<String> conceptIds, Label label) throws IOException {
-        Map<String, Object> childrenByConceptId = new HashMap<>();
-        for (String id : conceptIds) {
-            Map<String, List<String>> reltypesByNodeId = new HashMap<>();
-            Set<Node> childList = new HashSet<>();
-            String conceptId = id;
-            Node concept = tx.findNode(label, PROP_ID, conceptId);
-            if (null != concept) {
-                for (Relationship rel : concept.getRelationships(Direction.OUTGOING)) {
-                    String reltype = rel.getType().name();
-                    Node child = rel.getEndNode();
-                    boolean isHollow = false;
-                    for (Label l : child.getLabels())
-                        if (l.equals(ConceptLabel.HOLLOW))
-                            isHollow = true;
-                    if (isHollow)
-                        continue;
-                    String childId = (String) child.getProperty(PROP_ID);
-                    List<String> reltypeList = reltypesByNodeId.computeIfAbsent(childId, k -> new ArrayList<>());
-                    reltypeList.add(reltype);
-                    childList.add(child);
-                }
-                Map<String, Object> childrenAndReltypes = new HashMap<>();
-                childrenAndReltypes.put(RET_KEY_CHILDREN, childList);
-                childrenAndReltypes.put(RET_KEY_RELTYPES, reltypesByNodeId);
-                childrenByConceptId.put(conceptId, childrenAndReltypes);
-            }
-        }
-        return childrenByConceptId;
-    }
+
 
     /**
      * Parameters:
@@ -222,75 +148,14 @@ public class ConceptManager {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(GET_PATHS_FROM_FACETROOTS)
+    @javax.ws.rs.Path(GET_PATHS_FROM_FACET_ROOTS)
     public Object getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_ID_PROPERTY) String idProperty, @QueryParam(KEY_RETURN_ID_PROPERTY) String returnIdProperty, @QueryParam(KEY_SORT_RESULT) boolean sort, @QueryParam(KEY_FACET_ID) String facetId) {
         try {
             final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
-
-            Evaluator rootConceptEvaluator = path -> {
-                Node endNode = path.endNode();
-
-                Iterator<Relationship> iterator = endNode.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT).iterator();
-                if (iterator.hasNext()) {
-                    if (StringUtils.isBlank(facetId)) {
-                        return Evaluation.INCLUDE_AND_CONTINUE;
-                    } else {
-                        String[] facetIds = (String[]) endNode.getProperty(PROP_FACETS);
-                        for (String facetIdOfRootNode : facetIds) {
-                            if (facetIdOfRootNode.equals(facetId))
-                                return Evaluation.INCLUDE_AND_CONTINUE;
-                        }
-                    }
-                }
-                return Evaluation.EXCLUDE_AND_CONTINUE;
-            };
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
-                RelationshipType relType = StringUtils.isBlank(facetId) ? EdgeTypes.IS_BROADER_THAN
-                        : RelationshipType.withName(EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
-                TraversalDescription td = tx.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
-                        .relationships(relType, Direction.INCOMING).evaluator(rootConceptEvaluator);
 
-                Node[] startNodes = new Node[conceptIds.size()];
-                for (int i = 0; i < conceptIds.size(); i++) {
-                    String conceptId = conceptIds.get(i);
-                    Node node = idProperty.equals(PROP_SRC_IDS) ? FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, idProperty, conceptId) : tx.findNode(ConceptLabel.CONCEPT, idProperty, conceptId);
-                    if (node == null)
-                        throw new IllegalArgumentException("Could not find a node with ID " + conceptId + " for property " + idProperty);
-                    startNodes[i] = node;
-                }
-
-                Traverser traverse = td.traverse(startNodes);
-                List<String[]> pathsConceptIds = new ArrayList<>();
-                int c = 0;
-                for (Path p : traverse) {
-                    log.info("Path nr. " + c++ + ":" + p.toString());
-                    // The length of paths is measured in the number of edges, not
-                    // nodes, in Neo4j.
-                    String[] pathConceptIds = new String[p.length() + 1];
-                    Iterator<Node> nodesIt = p.nodes().iterator();
-                    boolean error = false;
-                    for (int i = p.length(); i >= 0; i--) {
-                        Node n;
-                        if (nodesIt.hasNext())
-                            n = nodesIt.next();
-                        else
-                            throw new IllegalStateException("Length of path wrong, more nodes expected.");
-                        if (!n.hasProperty(idProperty)) {
-                            log.warn("Came across the concept " + n + " (" + NodeUtilities.getNodePropertiesAsString(n)
-                                    + ") when computing root paths. But this concept does not have an ID.");
-                            error = true;
-                            break;
-                        }
-                        pathConceptIds[i] = (String) n.getProperty(returnIdProperty != null ? returnIdProperty : PROP_ID);
-                    }
-                    if (!error)
-                        pathsConceptIds.add(pathConceptIds);
-                }
-                if (sort)
-                    pathsConceptIds.sort(Comparator.comparingInt(o -> o.length));
-                Map<String, Object> pathsWrappedInMap = new HashMap<>();
-                pathsWrappedInMap.put(RET_KEY_PATHS, pathsConceptIds);
+                Map<String, Object> pathsWrappedInMap = ConceptRetrieval.getPathsFromFacetRoots(tx, conceptIds, idProperty, returnIdProperty, sort, facetId);
                 return Response.ok(pathsWrappedInMap);
             }
         } catch (Throwable t) {
@@ -302,8 +167,7 @@ public class ConceptManager {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(INSERT_CONCEPTS)
-    public Object insertConcepts(String jsonParameterObject)
-            throws ConceptInsertionException, IOException {
+    public Object insertConcepts(String jsonParameterObject) {
         try {
             log.info("{} was called", INSERT_CONCEPTS);
             long time = System.currentTimeMillis();
@@ -423,7 +287,7 @@ public class ConceptManager {
                     concept.removeProperty(PROP_CHILDREN_IN_FACETS);
                 else if (facetsContainingChildren.size() > 0)
                     concept.setProperty(PROP_CHILDREN_IN_FACETS,
-                            facetsContainingChildren.toArray(new String[facetsContainingChildren.size()]));
+                            facetsContainingChildren.toArray(new String[0]));
             }
             tx.commit();
         }
@@ -439,7 +303,7 @@ public class ConceptManager {
      * but that reading commands don't care about the relationship direction.
      * </p>
      * <p>
-     * Parameter: {@link #KEY_MAPPINGS}: An array of mappings in JSON format. Each mapping is an object with the keys for "id1", "id2" and "mappingType", respectively.
+     * Parameter:  An array of mappings in JSON format. Each mapping is an object with the keys for "id1", "id2" and "mappingType", respectively.
      * </p>
      *
      * @param mappingsJson The mappings in JSON format.
@@ -474,31 +338,30 @@ public class ConceptManager {
      *     </ul>
      * </p>
      *
-     * @return
-     * @throws IOException
+     * @return A JSON object with one key for each facet that returns roots. The values are lists of concept IDs.
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(GET_FACET_ROOTS)
     public Object getFacetRoots(@Context UriInfo uriInfo) {
         try {
-            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-            try (Transaction tx = graphDb.beginTx()) {
-                Set<String> requestedFacetId = new HashSet<>();
+                Set<String> requestedFacetIds = new HashSet<>();
                 MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
                 Map<String, Set<String>> requestedConceptIds = new HashMap<>();
                 int maxRoots = 0;
                 for (String param : queryParameters.keySet()) {
                     if (param.equals(KEY_FACET_IDS))
-                        Stream.of(queryParameters.getFirst(param).split(",")).forEach(requestedFacetId::add);
+                        requestedFacetIds.addAll(Arrays.asList(queryParameters.getFirst(param).split(",")));
                     else if (param.equals(KEY_MAX_ROOTS))
                         maxRoots = Integer.parseInt(queryParameters.getFirst(param));
                     else {
-                        requestedFacetId.add(param);
+                        requestedFacetIds.add(param);
                         requestedConceptIds.put(param, Set.of(queryParameters.getFirst(param).split(",")));
                     }
                 }
-                Map<String, List<Node>> facetRoots = getFacetRoots(tx, requestedFacetId, requestedConceptIds, maxRoots);
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+            try (Transaction tx = graphDb.beginTx()) {
+                Map<String, List<Node>> facetRoots = FacetRootsReturning.getFacetRoots(tx, requestedFacetIds, requestedConceptIds, maxRoots);
                 return Response.ok(facetRoots);
             }
         } catch (Throwable t) {
@@ -506,59 +369,7 @@ public class ConceptManager {
         }
     }
 
-    /**
-     * Convenience method for programmatical access.
-     *
-     * @param requestedFacetId    A set of facet IDs for which to return their root concepts.
-     * @param requestedConceptIds Optional. Groups concept root IDs to the facet they should be returned for.
-     * @return
-     * @see #getFacetRoots(UriInfo)
-     */
-    public Map<String, List<Node>> getFacetRoots(Transaction tx, Set<String> requestedFacetId, Map<String, Set<String>> requestedConceptIds, int maxRoots) {
 
-        Map<String, List<Node>> facetRoots = new HashMap<>();
-
-
-        log.info("Returning roots for facets " + requestedFacetId);
-        Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
-        TraversalDescription facetTraversal = PredefinedTraversals.getFacetTraversal(tx, null, null);
-        Traverser traverse = facetTraversal.traverse(facetGroupsNode);
-        for (Path path : traverse) {
-            Node facetNode = path.endNode();
-            String facetId = (String) facetNode.getProperty(FacetConstants.PROP_ID);
-            if (maxRoots > 0 && facetNode.hasProperty(FacetConstants.PROP_NUM_ROOT_TERMS)
-                    && (long) facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS) > maxRoots) {
-                log.info("Skipping facet with ID {} because it has more than {} root concepts ({}).", facetId,
-                        maxRoots, facetNode.getProperty(FacetConstants.PROP_NUM_ROOT_TERMS));
-            }
-            Set<String> requestedIdSet = null;
-            if (null != requestedConceptIds)
-                requestedIdSet = requestedConceptIds.get(facetId);
-            if (requestedFacetId.contains(facetId)) {
-                List<Node> roots = new ArrayList<>();
-                Iterable<Relationship> relationships = facetNode.getRelationships(Direction.OUTGOING,
-                        EdgeTypes.HAS_ROOT_CONCEPT);
-                for (Relationship rel : relationships) {
-                    Node rootConcept = rel.getEndNode();
-                    boolean include = true;
-                    if (null != requestedIdSet) {
-                        String rootId = (String) rootConcept.getProperty(PROP_ID);
-                        if (!requestedIdSet.contains(rootId))
-                            include = false;
-                    }
-                    if (include)
-                        roots.add(rootConcept);
-                }
-                if (!roots.isEmpty() && (maxRoots <= 0 || roots.size() <= maxRoots))
-                    facetRoots.put(facetId, roots);
-                else
-                    log.info("Skipping facet with ID " + facetId + " because it has more than " + maxRoots
-                            + " root concepts (" + roots.size() + ").");
-            }
-        }
-
-        return facetRoots;
-    }
 
     /**
      * <p>
@@ -581,15 +392,15 @@ public class ConceptManager {
     @javax.ws.rs.Path(ADD_CONCEPT_TERM)
     public void addWritingVariants(String jsonParameterObject) throws IOException {
         ObjectMapper om = new ObjectMapper();
-        Map<String, String> parameterMap = om.readValue(jsonParameterObject, Map.class);
-        String conceptVariants = parameterMap.get(KEY_CONCEPT_TERMS);
-        String conceptAcronyms = parameterMap.get(KEY_CONCEPT_ACRONYMS);
+        var parameterMap = om.readValue(jsonParameterObject, Map.class);
+        String conceptVariants = (String) parameterMap.get(KEY_CONCEPT_TERMS);
+        String conceptAcronyms = (String) parameterMap.get(KEY_CONCEPT_ACRONYMS);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
             if (null != conceptVariants)
                 ConceptTermInsertion.addConceptVariant(tx, conceptVariants, "writingVariants");
             if (null != conceptAcronyms)
-                ConceptTermInsertion.addConceptVariant(tx, conceptAcronyms, "acronyms");
+                ConceptTermInsertion.addConceptVariant(tx,  conceptAcronyms, "acronyms");
         }
     }
 

@@ -43,7 +43,7 @@ public class ConceptLookup {
         }
         Node concept;
         // Do we know the original ID?
-        concept = null != orgId ? tx.findNode(ConceptManager.ConceptLabel.CONCEPT, PROP_ORG_ID, orgId) : null;
+        concept = null != orgId ? tx.findNode(ConceptLabel.CONCEPT, PROP_ORG_ID, orgId) : null;
         if (concept != null)
             log.trace("Found concept by original ID {}", orgId);
         // 1. Check if there is a concept with the given original ID and a matching
@@ -88,7 +88,7 @@ public class ConceptLookup {
      * Returns the concept node with source ID <tt>srcId</tt> given from source
      * <tt>source</tt> or <tt>null</tt> if no such node exists.
      *
-     * @param tx
+     * @param tx The current transaction.
      * @param srcId          The source ID of the requested concept node.
      * @param source         The source in which the concept node should be given
      *                       <tt>srcId</tt> as a source ID.
@@ -117,7 +117,7 @@ public class ConceptLookup {
                     if (uniqueOnConceptNode) {
                         if (soughtConcept == null)
                             soughtConcept = conceptNode;
-                        else if (uniqueSourceIdNodeFound == true)
+                        else if (uniqueSourceIdNodeFound)
                             throw new IllegalStateException("There are multiple concept nodes with unique source ID "
                                     + srcId
                                     + ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");

@@ -34,6 +34,7 @@ import java.util.*;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
 import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
+import static de.julielab.neo4j.plugins.concepts.ConceptInsertion.registerNewHollowConceptNode;
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConcept;
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConceptBySourceId;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_SOURCE;
@@ -166,7 +167,7 @@ public class ConceptAggregateManager {
 
             // Set the aggregate's properties
             if (null != aggSrcId) {
-                int idIndex = aggregate.hasProperty(PROP_SRC_IDS) ? Arrays.asList(getSourceIds(aggregate)).indexOf(aggSrcId) : -1;
+                int idIndex = aggregate.hasProperty(PROP_SRC_IDS) ? Arrays.asList(Objects.requireNonNull(getSourceIds(aggregate))).indexOf(aggSrcId) : -1;
                 int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
                 if (!StringUtils.isBlank(aggSrcId)
                         && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
@@ -219,7 +220,7 @@ public class ConceptAggregateManager {
     public void buildAggregatesByMappings(String jsonParameterObject)
             throws IOException {
         ObjectMapper om = new ObjectMapper();
-        Map<String, Object> parameterMap = om.readValue(jsonParameterObject, Map.class);
+        var parameterMap = om.readValue(jsonParameterObject, Map.class);
         final Set<String> allowedMappingTypes = new HashSet<>((List<String>) parameterMap.get(KEY_ALLOWED_MAPPING_TYPES));
         Label aggregatedConceptsLabel = Label.label((String) parameterMap.get(KEY_AGGREGATED_LABEL));
         Label allowedConceptLabel = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL))
@@ -241,7 +242,7 @@ public class ConceptAggregateManager {
      *     (with the label CONCEPT) that are not an element of an aggregate.</li>
      * </ul>
      *
-     * @param aggregatedConceptsLabelString
+     * @param aggregatedConceptsLabelString The aggregate node label for which to delete the aggregate nodes.
      */
     @DELETE
     @Consumes(MediaType.TEXT_PLAIN)
@@ -438,7 +439,7 @@ public class ConceptAggregateManager {
 
             if (elements.size() > 1) {
                 createAggregate(tx, copyProperties, elements,
-                        allowedMappingTypes.toArray(new String[allowedMappingTypes.size()]),
+                        allowedMappingTypes.toArray(new String[0]),
                         // TermLabel.AGGREGATE_MAPPING);
                         aggregatedTermsLabel);
 
@@ -454,6 +455,29 @@ public class ConceptAggregateManager {
             }
 
         }
+    }
+
+    /**
+     * Concatenates the values of the elements of <tt>aggregate</tt> and returns
+     * them as an array.
+     *
+     * @param aggregate The aggregate for whose elements properties are requested.
+     * @param property  The requested property.
+     * @return The values of property <tt>property</tt> in the elements of
+     * <tt>aggregate</tt>
+     */
+    public static String[] getPropertyValueOfElements(Node aggregate, String property) {
+        if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
+            throw new IllegalArgumentException(
+                    "Node " + NodeUtilities.getNodePropertiesAsString(aggregate) + " is not an aggregate.");
+        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT);
+        List<String> elementValues = new ArrayList<>();
+        for (Relationship elementRel : elementRels) {
+            String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(elementRel.getEndNode(), property);
+            for (int i = 0; value != null && i < value.length; i++)
+                elementValues.add(value[i]);
+        }
+        return elementValues.isEmpty() ? null : elementValues.toArray(new String[0]);
     }
 
     protected static void determineMappedSubgraph(Set<String> allowedMappingTypes, Label allowedTermLabel, Node term,
