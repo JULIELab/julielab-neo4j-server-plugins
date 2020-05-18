@@ -1,8 +1,9 @@
 package de.julielab.neo4j.plugins;
 
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
+import de.julielab.neo4j.plugins.concepts.ConceptLabel;
 import de.julielab.neo4j.plugins.concepts.ConceptManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.concepts.MorphoLabel;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
@@ -72,9 +73,9 @@ public class TraversalTest {
 		tm.addWritingVariants(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_ACRONYMS, ConceptsJsonSerializer.toJson( acronyms))));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> acronymsNodes = tx.findNodes(ConceptManager.MorphoLabel.ACRONYMS);
+			ResourceIterator<Node> acronymsNodes = tx.findNodes(MorphoLabel.ACRONYMS);
 			assertTrue(acronymsNodes.hasNext());
-			ResourceIterator<Node> acronymNodes = tx.findNodes(ConceptManager.MorphoLabel.ACRONYM);
+			ResourceIterator<Node> acronymNodes = tx.findNodes(MorphoLabel.ACRONYM);
 			assertTrue(acronymNodes.hasNext());
 
 			Node term0 = tx.findNode(ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);
@@ -113,9 +114,9 @@ public class TraversalTest {
 		tm.addWritingVariants(ConceptsJsonSerializer.toJson(Map.of(KEY_CONCEPT_TERMS, ConceptsJsonSerializer.toJson(variants))));
 
 		try (Transaction tx = graphDb.beginTx()) {
-			ResourceIterator<Node> variantsNodes = tx.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANTS);
+			ResourceIterator<Node> variantsNodes = tx.findNodes(MorphoLabel.WRITING_VARIANTS);
 			assertTrue(variantsNodes.hasNext());
-			ResourceIterator<Node> variantNodes = tx.findNodes(ConceptManager.MorphoLabel.WRITING_VARIANT);
+			ResourceIterator<Node> variantNodes = tx.findNodes(MorphoLabel.WRITING_VARIANT);
 			assertTrue(variantNodes.hasNext());
 
 			Node term0 = tx.findNode(ConceptLabel.CONCEPT, ConceptConstants.PROP_ID, NodeIDPrefixConstants.TERM + 0);

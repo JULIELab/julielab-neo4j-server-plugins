@@ -278,7 +278,7 @@ public class ConceptAggregateManager {
             reportMap.put(RET_KEY_NUM_AGGREGATES, numAggregates);
             reportMap.put(RET_KEY_NUM_ELEMENTS, copyStats.numElements);
             reportMap.put(RET_KEY_NUM_PROPERTIES, copyStats.numProperties);
-            return Response.ok(reportMap);
+            return Response.ok(reportMap).build();
         } catch (Throwable t) {
             return getErrorResponse(t);
         }

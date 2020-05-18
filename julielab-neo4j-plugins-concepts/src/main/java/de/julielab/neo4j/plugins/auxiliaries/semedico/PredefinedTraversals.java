@@ -2,7 +2,9 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import de.julielab.neo4j.plugins.FacetManager;
 import de.julielab.neo4j.plugins.FacetManager.EdgeTypes;
-import de.julielab.neo4j.plugins.concepts.ConceptManager;
+import de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptLabel;
+import de.julielab.neo4j.plugins.concepts.MorphoLabel;
 import de.julielab.neo4j.plugins.evaluators.FacetGroupPathEvaluator;
 import de.julielab.neo4j.plugins.evaluators.HasRelationShipEvaluator;
 import de.julielab.neo4j.plugins.evaluators.NodeLabelEvaluator;
@@ -72,29 +74,29 @@ public class PredefinedTraversals {
     public static TraversalDescription getAcronymsTraversal(Transaction tx) {
 
         return tx.traversalDescription().depthFirst()
-                .relationships(ConceptManager.EdgeTypes.HAS_ACRONYMS, Direction.OUTGOING)
-                .relationships(ConceptManager.EdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
-                .evaluator(new NodeLabelEvaluator(ConceptManager.MorphoLabel.ACRONYM));
+                .relationships(ConceptEdgeTypes.HAS_ACRONYMS, Direction.OUTGOING)
+                .relationships(ConceptEdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
+                .evaluator(new NodeLabelEvaluator(MorphoLabel.ACRONYM));
     }
 
     public static TraversalDescription getWritingVariantsTraversal(Transaction tx) {
 
         return tx.traversalDescription().depthFirst()
-                .relationships(ConceptManager.EdgeTypes.HAS_VARIANTS, Direction.OUTGOING)
-                .relationships(ConceptManager.EdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
-                .evaluator(new NodeLabelEvaluator(ConceptManager.MorphoLabel.WRITING_VARIANT));
+                .relationships(ConceptEdgeTypes.HAS_VARIANTS, Direction.OUTGOING)
+                .relationships(ConceptEdgeTypes.HAS_ELEMENT, Direction.OUTGOING)
+                .evaluator(new NodeLabelEvaluator(MorphoLabel.WRITING_VARIANT));
     }
 
     public static TraversalDescription getNonAggregateAggregateElements(Transaction tx) {
         return tx.traversalDescription().depthFirst()
-                .relationships(ConceptManager.EdgeTypes.HAS_ELEMENT)
-                .evaluator(new NodeLabelEvaluator(ConceptManager.ConceptLabel.AGGREGATE, true));
+                .relationships(ConceptEdgeTypes.HAS_ELEMENT)
+                .evaluator(new NodeLabelEvaluator(ConceptLabel.AGGREGATE, true));
     }
 
     public static TraversalDescription getTopAggregates(Transaction tx) {
         return tx.traversalDescription().breadthFirst()
-                .relationships(ConceptManager.EdgeTypes.HAS_ELEMENT)
+                .relationships(ConceptEdgeTypes.HAS_ELEMENT)
                 .evaluator(new HasRelationShipEvaluator(Direction.INCOMING,
-                        new RelationshipType[]{ConceptManager.EdgeTypes.HAS_ELEMENT}, false));
+                        new RelationshipType[]{ConceptEdgeTypes.HAS_ELEMENT}, false));
     }
 }

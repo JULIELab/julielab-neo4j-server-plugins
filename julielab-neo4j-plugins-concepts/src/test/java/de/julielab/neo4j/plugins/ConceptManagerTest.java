@@ -12,13 +12,15 @@ import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.apache.commons.lang.StringUtils;
 import org.glassfish.jersey.message.internal.OutboundJaxrsResponse;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphalgo.BasicEvaluationContext;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.*;
-import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 
 import java.util.*;
 import java.util.stream.Stream;
@@ -885,9 +887,8 @@ public class ConceptManagerTest {
             }
             assertEquals("Term on position 4 has exactly one relationship (HAS_ROOT)", 1, numRels);
             // Now let's copy the term properties into the aggregate.
-            RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) cam
-                    .copyAggregateProperties();
-            Map<String, ?> reportMap = report.getUnderlyingMap();
+            OutboundJaxrsResponse report = (OutboundJaxrsResponse) cam.copyAggregateProperties();
+            Map<String, ?> reportMap = (Map<String, ?>) report.getEntity();
             assertEquals("Number of aggregates", 1, reportMap.get(ConceptManager.RET_KEY_NUM_AGGREGATES));
             assertEquals("Number of element terms", 4, reportMap.get(ConceptManager.RET_KEY_NUM_ELEMENTS));
             assertEquals("Number of copied properties", 4 * 2, reportMap.get(ConceptManager.RET_KEY_NUM_PROPERTIES));
@@ -1247,11 +1248,11 @@ public class ConceptManagerTest {
         ConceptManager ftm = new ConceptManager(graphDBMS);
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(importTermAndFacet));
 
-        RecursiveMappingRepresentation pathsFromFacetroots;
+        Map<String, List<String[]>> pathsFromFacetroots;
         List<String[]> paths;
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source1,source3", PROP_SRC_IDS, null, false, null);
-        paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
+        pathsFromFacetroots = (Map<String, List<String[]>>) ((OutboundJaxrsResponse) ftm.getPathsFromFacetRoots("source1,source3", PROP_SRC_IDS, null, false, null)).getEntity();
+        paths = (List<String[]>) pathsFromFacetroots.get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect one path with a single node, i.e. source1 and two paths
             // with two nodes respectively, [source1,
@@ -1272,8 +1273,8 @@ public class ConceptManagerTest {
         }
         assertEquals("Wrong number of paths", 3, paths.size());
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source4,source6", PROP_SRC_IDS, null, false, null);
-        paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
+        pathsFromFacetroots = (Map<String, List<String[]>>) ((OutboundJaxrsResponse) ftm.getPathsFromFacetRoots("source4,source6", PROP_SRC_IDS, null, false, null)).getEntity();
+        paths = (List<String[]>) pathsFromFacetroots.get(ConceptManager.RET_KEY_PATHS);
         String[] expectedPath1 = new String[]{NodeIDPrefixConstants.TERM + 0, NodeIDPrefixConstants.TERM + 2,
                 NodeIDPrefixConstants.TERM + 3};
         String[] expectedPath2 = new String[]{NodeIDPrefixConstants.TERM + 1, NodeIDPrefixConstants.TERM + 2,
@@ -1344,11 +1345,11 @@ public class ConceptManagerTest {
         importTermAndFacet = new ImportConcepts(terms, importFacet);
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(importTermAndFacet));
 
-        RecursiveMappingRepresentation pathsFromFacetroots;
+        Map<String, List<String[]>> pathsFromFacetroots;
         List<String[]> paths;
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, null);
-        paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
+        pathsFromFacetroots = (Map<String, List<String[]>>) ((OutboundJaxrsResponse) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, null)).getEntity();
+        paths = pathsFromFacetroots.get(ConceptManager.RET_KEY_PATHS);
         for (String[] path : paths) {
             // We expect two paths, both chains that have been defined by the
             // two inserts above:
@@ -1358,13 +1359,13 @@ public class ConceptManagerTest {
         }
         assertEquals("Wrong number of paths", 2, paths.size());
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, "fid0");
-        paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
+        pathsFromFacetroots = (Map<String, List<String[]>>) ((OutboundJaxrsResponse) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, "fid0")).getEntity();
+        paths = pathsFromFacetroots.get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid1", "tid2", "tid3", "tid4"}, paths.get(0));
 
-        pathsFromFacetroots = (RecursiveMappingRepresentation) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, "fid1");
-        paths = (List<String[]>) pathsFromFacetroots.getUnderlyingMap().get(ConceptManager.RET_KEY_PATHS);
+        pathsFromFacetroots = (Map<String, List<String[]>>) ((OutboundJaxrsResponse) ftm.getPathsFromFacetRoots("source5", PROP_SRC_IDS, null, false, "fid1")).getEntity();
+        paths = pathsFromFacetroots.get(ConceptManager.RET_KEY_PATHS);
         assertEquals("Wrong number of paths", 1, paths.size());
         assertArrayEquals(new String[]{"tid0", "tid5", "tid4"}, paths.get(0));
 
@@ -1647,90 +1648,6 @@ public class ConceptManagerTest {
             assertEquals(4, rootTermCounter);
         }
     }
-
-    @Test
-    // This test aims at the capability to transfer arbitrary json properties into the Neo4j node.
-    // This does not work any more since the neo4j shell was deprecated and all usage of JSONObject was
-    // let go. If this feature is necessary, we need to add some "properties" map into the ImportConcept class
-    // and copy from there into the Neo4j node properties. EF, August 21st 2019
-    @Ignore
-    public void testIntegerProperty() {
-        List<Map<String, Object>> terms = new ArrayList<>();
-        Map<String, Object> term = new HashMap<>();
-        term.put(PROP_PREF_NAME, "testPrefName");
-        term.put("someIntegerProperty", 42);
-        term.put("someIntegerArrayProperty", new Integer[]{23, 98});
-
-        Map<String, String> coordinates = new HashMap<>();
-        coordinates.put(CoordinateConstants.SOURCE_ID, "testSrcId");
-        coordinates.put(CoordinateConstants.SOURCE, "TEST_SOURCE");
-        term.put(ConceptConstants.COORDINATES, coordinates);
-        terms.add(term);
-
-        Map<String, Object> termsMap = new HashMap<>();
-        termsMap.put(ConceptManager.KEY_FACET, FacetManagerTest.getImportFacet());
-        termsMap.put(ConceptManager.KEY_CONCEPTS, terms);
-
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(termsMap));
-
-        try (Transaction tx = graphDb.beginTx()) {
-            Node termNode = tx.findNode(CONCEPT,
-                    PROP_ID, NodeIDPrefixConstants.TERM + 0);
-            assertEquals(42, termNode.getProperty("someIntegerProperty"));
-            // the order should have been maintained
-            assertArrayEquals(new int[]{23, 98}, (int[]) termNode.getProperty("someIntegerArrayProperty"));
-        }
-    }
-
-    // @Test
-    // public void testAddWritingVariants() throws Exception {
-    // ImportConceptAndFacet testTerms = getTestTerms(1);
-    // // add a synonym for which equivalent writing variants should be removed
-    // testTerms.terms.get(0).synonyms = Arrays.asList("beclin 1");
-    // ConceptManager tm = new ConceptManager(graphDBMS);
-    // tm.insertFacetTerms(graphDb, JsonSerializer.toJson(testTerms));
-    //
-    // Map<String, Object> variants = new HashMap<>();
-    // Map<String, Integer> variantCounts = new HashMap<>();
-    // variantCounts.put("prefname0", 3);
-    // variantCounts.put("var1", 4);
-    // variantCounts.put("var2", 2);
-    // variantCounts.put("var3", 1);
-    // variantCounts.put("vAR3", 1);
-    // variantCounts.put("Beclin 1", 2);
-    // variants.put(NodeIDPrefixConstants.TERM + 0, variantCounts);
-    // tm.addWritingVariants(graphDb, JsonSerializer.toJson(variants), null);
-    //
-    // try (Transaction tx = graphDb.beginTx()) {
-    // // we should have a single writing variants node
-    // ResourceIterator<Node> writingVariantNodes =
-    // tx.findNodes(MorphoLabel.WRITING_VARIANT);
-    // assertTrue(writingVariantNodes.hasNext());
-    // Node writingVariantsNode = writingVariantNodes.next();
-    // assertFalse(writingVariantNodes.hasNext());
-    // Node term = tx.findNode(TermLabel.CONCEPT, PROP_ID,
-    // NodeIDPrefixConstants.TERM + 0);
-    // assertNotNull(term);
-    // Node singleOtherNode = NodeUtilities.getSingleOtherNode(term,
-    // EdgeTypes.HAS_VARIANTS);
-    // assertEquals(singleOtherNode, writingVariantsNode);
-    // assertEquals(4, writingVariantsNode.getProperty("var1"));
-    // assertEquals(2, writingVariantsNode.getProperty("var2"));
-    // // we cannot tell which writing will be chosen by the algorithm; but
-    // // the two should be collapsed to one because they only differ in
-    // // case
-    // assertTrue(writingVariantsNode.hasProperty("var3") ||
-    // writingVariantsNode.hasProperty("vAR3"));
-    // if (writingVariantsNode.hasProperty("var3"))
-    // assertEquals(2, writingVariantsNode.getProperty("var3"));
-    // if (writingVariantsNode.hasProperty("vAR3"))
-    // assertEquals(2, writingVariantsNode.getProperty("vAR3"));
-    //// assertFalse(writingVariantsNode.hasProperty("Beclin 1"));
-    //// assertFalse(writingVariantsNode.hasProperty("prefname0"));
-    // }
-    // }
-
 
     @Test
     public void testAddFacetTwice() {

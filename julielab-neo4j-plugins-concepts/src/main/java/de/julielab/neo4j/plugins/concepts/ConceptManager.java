@@ -156,7 +156,7 @@ public class ConceptManager {
             try (Transaction tx = graphDb.beginTx()) {
 
                 Map<String, Object> pathsWrappedInMap = ConceptRetrieval.getPathsFromFacetRoots(tx, conceptIds, idProperty, returnIdProperty, sort, facetId);
-                return Response.ok(pathsWrappedInMap);
+                return Response.ok(pathsWrappedInMap).build();
             }
         } catch (Throwable t) {
             return getErrorResponse(t);
@@ -401,6 +401,7 @@ public class ConceptManager {
                 ConceptTermInsertion.addConceptVariant(tx, conceptVariants, "writingVariants");
             if (null != conceptAcronyms)
                 ConceptTermInsertion.addConceptVariant(tx,  conceptAcronyms, "acronyms");
+            tx.commit();
         }
     }
 
