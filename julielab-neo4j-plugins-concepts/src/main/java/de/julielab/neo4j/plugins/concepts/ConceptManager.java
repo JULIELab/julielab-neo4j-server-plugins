@@ -2,17 +2,10 @@ package de.julielab.neo4j.plugins.concepts;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.julielab.neo4j.plugins.FacetManager;
-import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.Indexes;
-import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
-import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
-import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
-import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
@@ -26,11 +19,9 @@ import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.util.*;
 
-import static de.julielab.neo4j.plugins.concepts.ConceptInsertion.createRelationships;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.CM_REST_ENDPOINT;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_CHILDREN_IN_FACETS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 @javax.ws.rs.Path("/" + CM_REST_ENDPOINT)
@@ -84,7 +75,6 @@ public class ConceptManager {
     }
 
 
-
     public static void createIndexes(Transaction tx) {
         Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, true, ConceptConstants.PROP_ID);
         // The org ID can actually be duplicated. Only the composite (orgId,orgSource) should be unique but this isn't supported
@@ -132,7 +122,6 @@ public class ConceptManager {
     }
 
 
-
     /**
      * Parameters:
      * <ul>
@@ -170,91 +159,27 @@ public class ConceptManager {
     public Object insertConcepts(String jsonParameterObject) {
         try {
             log.info("{} was called", INSERT_CONCEPTS);
-            long time = System.currentTimeMillis();
 
             final ImportConcepts importConcepts = ConceptsJsonSerializer.fromJson(jsonParameterObject, ImportConcepts.class);
-            ImportFacet jsonFacet = importConcepts.getFacet();
-            List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
-            log.info("Got {} input concepts for import.", jsonConcepts != null ? jsonConcepts.size() : 0);
-            ImportOptions importOptions = importConcepts.getImportOptions() != null ? importConcepts.getImportOptions() : new ImportOptions();
 
-            Map<String, Object> report = new HashMap<>();
             InsertionReport insertionReport = new InsertionReport();
             log.debug("Beginning processing of concept insertion.");
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+                Map<String, Object> response = new HashMap<>();
             try (Transaction tx = graphDb.beginTx()) {
-                Node facet = null;
-                String facetId = null;
-                // The facet Id will be added to the facets-property of the concept
-                // nodes.
-                log.debug("Handling import of facet.");
-                if (null != jsonFacet && jsonFacet.getId() != null) {
-                    facetId = jsonFacet.getId();
-                    log.info("Facet ID {} has been given to add the concepts to.", facetId);
-                    boolean isNoFacet = jsonFacet.isNoFacet();
-                    if (isNoFacet)
-                        facet = FacetManager.getNoFacet(tx, facetId);
-                    else
-                        facet = FacetManager.getFacetNode(tx, facetId);
-                    if (null == facet)
-                        throw new IllegalArgumentException("The facet with ID \"" + facetId
-                                + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
-                } else if (null != jsonFacet && jsonFacet.getName() != null) {
-                    ResourceIterator<Node> facetIterator = tx.findNodes(FacetLabel.FACET);
-                    while (facetIterator.hasNext()) {
-                        facet = facetIterator.next();
-                        if (facet.getProperty(FacetConstants.PROP_NAME)
-                                .equals(jsonFacet.getName()))
-                            break;
-                        facet = null;
-                    }
-
-                }
-                if (null != jsonFacet && null == facet) {
-                    // No existing ID is given, create a new facet.
-                    facet = FacetManager.createFacet(tx, jsonFacet);
-                }
-                if (null != facet) {
-                    facetId = (String) facet.getProperty(PROP_ID);
-                    log.debug("Facet {} was successfully created or determined by ID.", facetId);
-                } else {
-                    log.debug(
-                            "No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
-                    importOptions.merge = true;
-                }
-
-                if (null != jsonConcepts) {
-                    log.debug("Beginning to create concept nodes and relationships.");
-                    CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                    insertionReport = ConceptInsertion.insertConcepts(tx, jsonConcepts, facetId, nodesByCoordinates, importOptions);
-                    // If the nodesBySrcId map is empty we either have no concepts or
-                    // at least no concepts with a source ID. Then,
-                    // relationship creation is currently not supported.
-                    if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
-                        createRelationships(tx, jsonConcepts, facet, nodesByCoordinates, importOptions,
-                                insertionReport);
-                    else
-                        log.info("This is a property merging import, no relationships are created.");
-                    report.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
-                    report.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
-                    log.debug("Done creating concepts and relationships.");
-                } else {
-                    log.info("No concepts were included in the request.");
-                }
-
-                time = System.currentTimeMillis() - time;
-                report.put(KEY_TIME, time);
-                report.put(KEY_FACET_ID, facetId);
+                insertionReport = ConceptInsertion.insertConcepts(tx, importConcepts, response, insertionReport);
                 tx.commit();
             }
             log.info("Concept insertion complete.");
-            log.info(INSERT_CONCEPTS + " is finished processing after " + time + " ms. " + insertionReport.numConcepts
-                    + " concepts and " + insertionReport.numRelationships + " relationships have been created.");
-            return Response.ok(report).build();
+            log.info(INSERT_CONCEPTS + " is finished processing after {} ms. " + insertionReport.numConcepts
+                    + " concepts and " + insertionReport.numRelationships + " relationships have been created.", response.get(KEY_TIME));
+            return Response.ok(response).build();
         } catch (Throwable throwable) {
             return getErrorResponse(throwable);
         }
     }
+
+
 
     /**
      * Updates - or creates - the information which concept has children in which facets.
@@ -345,20 +270,20 @@ public class ConceptManager {
     @javax.ws.rs.Path(GET_FACET_ROOTS)
     public Object getFacetRoots(@Context UriInfo uriInfo) {
         try {
-                Set<String> requestedFacetIds = new HashSet<>();
-                MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-                Map<String, Set<String>> requestedConceptIds = new HashMap<>();
-                int maxRoots = 0;
-                for (String param : queryParameters.keySet()) {
-                    if (param.equals(KEY_FACET_IDS))
-                        requestedFacetIds.addAll(Arrays.asList(queryParameters.getFirst(param).split(",")));
-                    else if (param.equals(KEY_MAX_ROOTS))
-                        maxRoots = Integer.parseInt(queryParameters.getFirst(param));
-                    else {
-                        requestedFacetIds.add(param);
-                        requestedConceptIds.put(param, Set.of(queryParameters.getFirst(param).split(",")));
-                    }
+            Set<String> requestedFacetIds = new HashSet<>();
+            MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+            Map<String, Set<String>> requestedConceptIds = new HashMap<>();
+            int maxRoots = 0;
+            for (String param : queryParameters.keySet()) {
+                if (param.equals(KEY_FACET_IDS))
+                    requestedFacetIds.addAll(Arrays.asList(queryParameters.getFirst(param).split(",")));
+                else if (param.equals(KEY_MAX_ROOTS))
+                    maxRoots = Integer.parseInt(queryParameters.getFirst(param));
+                else {
+                    requestedFacetIds.add(param);
+                    requestedConceptIds.put(param, Set.of(queryParameters.getFirst(param).split(",")));
                 }
+            }
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
                 Map<String, List<Node>> facetRoots = FacetRootsRetrieval.getFacetRoots(tx, requestedFacetIds, requestedConceptIds, maxRoots);
@@ -368,7 +293,6 @@ public class ConceptManager {
             return getErrorResponse(t);
         }
     }
-
 
 
     /**
@@ -400,11 +324,10 @@ public class ConceptManager {
             if (null != conceptVariants)
                 ConceptTermInsertion.addConceptVariant(tx, conceptVariants, "writingVariants");
             if (null != conceptAcronyms)
-                ConceptTermInsertion.addConceptVariant(tx,  conceptAcronyms, "acronyms");
+                ConceptTermInsertion.addConceptVariant(tx, conceptAcronyms, "acronyms");
             tx.commit();
         }
     }
-
 
 
 }

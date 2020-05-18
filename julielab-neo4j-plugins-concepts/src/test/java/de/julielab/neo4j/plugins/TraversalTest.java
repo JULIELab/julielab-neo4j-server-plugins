@@ -53,7 +53,7 @@ public class TraversalTest {
 
 	@Test
 	public void testGetAcronymsTraversal() throws Exception {
-		ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(2);
+		ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(2);
 		ConceptManager tm = new ConceptManager(graphDBMS);
 		tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
 
@@ -94,7 +94,7 @@ public class TraversalTest {
 	public void testGetWritingVariantsTraversal() throws Exception {
 		// this is the same traversal as above, just for writing variants
 		// instead of acronyms
-		ImportConcepts testTerms = ConceptManagerTest.getTestTerms(2);
+		ImportConcepts testTerms = ConceptManagerTest.getTestConcepts(2);
 		ConceptManager tm = new ConceptManager(graphDBMS);
 		tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 

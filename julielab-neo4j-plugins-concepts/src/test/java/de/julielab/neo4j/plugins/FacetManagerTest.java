@@ -288,7 +288,7 @@ public class FacetManagerTest {
         int amount = 10;
         String facet = "fid0";
 
-        ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(amount);
+        ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(amount);
         ConceptManager termManager = new ConceptManager(graphDBMS);
         termManager.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
         FacetManager facetManager = new FacetManager(graphDBMS);

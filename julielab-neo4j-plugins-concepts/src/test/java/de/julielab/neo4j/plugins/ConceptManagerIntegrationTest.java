@@ -19,7 +19,7 @@ public class ConceptManagerIntegrationTest {
 
     @Test
     public void testInsertConcepts() throws Exception {
-        ImportConcepts testTerms = ConceptManagerTest.getTestTerms(10);
+        ImportConcepts testTerms = ConceptManagerTest.getTestConcepts(10);
         HTTP.Response response = HTTP.POST(neo4j.httpURI().resolve("app/concept_manager/" + ConceptManager.INSERT_CONCEPTS).toString(), testTerms);
         //{"numCreatedConcepts":10,"numCreatedRelationships":10,"facetId":"fid0","time":507}
         assertThat(response.get("numCreatedConcepts").asInt()).isEqualTo(10);

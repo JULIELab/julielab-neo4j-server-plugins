@@ -24,8 +24,7 @@ import java.util.stream.StreamSupport;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
 import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConcept;
-import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
-import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_SOURCE;
+import static de.julielab.neo4j.plugins.concepts.ConceptManager.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static java.util.stream.Collectors.joining;
 
@@ -518,6 +517,77 @@ public class ConceptInsertion {
         return createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
     }
 
+    public static InsertionReport insertConcepts(Transaction tx, ImportConcepts importConcepts, Map<String, Object> response, InsertionReport insertionReport) throws ConceptInsertionException {
+        long time = System.currentTimeMillis();
+        List<ImportConcept> jsonConcepts = importConcepts.getConcepts();
+        ImportFacet jsonFacet = importConcepts.getFacet();
+        log.info("Got {} input concepts for import.", jsonConcepts != null ? jsonConcepts.size() : 0);
+        ImportOptions importOptions = importConcepts.getImportOptions() != null ? importConcepts.getImportOptions() : new ImportOptions();
+        Node facet = null;
+        String facetId = null;
+        // The facet Id will be added to the facets-property of the concept
+        // nodes.
+        log.debug("Handling import of facet.");
+        if (null != jsonFacet && jsonFacet.getId() != null) {
+            facetId = jsonFacet.getId();
+            log.info("Facet ID {} has been given to add the concepts to.", facetId);
+            boolean isNoFacet = jsonFacet.isNoFacet();
+            if (isNoFacet)
+                facet = FacetManager.getNoFacet(tx, facetId);
+            else
+                facet = FacetManager.getFacetNode(tx, facetId);
+            if (null == facet)
+                throw new IllegalArgumentException("The facet with ID \"" + facetId
+                        + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
+        } else if (null != jsonFacet && jsonFacet.getName() != null) {
+            ResourceIterator<Node> facetIterator = tx.findNodes(FacetManager.FacetLabel.FACET);
+            while (facetIterator.hasNext()) {
+                facet = facetIterator.next();
+                if (facet.getProperty(FacetConstants.PROP_NAME)
+                        .equals(jsonFacet.getName()))
+                    break;
+                facet = null;
+            }
+
+        }
+        if (null != jsonFacet && null == facet) {
+            // No existing ID is given, create a new facet.
+            facet = FacetManager.createFacet(tx, jsonFacet);
+        }
+        if (null != facet) {
+            facetId = (String) facet.getProperty(PROP_ID);
+            log.debug("Facet {} was successfully created or determined by ID.", facetId);
+        } else {
+            log.debug(
+                    "No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
+            importOptions.merge = true;
+        }
+
+        if (null != jsonConcepts) {
+            log.debug("Beginning to create concept nodes and relationships.");
+            CoordinatesMap nodesByCoordinates = new CoordinatesMap();
+            insertionReport = ConceptInsertion.insertConcepts(tx, jsonConcepts, facetId, nodesByCoordinates, importOptions);
+            // If the nodesBySrcId map is empty we either have no concepts or
+            // at least no concepts with a source ID. Then,
+            // relationship creation is currently not supported.
+            if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
+                createRelationships(tx, jsonConcepts, facet, nodesByCoordinates, importOptions,
+                        insertionReport);
+            else
+                log.info("This is a property merging import, no relationships are created.");
+            response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
+            response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
+            log.debug("Done creating concepts and relationships.");
+        } else {
+            log.info("No concepts were included in the request.");
+        }
+
+        time = System.currentTimeMillis() - time;
+        response.put(KEY_TIME, time);
+        response.put(KEY_FACET_ID, facetId);
+        return insertionReport;
+    }
+
     /**
      * A few things to realize:
      * <ul>
@@ -552,7 +622,7 @@ public class ConceptInsertion {
      * @throws AggregateConceptInsertionException If the insertion of an aggregate concept failed.
      * @throws ConceptInsertionException If concept insertion failed.
      */
-    static InsertionReport insertConcepts(Transaction tx, List<ImportConcept> concepts, String facetId,
+    private static InsertionReport insertConcepts(Transaction tx, List<ImportConcept> concepts, String facetId,
                                           CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         InsertionReport insertionReport = new InsertionReport();

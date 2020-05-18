@@ -22,8 +22,8 @@ import org.neo4j.graphdb.Transaction;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Method;
-import java.util.zip.GZIPInputStream;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static org.junit.Assert.assertEquals;
@@ -54,7 +54,7 @@ public class ExportTest {
     public void createIdMappingOneFacetSourceIds() throws Exception {
         new Indexes(graphDBMS).createIndexes((String) null);
 
-        ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(10);
+        ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(10);
         importConcepts.getFacet().setName("facet1");
         for (ImportConcept term : importConcepts.getConcepts()) {
             term.generalLabels = Lists.newArrayList("TESTLABEL");
@@ -74,7 +74,7 @@ public class ExportTest {
         ConceptManager tm = new ConceptManager(graphDBMS);
         tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
         // Get some more terms; those will be in another label and should be ignored here.
-        importConcepts = ConceptManagerTest.getTestTerms(15);
+        importConcepts = ConceptManagerTest.getTestConcepts(15);
         importConcepts.getFacet().setName("facet2");
         for (ImportConcept t : importConcepts.getConcepts()) {
             t.coordinates.originalId = null;
@@ -95,23 +95,21 @@ public class ExportTest {
             assertEquals(2, facetCount);
         }
 
-        Method method = Export.class.getDeclaredMethod("createIdMapping", String.class,
+        Method method = Export.class.getDeclaredMethod("createIdMapping", OutputStream.class, String.class,String.class,
                 String[].class);
         method.setAccessible(true);
         Export export = new Export(graphDBMS);
         String[] labelsArray = new String[]{"TESTLABEL"};
-        ByteArrayOutputStream baos;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] byteArray;
         ByteArrayInputStream bais;
-        GZIPInputStream gzis;
         String fileContent;
 
         // create mapping file contents for sourceIDs
-        baos = (ByteArrayOutputStream) method.invoke(export,  "sourceIds", labelsArray);
+        method.invoke(export, baos,"sourceIds","id", labelsArray);
         byteArray = baos.toByteArray();
         bais = new ByteArrayInputStream(byteArray);
-        gzis = new GZIPInputStream(bais);
-        fileContent = IOUtils.toString(gzis, "UTF-8");
+        fileContent = IOUtils.toString(bais, "UTF-8");
 
         // We have inserted 15 terms
         long numTerms;
@@ -126,11 +124,11 @@ public class ExportTest {
 
         // NEXT TEST
         // create mapping file contents for original Ids
-        baos = (ByteArrayOutputStream) method.invoke(export,  "originalId", labelsArray);
+        baos = new ByteArrayOutputStream();
+        method.invoke(export, baos,"originalId", "id",labelsArray);
         byteArray = baos.toByteArray();
         bais = new ByteArrayInputStream(byteArray);
-        gzis = new GZIPInputStream(bais);
-        fileContent = IOUtils.toString(gzis, "UTF-8");
+        fileContent = IOUtils.toString(bais, "UTF-8");
 
         // We have inserted 15 terms
         try (Transaction tx = graphDb.beginTx()) {
@@ -145,7 +143,7 @@ public class ExportTest {
     @Test
     public void createIdMappingOneFacetOriginalId() throws Exception {
         new Indexes(graphDBMS).createIndexes((String) null);
-        ImportConcepts importConcepts = ConceptManagerTest.getTestTerms(10);
+        ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(10);
         for (ImportConcept term : importConcepts.getConcepts()) {
             term.generalLabels = Lists.newArrayList("TESTLABEL");
             term.coordinates.originalId = null;
@@ -165,23 +163,21 @@ public class ExportTest {
         ConceptManager tm = new ConceptManager(graphDBMS);
         tm.insertConcepts(ConceptsJsonSerializer.toJson(importConcepts));
 
-        Method method = Export.class.getDeclaredMethod("createIdMapping", String.class,
+        Method method = Export.class.getDeclaredMethod("createIdMapping", OutputStream.class, String.class, String.class,
                 String[].class);
         method.setAccessible(true);
         Export export = new Export(graphDBMS);
         String[] labelsArray = new String[]{"TESTLABEL"};
-        ByteArrayOutputStream baos;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] byteArray;
         ByteArrayInputStream bais;
-        GZIPInputStream gzis;
         String fileContent;
 
         // create mapping file contents for original Ids
-        baos = (ByteArrayOutputStream) method.invoke(export,  "originalId", labelsArray);
+         method.invoke(export,baos, "originalId", "id", labelsArray);
         byteArray = baos.toByteArray();
         bais = new ByteArrayInputStream(byteArray);
-        gzis = new GZIPInputStream(bais);
-        fileContent = IOUtils.toString(gzis, "UTF-8");
+        fileContent = IOUtils.toString(bais, "UTF-8");
 
         // We have inserted 10 terms
         long numTerms;

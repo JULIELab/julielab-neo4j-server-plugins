@@ -2,13 +2,13 @@ package de.julielab.neo4j.plugins;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager;
 import de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes;
 import de.julielab.neo4j.plugins.concepts.ConceptLabel;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
@@ -26,7 +26,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -44,7 +44,8 @@ public class Export {
     public static final String LINGPIPE_DICT = "lingpipe_dictionary";
     public static final String CONCEPT_TO_FACET = "concept_facet_map";
     public static final String CONCEPT_ID_MAPPING = "concept_id_mapping";
-    public static final String PARAM_ID_PROPERTY = "id_property";
+    public static final String PARAM_SOURCE_ID_PROPERTY = "source_id_property";
+    public static final String PARAM_TARGET_ID_PROPERTY = "target_id_property";
     public static final String PARAM_LABELS = "labels";
     public static final String PARAM_LABEL = "label";
     public static final String PARAM_EXCLUSION_LABEL = "exclusion_label";
@@ -60,58 +61,58 @@ public class Export {
     }
 
     @GET
-    @Produces(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     @javax.ws.rs.Path("/" + CONCEPT_ID_MAPPING)
-    public Response exportIdMapping(@QueryParam(PARAM_ID_PROPERTY) String idProperty, @QueryParam(PARAM_LABELS) String labelStrings) throws Exception {
-        final ObjectMapper om = new ObjectMapper();
-        log.info("Exporting ID mapping data.");
-        String[] labelsArray = null != labelStrings ? om.readValue(labelStrings, String[].class) : null;
-        log.info("Creating mapping file content for property \"" + idProperty + "\" and facets " + Arrays.toString(labelsArray));
-        ByteArrayOutputStream gzipBytes = createIdMapping(idProperty, labelsArray);
-        byte[] bytes = gzipBytes.toByteArray();
-        log.info("Sending all " + bytes.length + " bytes of GZIPed ID mapping file data.");
-        log.info("Done exporting ID mapping data.");
-        return Response.ok(bytes).build();
+    public Object exportIdMapping(@QueryParam(PARAM_SOURCE_ID_PROPERTY) String sourceIdProperty, @QueryParam(PARAM_TARGET_ID_PROPERTY) String targetIdProperty, @QueryParam(PARAM_LABELS) String labelStrings) throws Exception {
+        try {
+            final ObjectMapper om = new ObjectMapper();
+            log.info("Exporting ID mapping data.");
+            String[] labelsArray = null != labelStrings ? om.readValue(labelStrings, String[].class) : new String[]{ConceptLabel.CONCEPT.name()};
+            String sProperty = sourceIdProperty != null ? sourceIdProperty : PROP_SRC_IDS;
+            String tProperty = targetIdProperty != null ? targetIdProperty : PROP_ID;
+            log.info("Creating mapping file content for property \"" + sProperty + "\" and facets " + Arrays.toString(labelsArray));
+            return (StreamingOutput) output -> {
+                try {
+                    createIdMapping(output, sProperty, tProperty,labelsArray);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            };
+        } catch (Throwable t) {
+            return ConceptManager.getErrorResponse(t);
+        }
     }
 
-    private ByteArrayOutputStream createIdMapping(String idProperty,
-                                                  String[] labelsArray) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
+    private void createIdMapping(OutputStream os, String sourceIdProperty, String targetIdProperty,
+                                 String[] labelsArray) throws Exception {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
-            try (Transaction tx = graphDb.beginTx()) {
-                int numWritten = 0;
-                for (String labelString : labelsArray) {
-                    Label label = Label.label(labelString);
-                    for (ResourceIterator<Node> terms = tx.findNodes(label); terms.hasNext(); ) {
-                        Node term = terms.next();
-                        String termId = (String) term.getProperty(ConceptConstants.PROP_ID);
-                        Object idObject = idProperty.equals(PROP_SRC_IDS) ? NodeUtilities.getSourceIds(term) : PropertyUtilities.getNonNullNodeProperty(term, idProperty);
-                        if (null == idObject)
-                            continue;
+        try (Transaction tx = graphDb.beginTx()) {
+            int numWritten = 0;
+            for (String labelString : labelsArray) {
+                Label label = Label.label(labelString);
+                for (ResourceIterator<Node> terms = tx.findNodes(label); terms.hasNext(); ) {
+                    Node n = terms.next();
+                    Object sourceIdObject = sourceIdProperty.equals(PROP_SRC_IDS) ? NodeUtilities.getSourceIds(n) : PropertyUtilities.getNonNullNodeProperty(n, sourceIdProperty);
+                    Object targetIdObject = n.getProperty(targetIdProperty);
+                    if (null == sourceIdObject || null == targetIdObject)
+                        continue;
 
-                        if (idObject.getClass().isArray()) {
-                            Object[] idArray = JulieNeo4jUtilities.convertArray(idObject);
-                            for (Object id : idArray) {
-                                IOUtils.write(id + "\t" + termId + "\n", os, "UTF-8");
-                                numWritten++;
-                            }
-                        } else {
-                            IOUtils.write(idObject + "\t" + termId + "\n", os, "UTF-8");
-                            numWritten++;
-                        }
-                        // }
+                    String[] sourceIds = sourceIdObject.getClass().isArray() ? (String[]) sourceIdObject : new String[]{(String) sourceIdObject};
+                    String[] targetIds = targetIdObject.getClass().isArray() ? (String[]) targetIdObject : new String[]{(String) targetIdObject};
+                    for (String sourceId : sourceIds) {
+                        for (String targetId : targetIds)
+                            IOUtils.write(sourceId + "\t" + targetId + "\n", os, "UTF-8");
+                        numWritten++;
                     }
                 }
-                log.info("Num written: " + numWritten);
             }
+            log.info("Num written: " + numWritten);
         }
-        return baos;
     }
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/"+HYPERNYMS)
+    @javax.ws.rs.Path("/" + HYPERNYMS)
     public Representation exportHypernyms(
             @QueryParam(PARAM_LABELS) String facetLabelStrings,
             @QueryParam(PARAM_LABEL) String conceptLabel)
@@ -256,11 +257,11 @@ public class Export {
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path("/"+LINGPIPE_DICT)
+    @javax.ws.rs.Path("/" + LINGPIPE_DICT)
     public String exportLingpipeDictionary(
             @QueryParam(PARAM_LABEL) String labelString,
             @QueryParam(PARAM_EXCLUSION_LABEL) String exclusionLabelString,
-            @QueryParam(PARAM_ID_PROPERTY) String nodeCategories)
+            @QueryParam(PARAM_SOURCE_ID_PROPERTY) String nodeCategories)
             throws IOException {
         Label label = StringUtils.isBlank(labelString) ? ConceptLabel.CONCEPT : Label.label(labelString);
         List<String> propertiesToWrite = new ArrayList<>();

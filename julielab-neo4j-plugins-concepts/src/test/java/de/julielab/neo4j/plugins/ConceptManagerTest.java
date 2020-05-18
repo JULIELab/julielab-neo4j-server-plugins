@@ -58,8 +58,8 @@ public class ConceptManagerTest {
      * @param amount The amount of terms to generate.
      * @return The created import concepts, an ImportFacet included.
      */
-    public static ImportConcepts getTestTerms(int amount) {
-        return getTestTerms(amount, 0);
+    public static ImportConcepts getTestConcepts(int amount) {
+        return getTestConcepts(amount, 0);
     }
 
     /**
@@ -69,7 +69,7 @@ public class ConceptManagerTest {
      * @param amount The amount of terms to generate.
      * @return The created import concepts, an ImportFacet included.
      */
-    public static ImportConcepts getTestTerms(int amount, int startAt) {
+    public static ImportConcepts getTestConcepts(int amount, int startAt) {
         List<ImportConcept> termList = new ArrayList<>(amount);
         for (int i = startAt; i < amount + startAt; i++) {
             ConceptCoordinates coordinates = new ConceptCoordinates("CONCEPT" + i, "TEST_DATA", "CONCEPT" + i, "TEST_DATA",
@@ -95,19 +95,19 @@ public class ConceptManagerTest {
         ConceptManager tm = new ConceptManager(graphDBMS);
 
         ImportConcepts testTerms;
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
         testTerms.getConcepts().get(0).coordinates.source = "src1";
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
         testTerms.getConcepts().get(0).coordinates.source = "src2";
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.sourceId = "CONCEPT42";
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
@@ -137,7 +137,7 @@ public class ConceptManagerTest {
         ConceptManager tm = new ConceptManager(graphDBMS);
 
         ImportConcepts testTerms;
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
         testTerms.getConcepts().get(0).coordinates.source = "someSource";
@@ -153,7 +153,7 @@ public class ConceptManagerTest {
         }
 
         // Now add a description, only by knowing the term's original ID.
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
         testTerms.getConcepts().get(0).coordinates.sourceId = null;
@@ -183,7 +183,7 @@ public class ConceptManagerTest {
         ConceptManager tm = new ConceptManager(graphDBMS);
 
         ImportConcepts testTerms;
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src1";
         // we also have to set the source ID and source of at least one term to
@@ -194,7 +194,7 @@ public class ConceptManagerTest {
         testTerms.getConcepts().get(0).coordinates.source = "anothersource";
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.getConcepts().get(0).coordinates.originalId = "orgId";
         testTerms.getConcepts().get(0).coordinates.originalSource = "src2";
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
@@ -410,7 +410,7 @@ public class ConceptManagerTest {
         // "no-facet" and thus should be moves to the appropriate section of the
         // graph.
 
-        ImportConcepts testTerms = getTestTerms(5);
+        ImportConcepts testTerms = getTestConcepts(5);
         testTerms.getFacet().setNoFacet(true);
 
         ConceptManager ftm = new ConceptManager(graphDBMS);
@@ -516,11 +516,11 @@ public class ConceptManagerTest {
         // Check if we can insert a concept and then insert the term again but
         // with an additional label so that the new labels gets added to the
         // existing concept
-        ImportConcepts testTerms = getTestTerms(1);
+        ImportConcepts testTerms = getTestConcepts(1);
         ConceptManager cm = new ConceptManager(graphDBMS);
         cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
-        testTerms = getTestTerms(1);
+        testTerms = getTestConcepts(1);
         testTerms.setImportOptions(new ImportOptions());
         testTerms.getImportOptions().merge = true;
         testTerms.getConcepts().get(0).addGeneralLabel("ANOTHER_LABEL");
@@ -694,7 +694,7 @@ public class ConceptManagerTest {
         // and observe that "hollow" terms are
         // created on behalf of the referenced other half. After inserting
         // this other half, there should be no more "hollow" terms.
-        ImportConcepts testTermsAndFacet = getTestTerms(4);
+        ImportConcepts testTermsAndFacet = getTestConcepts(4);
         List<ImportConcept> terms = testTermsAndFacet.getConcepts();
         // Now we just create relationships so that:
         // 0 equals 1
@@ -801,7 +801,7 @@ public class ConceptManagerTest {
 
     @Test
     public void testAdditionalRelationships2() {
-        ImportConcepts testTermsAndFacet = getTestTerms(4);
+        ImportConcepts testTermsAndFacet = getTestConcepts(4);
         List<ImportConcept> terms = testTermsAndFacet.getConcepts();
         String termSource = terms.get(0).coordinates.originalSource;
         ImportConceptRelationship rel1 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, true),
@@ -838,7 +838,7 @@ public class ConceptManagerTest {
         // Here we test the case where an aggregate term is explicitly imported
         // from external data as opposed to
         // computing it within the database.
-        ImportConcepts testTerms = getTestTerms(5);
+        ImportConcepts testTerms = getTestConcepts(5);
         List<ImportConcept> terms = testTerms.getConcepts();
         // Add an aggregate term with terms 0-3 as elements. The term on
         // position 4 will stay alone.
@@ -905,7 +905,7 @@ public class ConceptManagerTest {
     public void testAddAggregateAsHierarchyNode() {
         // Insert an aggregate and check the relationships.
 
-        ImportConcepts testTerms = getTestTerms(2);
+        ImportConcepts testTerms = getTestConcepts(2);
         ImportConcept aggregate = new ImportConcept(
                 Arrays.asList(new ConceptCoordinates("CONCEPT0", "TEST_DATA", true), new ConceptCoordinates("CONCEPT1", "TEST_DATA", true)),
                 Collections.singletonList(PROP_PREF_NAME));
@@ -942,7 +942,7 @@ public class ConceptManagerTest {
         // Insert aggregate with an additional label and check that it has been
         // applied.
 
-        ImportConcepts testTerms = getTestTerms(2);
+        ImportConcepts testTerms = getTestConcepts(2);
         ImportConcept aggregate = new ImportConcept(
                 Arrays.asList(new ConceptCoordinates("CONCEPT0", "TEST_DATA", true), new ConceptCoordinates("CONCEPT1", "TEST_DATA", true)),
                 List.of(PROP_PREF_NAME));
@@ -971,11 +971,11 @@ public class ConceptManagerTest {
         ImportConcepts testTerms4;
         ConceptManager cm = new ConceptManager(graphDBMS);
         // Create terms in DIFFERENT facets we will then map to each other
-        testTerms = getTestTerms(1, 0);
-        testTerms1 = getTestTerms(1, 1);
-        testTerms2 = getTestTerms(1, 2);
-        testTerms3 = getTestTerms(1, 3);
-        testTerms4 = getTestTerms(1, 4);
+        testTerms = getTestConcepts(1, 0);
+        testTerms1 = getTestConcepts(1, 1);
+        testTerms2 = getTestConcepts(1, 2);
+        testTerms3 = getTestConcepts(1, 3);
+        testTerms4 = getTestConcepts(1, 4);
         testTerms.getFacet().setName("facet0");
         testTerms1.getFacet().setName("facet1");
         testTerms2.getFacet().setName("facet2");
@@ -1162,7 +1162,7 @@ public class ConceptManagerTest {
         // particular criterium, e.g. "no parent".
         // Terms 0 and 1 will get a parent and thus should be treated normally.
         // Terms 2 and 3 don't get a parent and should become "no-facet" terms.
-        ImportConcepts testTerms = getTestTerms(4);
+        ImportConcepts testTerms = getTestConcepts(4);
         ImportOptions options = new ImportOptions();
         testTerms.setImportOptions(options);
         AddToNonFacetGroupCommand cmd = new AddToNonFacetGroupCommand();
@@ -1381,14 +1381,14 @@ public class ConceptManagerTest {
         // Thus, this first term should have children in both facets.
         ImportConcepts testTerms;
         ConceptManager ftm = new ConceptManager(graphDBMS);
-        testTerms = getTestTerms(2);
+        testTerms = getTestConcepts(2);
         testTerms.getConcepts().get(1).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         // Insert terms for the second facet. We have to adjust some values here
         // to actually get four terms and not just
         // two because the duplicate source IDs would be detected.
-        testTerms = getTestTerms(2);
+        testTerms = getTestConcepts(2);
         testTerms.getFacet().setName("secondfacet");
         testTerms.getConcepts().get(0).coordinates.sourceId = "CONCEPT2";
         testTerms.getConcepts().get(0).coordinates.originalId = "CONCEPT2";
@@ -1416,7 +1416,7 @@ public class ConceptManagerTest {
     public void testGetTermChildren() {
         ImportConcepts testTerms;
         ConceptManager cm = new ConceptManager(graphDBMS);
-        testTerms = getTestTerms(5);
+        testTerms = getTestConcepts(5);
         testTerms.getConcepts().get(1).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         testTerms.getConcepts().get(2).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         testTerms.getConcepts().get(3).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
@@ -1465,11 +1465,11 @@ public class ConceptManagerTest {
         ImportConcepts testTerms4;
         ConceptManager ftm = new ConceptManager(graphDBMS);
         // Create terms in DIFFERENT facets we will then map to each other
-        testTerms = getTestTerms(1, 0);
-        testTerms1 = getTestTerms(1, 1);
-        testTerms2 = getTestTerms(1, 2);
-        testTerms3 = getTestTerms(1, 3);
-        testTerms4 = getTestTerms(1, 4);
+        testTerms = getTestConcepts(1, 0);
+        testTerms1 = getTestConcepts(1, 1);
+        testTerms2 = getTestConcepts(1, 2);
+        testTerms3 = getTestConcepts(1, 3);
+        testTerms4 = getTestConcepts(1, 4);
         testTerms.getFacet().setName("facet0");
         testTerms1.getFacet().setName("facet1");
         testTerms2.getFacet().setName("facet2");
@@ -1557,7 +1557,7 @@ public class ConceptManagerTest {
         ImportConcepts testTerms;
         ConceptManager ftm = new ConceptManager(graphDBMS);
         // Create terms in THE SAME facets we will then map to each other
-        testTerms = getTestTerms(5);
+        testTerms = getTestConcepts(5);
         testTerms.getConcepts().get(1).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
         testTerms.getConcepts().get(2).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT1", "TEST_DATA", SRC));
         testTerms.getConcepts().get(3).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT2", "TEST_DATA", SRC));
@@ -1580,7 +1580,7 @@ public class ConceptManagerTest {
         // that should then be merged. We won't define a new facet, we just want
         // to add new information to existing
         // terms.
-        ImportConcepts testTerms = getTestTerms(4);
+        ImportConcepts testTerms = getTestConcepts(4);
         // add a fifth term that has the first term as a parent
         testTerms.getConcepts()
                 .add(new ImportConcept("someterm", new ConceptCoordinates("somesrcid", "somesource", SRC),
@@ -1592,7 +1592,7 @@ public class ConceptManagerTest {
 
         // now again get two test terms. Those will be identical to the first
         // two test terms above.
-        testTerms = getTestTerms(2);
+        testTerms = getTestConcepts(2);
         // IMPORTANT: this is the key in this test: We do NOT insert a facet
         // which should be not necessary because we
         // only insert terms that are already in the database.
@@ -1652,8 +1652,8 @@ public class ConceptManagerTest {
     @Test
     public void testAddFacetTwice() {
         // Two equal facets. We want to see that they are not imported twice
-        ImportConcepts facet1 = getTestTerms(1);
-        ImportConcepts facet2 = getTestTerms(1);
+        ImportConcepts facet1 = getTestConcepts(1);
+        ImportConcepts facet2 = getTestConcepts(1);
 
         ConceptManager tm = new ConceptManager(graphDBMS);
         tm.insertConcepts(ConceptsJsonSerializer.toJson(facet1));
@@ -1667,7 +1667,7 @@ public class ConceptManagerTest {
     @Test
     public void testAddWritingVariants() throws Exception {
         {
-            ImportConcepts testTerms = getTestTerms(1);
+            ImportConcepts testTerms = getTestConcepts(1);
             ConceptManager tm = new ConceptManager(graphDBMS);
             tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
@@ -1711,7 +1711,7 @@ public class ConceptManagerTest {
     @Test
     public void testAddWritingVariants2() throws Exception {
         {
-            ImportConcepts testTerms = getTestTerms(1);
+            ImportConcepts testTerms = getTestConcepts(1);
             ConceptManager tm = new ConceptManager(graphDBMS);
             tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
@@ -1784,7 +1784,7 @@ public class ConceptManagerTest {
 
     @Test
     public void testUniqueSourceIds() {
-        ImportConcepts testTerms = getTestTerms(2);
+        ImportConcepts testTerms = getTestConcepts(2);
         // first, remove original ID and source because otherwise the original
         // ID checks will take over
         testTerms.getConcepts().get(0).coordinates.originalId = null;
@@ -1811,7 +1811,7 @@ public class ConceptManagerTest {
         // the exact same test as testGetAllFacetRoots() but with a limit on
         // maximum roots
         ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestTerms(3);
+        ImportConcepts testTerms = getTestConcepts(3);
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         // Insert two times so we have two facets
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
@@ -1825,7 +1825,7 @@ public class ConceptManagerTest {
     @Test
     public void testGetSpecificFacetRoots() {
         ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestTerms(3);
+        ImportConcepts testTerms = getTestConcepts(3);
         // Insert three times so we have three facets
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         testTerms.getFacet().setName("secondfacet");
@@ -1875,7 +1875,7 @@ public class ConceptManagerTest {
     @Test
     public void testGetAllFacetRoots() {
         ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestTerms(3);
+        ImportConcepts testTerms = getTestConcepts(3);
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         // Insert two times so we have two facets
         testTerms.getFacet().setName("secondfacet");
