@@ -26,6 +26,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -61,7 +62,7 @@ public class Export {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path("/" + CONCEPT_ID_MAPPING)
-    public Representation exportIdMapping(@QueryParam(PARAM_ID_PROPERTY) String idProperty, @QueryParam(PARAM_LABELS) String labelStrings) throws Exception {
+    public Response exportIdMapping(@QueryParam(PARAM_ID_PROPERTY) String idProperty, @QueryParam(PARAM_LABELS) String labelStrings) throws Exception {
         final ObjectMapper om = new ObjectMapper();
         log.info("Exporting ID mapping data.");
         String[] labelsArray = null != labelStrings ? om.readValue(labelStrings, String[].class) : null;
@@ -70,7 +71,7 @@ public class Export {
         byte[] bytes = gzipBytes.toByteArray();
         log.info("Sending all " + bytes.length + " bytes of GZIPed ID mapping file data.");
         log.info("Done exporting ID mapping data.");
-        return RecursiveMappingRepresentation.getObjectRepresentation(bytes);
+        return Response.ok(bytes).build();
     }
 
     private ByteArrayOutputStream createIdMapping(String idProperty,
