@@ -8,8 +8,8 @@ import org.neo4j.graphdb.traversal.Evaluator;
 
 public class NodeLabelEvaluator implements Evaluator {
 
-	private Label label;
-	private boolean acceptIfLabelNotPresent;
+	private final Label label;
+	private final boolean acceptIfLabelNotPresent;
 
 	/**
 	 * 
@@ -36,8 +36,7 @@ public class NodeLabelEvaluator implements Evaluator {
 		// however, if we want to accept only when the label is not present, reverse the condition
 		if (acceptIfLabelNotPresent)
 			condition = !condition;
-		Evaluation eval = condition ? Evaluation.INCLUDE_AND_CONTINUE : Evaluation.EXCLUDE_AND_CONTINUE;
-		return eval;
+		return condition ? Evaluation.INCLUDE_AND_CONTINUE : Evaluation.EXCLUDE_AND_CONTINUE;
 	}
 
 }

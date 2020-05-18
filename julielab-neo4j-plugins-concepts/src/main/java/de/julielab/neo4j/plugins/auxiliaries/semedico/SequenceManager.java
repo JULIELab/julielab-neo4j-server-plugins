@@ -25,9 +25,8 @@ public class SequenceManager {
 
     static Node getSequenceRoot(Transaction tx) {
         Optional<Node> sequenceRootOpt = tx.findNodes(SequenceLabel.SEQUENCE_ROOT).stream().findAny();
-        if (!sequenceRootOpt.isPresent()) {
-            Node seqRoot = tx.createNode(SequenceLabel.SEQUENCE_ROOT);
-            return seqRoot;
+        if (sequenceRootOpt.isEmpty()) {
+            return tx.createNode(SequenceLabel.SEQUENCE_ROOT);
         } else {
             return sequenceRootOpt.get();
         }

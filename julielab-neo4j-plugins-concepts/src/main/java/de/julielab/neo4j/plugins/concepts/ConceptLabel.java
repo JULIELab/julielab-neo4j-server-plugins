@@ -5,7 +5,7 @@ import org.neo4j.graphdb.Label;
 public enum ConceptLabel implements Label {
     /**
      * Label to indicate a node is not an actual concept but an aggregate concept.
-     * Such concepts have {@link EdgeTypes#HAS_ELEMENT} relationships to concepts,
+     * Such concepts have {@link ConceptEdgeTypes#HAS_ELEMENT} relationships to concepts,
      * deconceptining the set of concepts the aggregate represents.
      */
     AGGREGATE,

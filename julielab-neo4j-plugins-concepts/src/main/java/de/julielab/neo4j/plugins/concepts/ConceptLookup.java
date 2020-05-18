@@ -14,7 +14,6 @@ import java.util.Set;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 
 public class ConceptLookup {
     private final static Logger log = LoggerFactory.getLogger(ConceptLookup.class);

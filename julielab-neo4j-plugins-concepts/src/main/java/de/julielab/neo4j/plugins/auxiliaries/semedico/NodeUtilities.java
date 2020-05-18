@@ -2,9 +2,9 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
+import de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes;
 import de.julielab.neo4j.plugins.concepts.ConceptLabel;
 import de.julielab.neo4j.plugins.concepts.ConceptManager;
-import de.julielab.neo4j.plugins.concepts.EdgeTypes;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.*;
@@ -17,8 +17,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 
 public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUtilities {
 
@@ -163,29 +161,29 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     /**
      * Returns nodes with the {@link ConceptLabel#AGGREGATE} label that have
      * the given <tt>node</tt> as an element, which is that the aggregates have a relationship of type
-     * {@link EdgeTypes#HAS_ELEMENT} to the passed node.
+     * {@link ConceptEdgeTypes#HAS_ELEMENT} to the passed node.
      *
      * @param node The node whose governing aggregates should be returned.
      * @return The aggregates of which the passed node is an element.
      * @see #getElementNodes(Node)
      */
     public static Set<Node> getAggregatingNodes(Node node) {
-        return StreamSupport.stream(node.getRelationships(Direction.INCOMING, EdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
+        return StreamSupport.stream(node.getRelationships(Direction.INCOMING, ConceptEdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
     }
 
     /**
-     * Returns nodes that have a {@link EdgeTypes#IS_BROADER_THAN} relationship to the passed node.
+     * Returns nodes that have a {@link ConceptEdgeTypes#IS_BROADER_THAN} relationship to the passed node.
      *
      * @param node A node for which the taxonomic parents are requested.
      * @return The taxonomic parents of <tt>node</tt>.
      */
     public static Set<Node> getParentNodes(Node node) {
-        return StreamSupport.stream(node.getRelationships(Direction.INCOMING, EdgeTypes.IS_BROADER_THAN).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
+        return StreamSupport.stream(node.getRelationships(Direction.INCOMING, ConceptEdgeTypes.IS_BROADER_THAN).spliterator(), false).map(Relationship::getStartNode).collect(Collectors.toSet());
     }
 
     /**
      * Returns nodes that are an element of the node <tt>aggregate</tt> which means that the aggregate has a relationship of type
-     * {@link EdgeTypes#HAS_ELEMENT} to element nodes.
+     * {@link ConceptEdgeTypes#HAS_ELEMENT} to element nodes.
      *
      * @param aggregate The node with the {@link ConceptLabel#AGGREGATE} label whose element nodes are requested.
      * @return The element nodes of the passed aggregate.
@@ -194,6 +192,6 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
     public static Set<Node> getElementNodes(Node aggregate) {
         if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
             throw new IllegalArgumentException("The given node does not have the AGGREGATE label");
-        return StreamSupport.stream(aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getEndNode).collect(Collectors.toSet());
+        return StreamSupport.stream(aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getEndNode).collect(Collectors.toSet());
     }
 }

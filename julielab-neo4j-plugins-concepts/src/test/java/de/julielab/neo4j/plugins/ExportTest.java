@@ -25,7 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Method;
 import java.util.zip.GZIPInputStream;
 
-import static de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel.CONCEPT;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 

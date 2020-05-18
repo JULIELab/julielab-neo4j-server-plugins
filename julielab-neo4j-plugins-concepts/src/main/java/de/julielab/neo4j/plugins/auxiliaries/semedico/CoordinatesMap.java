@@ -7,8 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CoordinatesMap {
-	private CoordinatesSet keys = new CoordinatesSet();
-	private Map<ConceptCoordinates, Node> nodes = new HashMap<>();
+	private final CoordinatesSet keys = new CoordinatesSet();
+	private final Map<ConceptCoordinates, Node> nodes = new HashMap<>();
 
 	public boolean put(ConceptCoordinates key, Node node) {
 		if (key == null || node == null)

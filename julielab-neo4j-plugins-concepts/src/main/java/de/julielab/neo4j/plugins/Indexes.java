@@ -23,7 +23,7 @@ public class Indexes {
     public static final String CREATE_INDEXES = "create_indexes";
     public static final String DB_NAME = "db_name";
     private final static Logger log = LoggerFactory.getLogger(Indexes.class);
-    private DatabaseManagementService dbms;
+    private final DatabaseManagementService dbms;
 
     public Indexes(DatabaseManagementService dbms) {
         this.dbms = dbms;

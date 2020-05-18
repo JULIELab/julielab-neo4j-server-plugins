@@ -6,8 +6,8 @@ import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
+import de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptLabel;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
@@ -109,7 +109,7 @@ public class FacetManager {
             Node node = getFacetNode(tx, fid);
 
             Traverser traverser = tx.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
-                    .relationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT, Direction.OUTGOING)
+                    .relationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT, Direction.OUTGOING)
                     .relationships(dynRel, Direction.OUTGOING).traverse(node);
             for (@SuppressWarnings("unused")
                     Node n : traverser.nodes()) {
@@ -321,7 +321,7 @@ public class FacetManager {
                 if (!isFacetWithoutPredefinedRoots) {
                     // Leave out facets without any root terms (this may happen
                     // by some weird BioPortal ontologies).
-                    Iterator<Relationship> rootIt = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT)
+                    Iterator<Relationship> rootIt = facet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT)
                             .iterator();
                     if (!rootIt.hasNext())
                         continue;
@@ -393,11 +393,11 @@ public class FacetManager {
         return facetGroupsRep;
     }
 
-    public static enum EdgeTypes implements RelationshipType {
+    public enum EdgeTypes implements RelationshipType {
         HAS_FACET_GROUP, HAS_FACET
     }
 
-    public static enum FacetLabel implements Label {
+    public enum FacetLabel implements Label {
         FACET, NO_FACET
     }
 }

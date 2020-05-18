@@ -8,7 +8,6 @@ import org.neo4j.graphdb.traversal.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.*;
@@ -22,7 +21,7 @@ public class ConceptRetrieval {
         Evaluator rootConceptEvaluator = path -> {
             Node endNode = path.endNode();
 
-            Iterator<Relationship> iterator = endNode.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT).iterator();
+            Iterator<Relationship> iterator = endNode.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT).iterator();
             if (iterator.hasNext()) {
                 if (StringUtils.isBlank(facetId)) {
                     return Evaluation.INCLUDE_AND_CONTINUE;
@@ -36,8 +35,8 @@ public class ConceptRetrieval {
             }
             return Evaluation.EXCLUDE_AND_CONTINUE;
         };
-        RelationshipType relType = StringUtils.isBlank(facetId) ? EdgeTypes.IS_BROADER_THAN
-                : RelationshipType.withName(EdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
+        RelationshipType relType = StringUtils.isBlank(facetId) ? ConceptEdgeTypes.IS_BROADER_THAN
+                : RelationshipType.withName(ConceptEdgeTypes.IS_BROADER_THAN.name() + "_" + facetId);
         TraversalDescription td = tx.traversalDescription().uniqueness(Uniqueness.NODE_PATH).depthFirst()
                 .relationships(relType, Direction.INCOMING).evaluator(rootConceptEvaluator);
 
@@ -83,21 +82,22 @@ public class ConceptRetrieval {
         pathsWrappedInMap.put(RET_KEY_PATHS, pathsConceptIds);
         return pathsWrappedInMap;
     }
-    public static Map<String, Object> getChildrenOfConcepts(Transaction tx, List<String> conceptIds, Label label) throws IOException {
+    public static Map<String, Object> getChildrenOfConcepts(Transaction tx, List<String> conceptIds, Label label) {
         Map<String, Object> childrenByConceptId = new HashMap<>();
         for (String id : conceptIds) {
             Map<String, List<String>> reltypesByNodeId = new HashMap<>();
             Set<Node> childList = new HashSet<>();
-            String conceptId = id;
-            Node concept = tx.findNode(label, PROP_ID, conceptId);
+            Node concept = tx.findNode(label, PROP_ID, id);
             if (null != concept) {
                 for (Relationship rel : concept.getRelationships(Direction.OUTGOING)) {
                     String reltype = rel.getType().name();
                     Node child = rel.getEndNode();
                     boolean isHollow = false;
                     for (Label l : child.getLabels())
-                        if (l.equals(ConceptLabel.HOLLOW))
+                        if (l.equals(ConceptLabel.HOLLOW)) {
                             isHollow = true;
+                            break;
+                        }
                     if (isHollow)
                         continue;
                     String childId = (String) child.getProperty(PROP_ID);
@@ -108,7 +108,7 @@ public class ConceptRetrieval {
                 Map<String, Object> childrenAndReltypes = new HashMap<>();
                 childrenAndReltypes.put(RET_KEY_CHILDREN, childList);
                 childrenAndReltypes.put(RET_KEY_RELTYPES, reltypesByNodeId);
-                childrenByConceptId.put(conceptId, childrenAndReltypes);
+                childrenByConceptId.put(id, childrenAndReltypes);
             }
         }
         return childrenByConceptId;

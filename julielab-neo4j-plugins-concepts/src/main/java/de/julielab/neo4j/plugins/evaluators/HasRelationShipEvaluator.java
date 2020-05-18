@@ -9,9 +9,9 @@ import org.neo4j.graphdb.traversal.Evaluator;
 
 public class HasRelationShipEvaluator implements Evaluator {
 
-	private Direction direction;
-	private boolean shouldHave;
-	private RelationshipType[] types;
+	private final Direction direction;
+	private final boolean shouldHave;
+	private final RelationshipType[] types;
 
 	public HasRelationShipEvaluator(Direction direction, RelationshipType[] types, boolean shouldHave) {
 		this.direction = direction;
@@ -25,8 +25,7 @@ public class HasRelationShipEvaluator implements Evaluator {
 		boolean condition = endNode.hasRelationship(direction, types);
 		if (!shouldHave)
 			condition = !condition;
-		Evaluation eval = condition ? Evaluation.INCLUDE_AND_CONTINUE : Evaluation.EXCLUDE_AND_CONTINUE;
-		return eval;
+		return condition ? Evaluation.INCLUDE_AND_CONTINUE : Evaluation.EXCLUDE_AND_CONTINUE;
 	}
 
 }

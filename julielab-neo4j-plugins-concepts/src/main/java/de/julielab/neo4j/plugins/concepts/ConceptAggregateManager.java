@@ -40,7 +40,6 @@ import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConceptBySo
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_SOURCE;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.getErrorResponse;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class ConceptAggregateManager {
@@ -161,7 +160,7 @@ public class ConceptAggregateManager {
                             elementSource);
                 }
                 if (element != null) {
-                    aggregate.createRelationshipTo(element, EdgeTypes.HAS_ELEMENT);
+                    aggregate.createRelationshipTo(element, ConceptEdgeTypes.HAS_ELEMENT);
                 }
             }
 
@@ -214,6 +213,7 @@ public class ConceptAggregateManager {
      * @param jsonParameterObject The parameter JSON object.
      * @throws IOException When the JSON parameter cannot be read.
      */
+    @SuppressWarnings("unchecked")
     @PUT
     @Consumes(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(BUILD_AGGREGATES_BY_MAPPINGS)
@@ -289,7 +289,7 @@ public class ConceptAggregateManager {
         if (alreadySeen.contains(aggregate))
             return 0;
         List<Node> elementAggregates = new ArrayList<>();
-        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT);
+        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
         for (Relationship elementRel : elementRels) {
             Node endNode = elementRel.getEndNode();
             if (endNode.hasLabel(ConceptLabel.AGGREGATE) && !alreadySeen.contains(endNode))
@@ -470,7 +470,7 @@ public class ConceptAggregateManager {
         if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
             throw new IllegalArgumentException(
                     "Node " + NodeUtilities.getNodePropertiesAsString(aggregate) + " is not an aggregate.");
-        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, EdgeTypes.HAS_ELEMENT);
+        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
         List<String> elementValues = new ArrayList<>();
         for (Relationship elementRel : elementRels) {
             String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(elementRel.getEndNode(), property);
@@ -485,7 +485,7 @@ public class ConceptAggregateManager {
         if (visited.contains(term))
             return;
         visited.add(term);
-        Iterable<Relationship> mappings = term.getRelationships(EdgeTypes.IS_MAPPED_TO);
+        Iterable<Relationship> mappings = term.getRelationships(ConceptEdgeTypes.IS_MAPPED_TO);
         // Set<String> aggregateMappingTypes = new HashSet<>();
         for (Relationship mapping : mappings) {
             if (!mapping.hasProperty(ConceptRelationConstants.PROP_MAPPING_TYPE))
@@ -528,7 +528,7 @@ public class ConceptAggregateManager {
     protected static Set<Node> getMatchingAggregates(Node conceptNode, Set<String> allowedMappingTypes, Label aggregateLabel) {
         Set<Node> aggregateNodes;
         aggregateNodes = new HashSet<>();
-        Iterable<Relationship> elementRelationships = conceptNode.getRelationships(EdgeTypes.HAS_ELEMENT);
+        Iterable<Relationship> elementRelationships = conceptNode.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
         for (Relationship elementRelationship : elementRelationships) {
             Node aggregate = elementRelationship.getOtherNode(conceptNode);
             if (aggregate.hasLabel(aggregateLabel) && aggregate.hasLabel(ConceptLabel.AGGREGATE) && aggregate.hasProperty(ConceptConstants.PROP_MAPPING_TYPE)) {
@@ -566,7 +566,7 @@ public class ConceptAggregateManager {
             aggregate.addLabel(termLabel);
         }
         for (Node elementTerm : elementTerms) {
-            aggregate.createRelationshipTo(elementTerm, EdgeTypes.HAS_ELEMENT);
+            aggregate.createRelationshipTo(elementTerm, ConceptEdgeTypes.HAS_ELEMENT);
         }
         String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
                 + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_AGGREGATE_TERM);
@@ -593,7 +593,7 @@ public class ConceptAggregateManager {
         for (String copyProperty : copyProperties) {
             aggregate.removeProperty(copyProperty);
         }
-        Iterable<Relationship> elementRels = aggregate.getRelationships(EdgeTypes.HAS_ELEMENT);
+        Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
         // List of properties to copy that are no array properties - and thus
         // cannot be merged - but have different
         // values.
@@ -633,7 +633,7 @@ public class ConceptAggregateManager {
 
         for (String divergentProperty : divergentProperties) {
             Multiset<Object> propertyValues = HashMultiset.create();
-            elementRels = aggregate.getRelationships(EdgeTypes.HAS_ELEMENT);
+            elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
             for (Relationship elementRel : elementRels) {
                 Node term = elementRel.getEndNode();
                 Object propertyValue = PropertyUtilities.getNonNullNodeProperty(term, divergentProperty);

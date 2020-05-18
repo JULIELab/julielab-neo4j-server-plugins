@@ -6,9 +6,9 @@ import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
-import de.julielab.neo4j.plugins.concepts.ConceptManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.EdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager;
+import de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptLabel;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.MorphoConstants;
@@ -34,7 +34,6 @@ import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 @javax.ws.rs.Path("/export")
@@ -122,8 +121,8 @@ public class Export {
             log.info("Exporting hypernyms dictionary data for all facets.");
         else
             log.info("Exporting hypernyms dictionary data for the facets with labels " + Arrays.toString(labelsArray) + ".");
-        ByteArrayOutputStream hypernymsGzipBytes = writeHypernymList(labelsArray, conceptLabel,
-                HYPERNYMS_CACHE_SIZE);
+        ByteArrayOutputStream hypernymsGzipBytes = writeHypernymList(labelsArray, conceptLabel
+        );
         byte[] bytes = hypernymsGzipBytes.toByteArray();
         log.info("Sending all " + bytes.length + " bytes of GZIPed hypernym file data.");
         log.info("Done exporting hypernym data.");
@@ -131,7 +130,7 @@ public class Export {
     }
 
     private ByteArrayOutputStream writeHypernymList(String[] labelsArray,
-                                                    String termLabelString, int cacheSize) throws IOException {
+                                                    String termLabelString) throws IOException {
 
         String[] labels = labelsArray;
         if (null == labels) {
@@ -141,7 +140,7 @@ public class Export {
         if (!StringUtils.isBlank(termLabelString))
             termLabel = Label.label(termLabelString);
 
-        Map<Node, Set<String>> cache = new HashMap<>(cacheSize);
+        Map<Node, Set<String>> cache = new HashMap<>(Export.HYPERNYMS_CACHE_SIZE);
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
@@ -168,12 +167,12 @@ public class Export {
                                         + " label.");
                             String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
                             RelationshipType reltype = RelationshipType
-                                    .withName(EdgeTypes.IS_BROADER_THAN + "_" + facetId);
+                                    .withName(ConceptEdgeTypes.IS_BROADER_THAN + "_" + facetId);
                             relationshipTypeList.add(reltype);
                         }
                     }
                 } else {
-                    relationshipTypeList.add(ConceptManager.EdgeTypes.IS_BROADER_THAN);
+                    relationshipTypeList.add(ConceptEdgeTypes.IS_BROADER_THAN);
                 }
 
                 for (String labelString : labels) {
@@ -183,7 +182,7 @@ public class Export {
                     Set<Node> visitedNodes = new HashSet<>();
                     for (Node facet : facets) {
                         Iterable<Relationship> rels = facet.getRelationships(Direction.OUTGOING,
-                                EdgeTypes.HAS_ROOT_CONCEPT);
+                                ConceptEdgeTypes.HAS_ROOT_CONCEPT);
                         for (Relationship rel : rels) {
                             Node rootTerm = rel.getEndNode();
                             if (null != termLabel && !rootTerm.hasLabel(termLabel))
@@ -247,7 +246,7 @@ public class Export {
         if (hypernyms.size() > 0)
             IOUtils.write(n.getProperty(ConceptConstants.PROP_ID) + "\t" + StringUtils.join(hypernyms, "|") + "\n", os,
                     "UTF-8");
-        for (Relationship rel : n.getRelationships(Direction.OUTGOING, EdgeTypes.IS_BROADER_THAN)) {
+        for (Relationship rel : n.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.IS_BROADER_THAN)) {
             writeHypernyms(rel.getEndNode(), visitedNodes, cache, os, relationshipTypes);
         }
         if (visitedNodes.size() % 100000 == 0)
@@ -262,7 +261,7 @@ public class Export {
             @QueryParam(PARAM_EXCLUSION_LABEL) String exclusionLabelString,
             @QueryParam(PARAM_ID_PROPERTY) String nodeCategories)
             throws IOException {
-        Label label = StringUtils.isBlank(labelString) ? ConceptManager.ConceptLabel.CONCEPT : Label.label(labelString);
+        Label label = StringUtils.isBlank(labelString) ? ConceptLabel.CONCEPT : Label.label(labelString);
         List<String> propertiesToWrite = new ArrayList<>();
         if (nodeCategories == null || nodeCategories.length() == 0) {
             propertiesToWrite.add(PROP_ID);
@@ -316,7 +315,7 @@ public class Export {
                         if (null == value && term.hasLabel(ConceptLabel.AGGREGATE))
                             // perhaps we have an aggregate term, then we can
                             // try and retrieve the value from its elements
-                            value = ConceptManager.getPropertyValueOfElements(term, idProperty);
+                            value = ConceptAggregateManager.getPropertyValueOfElements(term, idProperty);
                         if (null == value) {
                             terms.close();
                             throw new IllegalArgumentException("A concept occurred that does not have a value for the property \"" + idProperty + "\": " + NodeUtilities.getNodePropertiesAsString(term));
@@ -333,7 +332,7 @@ public class Export {
                                     // perhaps we have an aggregate term, then
                                     // we can try and retrieve the value from
                                     // its elements
-                                    value = ConceptManager.getPropertyValueOfElements(term, idProperty);
+                                    value = ConceptAggregateManager.getPropertyValueOfElements(term, idProperty);
                                 if (null == value || value.length == 0) {
                                     terms.close();
                                     throw new IllegalArgumentException("The property \"" + property
@@ -400,7 +399,7 @@ public class Export {
             @QueryParam(PARAM_LABEL) String labelString)
             throws IOException {
         log.info("Exporting lingpipe dictionary data.");
-        Label label = !StringUtils.isBlank(labelString) ? Label.label(labelString) : ConceptManager.ConceptLabel.CONCEPT;
+        Label label = !StringUtils.isBlank(labelString) ? Label.label(labelString) : ConceptLabel.CONCEPT;
         ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (GZIPOutputStream os = new GZIPOutputStream(baos)) {

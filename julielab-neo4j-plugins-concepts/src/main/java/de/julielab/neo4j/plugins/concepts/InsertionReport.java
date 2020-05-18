@@ -16,7 +16,7 @@ public class InsertionReport {
      * for the case that a concept is inserted multiple times in a single insertion
      * batch. Then, the "concept already existing" method does not work anymore.
      */
-    public Set<String> createdRelationshipsCache = new HashSet<>();
+    public final Set<String> createdRelationshipsCache = new HashSet<>();
     /**
      * The concept nodes that already existed before they should have been inserted
      * again (duplicate detection). This is used to deconceptine whether a check
@@ -25,7 +25,7 @@ public class InsertionReport {
      * not exist before, no check is necessary: A concept that did not exist could
      * not have had any relationships.
      */
-    public Set<Node> existingConcepts = new HashSet<>();
+    public final Set<Node> existingConcepts = new HashSet<>();
     /**
      * The source IDs of concepts that have been omitted from the data for -
      * hopefully - good reasons. The first (and perhaps only) use case were
@@ -34,13 +34,13 @@ public class InsertionReport {
      * them as a parent. This set serves as a lookup in this case so we know there
      * is not an error.
      */
-    public Set<String> omittedConcepts = new HashSet<>();
+    public final Set<String> omittedConcepts = new HashSet<>();
     /**
      * The coordinates of all concepts that are being imported. This information is
      * used by the relationship creation method to know if a parent is included in
      * the imported data or not.
      */
-    public CoordinatesSet importedCoordinates = new CoordinatesSet();
+    public final CoordinatesSet importedCoordinates = new CoordinatesSet();
     public int numRelationships = 0;
     public int numConcepts = 0;
 

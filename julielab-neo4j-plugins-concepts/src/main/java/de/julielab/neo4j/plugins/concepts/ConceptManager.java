@@ -275,7 +275,7 @@ public class ConceptManager {
                 while (relIt.hasNext()) {
                     Relationship rel = relIt.next();
                     String type = rel.getType().name();
-                    if (type.startsWith(EdgeTypes.IS_BROADER_THAN.toString())) {
+                    if (type.startsWith(ConceptEdgeTypes.IS_BROADER_THAN.toString())) {
                         String[] typeNameParts = type.split("_");
                         String lastPart = typeNameParts[typeNameParts.length - 1];
                         if (lastPart.startsWith(NodeIDPrefixConstants.FACET)) {
@@ -361,7 +361,7 @@ public class ConceptManager {
                 }
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
-                Map<String, List<Node>> facetRoots = FacetRootsReturning.getFacetRoots(tx, requestedFacetIds, requestedConceptIds, maxRoots);
+                Map<String, List<Node>> facetRoots = FacetRootsRetrieval.getFacetRoots(tx, requestedFacetIds, requestedConceptIds, maxRoots);
                 return Response.ok(facetRoots);
             }
         } catch (Throwable t) {

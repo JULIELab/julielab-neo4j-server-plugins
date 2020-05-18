@@ -5,16 +5,11 @@ import com.google.common.collect.Sets;
 import de.julielab.neo4j.plugins.FacetManager.FacetLabel;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
-import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.EdgeTypes;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.MorphoLabel;
+import de.julielab.neo4j.plugins.concepts.*;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.*;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
-import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
 import org.glassfish.jersey.message.internal.OutboundJaxrsResponse;
 import org.junit.*;
@@ -25,18 +20,15 @@ import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.*;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Stream;
 
-import static de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel.CONCEPT;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
@@ -94,7 +86,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testOriginalIdMerging() throws Exception {
+    public void testOriginalIdMerging() {
         // This test checks whether multiple, different sources and terms with
         // the same origin (same original ID and
         // original source) are stored correctly.
@@ -136,7 +128,7 @@ public class ConceptManagerTest {
 
 
     @Test
-    public void testMergeOnOriginalIdWithoutSourceId() throws Exception {
+    public void testMergeOnOriginalIdWithoutSourceId() {
         // This test assures that pure term merging works by addressing terms
         // via their original ID without
         // specification of their source ID.
@@ -182,7 +174,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testSameOrgIdDifferentSource() throws Exception {
+    public void testSameOrgIdDifferentSource() {
         // This test assures that two terms with the same original ID are still
         // different if the original sources
         // differ.
@@ -211,7 +203,7 @@ public class ConceptManagerTest {
             Set<String> idSet = Sets.newHashSet("src1", "src2");
             for (Node term : terms) {
                 assertEquals("orgId", term.getProperty(PROP_ORG_ID));
-                assertEquals(true, idSet.remove(term.getProperty(PROP_ORG_SRC)));
+                assertTrue(idSet.remove(term.getProperty(PROP_ORG_SRC)));
                 counter++;
             }
             // There should be two terms even though they have the same original
@@ -229,12 +221,12 @@ public class ConceptManagerTest {
      */
     @Test
     public void testImportConceptsWithFacetDefinition() throws SecurityException,
-            IllegalArgumentException, ConceptInsertionException, IOException {
+            IllegalArgumentException {
         testTermImportWithOrWithoutFacetDefinition(true);
     }
 
     @Test
-    public void testImportConceptsWithoutFacetDefinition() throws Exception {
+    public void testImportConceptsWithoutFacetDefinition() {
         // Here, create the facet "manually" and then do the term import. The
         // import method "knows" which facet Id to use (there will only be this
         // one facet, so its fid0...)
@@ -248,7 +240,7 @@ public class ConceptManagerTest {
         testTermImportWithOrWithoutFacetDefinition(false);
     }
 
-    private void testTermImportWithOrWithoutFacetDefinition(boolean withFacetDefinition) throws ConceptInsertionException, IOException {
+    private void testTermImportWithOrWithoutFacetDefinition(boolean withFacetDefinition) {
         // ----------- THE FACET --------------
         ImportFacet facetMap;
         if (withFacetDefinition) {
@@ -334,20 +326,20 @@ public class ConceptManagerTest {
             // test, there is only one parent (in general, there might be
             // more!).
             assertEquals(term1,
-                    term2.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
+                    term2.getSingleRelationship(ConceptEdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
                             .getStartNode());
             assertEquals(term1,
-                    term3.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
+                    term3.getSingleRelationship(ConceptEdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
                             .getStartNode());
             assertEquals(term2,
-                    term4.getSingleRelationship(ConceptManager.EdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
+                    term4.getSingleRelationship(ConceptEdgeTypes.IS_BROADER_THAN, Direction.INCOMING)
                             .getStartNode());
 
             // Besides the default taxonomic relationships, there should be
             // specific relationships only valid for the
             // current facet.
             RelationshipType relBroaderThenInFacet = RelationshipType
-                    .withName(EdgeTypes.IS_BROADER_THAN.toString() + "_fid0");
+                    .withName(ConceptEdgeTypes.IS_BROADER_THAN.toString() + "_fid0");
             assertEquals(term1, term2.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());
             assertEquals(term1, term3.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());
             assertEquals(term2, term4.getSingleRelationship(relBroaderThenInFacet, Direction.INCOMING).getStartNode());
@@ -368,7 +360,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testInsertTermIntoMultipleFacets() throws Exception {
+    public void testInsertTermIntoMultipleFacets() {
         // Two facets will be created. A term will be added to both, then.
         // The first facet will be sent with the term as whole facet definition.
         // The second facet will be created beforehand and then the term will
@@ -410,7 +402,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testInsertNoFacet() throws Exception {
+    public void testInsertNoFacet() {
         // In this test we will just ordinarily insert some terms with a facet -
         // but this facet will be set as a
         // "no-facet" and thus should be moves to the appropriate section of the
@@ -433,7 +425,7 @@ public class ConceptManagerTest {
             Node facetGroupNode = NodeUtilities.getSingleOtherNode(noFacetGroupsNode,
                     FacetManager.EdgeTypes.HAS_FACET_GROUP);
             Node facetNode = NodeUtilities.getSingleOtherNode(facetGroupNode, FacetManager.EdgeTypes.HAS_FACET);
-            Iterator<Relationship> rootIt = facetNode.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT)
+            Iterator<Relationship> rootIt = facetNode.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT)
                     .iterator();
             int rootCount = 0;
             while (rootIt.hasNext()) {
@@ -448,7 +440,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testMergeTermProperties() throws Exception {
+    public void testMergeTermProperties() {
         // We will insert the same term (identified by the same original ID)
         // multiple times with additional
         // information each time. At the end, the information that can be merged
@@ -508,7 +500,7 @@ public class ConceptManagerTest {
             List<String> synList = Lists.newArrayList((String[]) concept1.getProperty(PROP_SYNONYMS));
             assertTrue(synList.contains("syn1"));
             assertTrue(synList.contains("syn2"));
-            List<String> srcIdList = Arrays.asList(NodeUtilities.getSourceIds(concept1));
+            List<String> srcIdList = Arrays.asList(Objects.requireNonNull(NodeUtilities.getSourceIds(concept1)));
             assertTrue(srcIdList.contains("CONCEPT1"));
             assertTrue(srcIdList.contains("CONCEPT2"));
             assertTrue(srcIdList.contains("CONCEPT3"));
@@ -518,7 +510,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testMergeTermLabels() throws Exception {
+    public void testMergeTermLabels() {
         // Check if we can insert a concept and then insert the term again but
         // with an additional label so that the new labels gets added to the
         // existing concept
@@ -562,7 +554,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testImportConceptMultipleTimes() throws Exception {
+    public void testImportConceptMultipleTimes() {
         List<ImportConcept> terms;
         ConceptManager ftm;
         terms = new ArrayList<>();
@@ -586,7 +578,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testImportEdgeMultipleTimes() throws Exception {
+    public void testImportEdgeMultipleTimes() {
         List<ImportConcept> terms;
         ConceptManager ftm;
         terms = new ArrayList<>();
@@ -604,7 +596,7 @@ public class ConceptManagerTest {
             Node n1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
             assertNotNull(n1);
-            Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
+            Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptEdgeTypes.IS_BROADER_THAN);
             assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
         }
 
@@ -618,7 +610,7 @@ public class ConceptManagerTest {
         try (Transaction tx = graphDb.beginTx()) {
             Node n1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
-            Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
+            Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptEdgeTypes.IS_BROADER_THAN);
             assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
             tx.commit();
         }
@@ -632,7 +624,7 @@ public class ConceptManagerTest {
         try (Transaction tx = graphDb.beginTx()) {
             Node n1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
-            Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptManager.EdgeTypes.IS_BROADER_THAN);
+            Node n0 = NodeUtilities.getSingleOtherNode(n1, ConceptEdgeTypes.IS_BROADER_THAN);
             assertEquals(NodeIDPrefixConstants.TERM + 0, n0.getProperty(PROP_ID));
             tx.commit();
         }
@@ -662,7 +654,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testOrganizeSynonyms() throws Exception {
+    public void testOrganizeSynonyms() {
         // In this test, we have a term that specifies its preferred term as a
         // synonym, too. The FacetConceptManager should detect this and remove
         // the synonym that equals the preferred name.
@@ -692,7 +684,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testAdditionalRelationships() throws Exception {
+    public void testAdditionalRelationships() {
         // Multiple terms will be inserted that are "equal" according to the
         // preferred names. This will be expressed via
         // additional relationships other then the default taxonomic
@@ -715,13 +707,13 @@ public class ConceptManagerTest {
         // IDs (we don't know the ultimate concept IDs yet).
         String termSource = terms.get(0).coordinates.originalSource;
         terms.get(0).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, false),
-                ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+                ConceptEdgeTypes.HAS_SAME_NAMES.name()));
         terms.get(0).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 3, termSource, false),
-                ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+                ConceptEdgeTypes.HAS_SAME_NAMES.name()));
         terms.get(1).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 2, termSource, false),
-                ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+                ConceptEdgeTypes.HAS_SAME_NAMES.name()));
         terms.get(2).addRelationship(new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 3, termSource, false),
-                ConceptManager.EdgeTypes.HAS_SAME_NAMES.name()));
+                ConceptEdgeTypes.HAS_SAME_NAMES.name()));
 
         // Now we split the terms in two lists in order to check the behavior of
         // the "hollow" label assignment.
@@ -740,9 +732,9 @@ public class ConceptManagerTest {
                 Node node = nodesIt.next();
                 // Only the real terms have gotten an ID.
                 if (node.hasProperty(PROP_ID))
-                    assertFalse("Not hollow", node.hasLabel(ConceptManager.ConceptLabel.HOLLOW));
+                    assertFalse("Not hollow", node.hasLabel(ConceptLabel.HOLLOW));
                 else
-                    assertTrue("Node is hollow", node.hasLabel(ConceptManager.ConceptLabel.HOLLOW));
+                    assertTrue("Node is hollow", node.hasLabel(ConceptLabel.HOLLOW));
                 nodeCount++;
             }
             assertEquals("Number of terms", 4, nodeCount);
@@ -764,7 +756,7 @@ public class ConceptManagerTest {
                 Node node = nodesIt.next();
                 // Only the real terms have gotten an ID.
                 assertFalse("Term " + NodeUtilities.getNodePropertiesAsString(node) + " is hollow but it shouldn't be",
-                        node.hasLabel(ConceptManager.ConceptLabel.HOLLOW));
+                        node.hasLabel(ConceptLabel.HOLLOW));
                 assertTrue("Has an ID", node.hasProperty(PROP_ID));
                 assertTrue("Has a facet", node.hasProperty(PROP_FACETS));
                 assertTrue("Has a description", node.hasProperty(PROP_DESCRIPTIONS));
@@ -773,7 +765,7 @@ public class ConceptManagerTest {
                 // simplicity, we restrict ourselves to
                 // outgoing relationships to test here.
                 Iterator<Relationship> relIt = node
-                        .getRelationships(Direction.OUTGOING, ConceptManager.EdgeTypes.HAS_SAME_NAMES).iterator();
+                        .getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_SAME_NAMES).iterator();
                 String id = (String) node.getProperty(PROP_ID);
                 int numRels = 0;
                 if (id.endsWith("0")) {
@@ -806,16 +798,16 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testAdditionalRelationships2() throws Exception {
+    public void testAdditionalRelationships2() {
         ImportConcepts testTermsAndFacet = getTestTerms(4);
         List<ImportConcept> terms = testTermsAndFacet.getConcepts();
         String termSource = terms.get(0).coordinates.originalSource;
         ImportConceptRelationship rel1 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, true),
-                ConceptManager.EdgeTypes.HAS_SAME_NAMES.name());
+                ConceptEdgeTypes.HAS_SAME_NAMES.name());
         rel1.addProperty("prop1", "value1");
         rel1.addProperty("prop2", "value2");
         ImportConceptRelationship rel2 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, true),
-                ConceptManager.EdgeTypes.HAS_SAME_NAMES.name());
+                ConceptEdgeTypes.HAS_SAME_NAMES.name());
         rel2.addProperty("prop1", "value1");
         rel2.addProperty("prop3", "value3");
         terms.get(0).addRelationship(rel1);
@@ -827,7 +819,7 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             Node term0 = tx.findNode(CONCEPT, PROP_ID, NodeIDPrefixConstants.TERM + 0);
-            Relationship relationship = term0.getSingleRelationship(ConceptManager.EdgeTypes.HAS_SAME_NAMES,
+            Relationship relationship = term0.getSingleRelationship(ConceptEdgeTypes.HAS_SAME_NAMES,
                     Direction.OUTGOING);
             assertNotNull(relationship);
             assertTrue(relationship.hasProperty("prop1"));
@@ -840,7 +832,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testInsertAggregateTerm() throws Exception {
+    public void testInsertAggregateTerm() {
         // Here we test the case where an aggregate term is explicitly imported
         // from external data as opposed to
         // computing it within the database.
@@ -861,20 +853,22 @@ public class ConceptManagerTest {
                 Lists.newArrayList(PROP_PREF_NAME, PROP_SYNONYMS, PROP_DESCRIPTIONS)));
 
         ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptAggregateManager cam = new ConceptAggregateManager(graphDBMS);
         cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
 
         assertEquals("Number of actual terms", 5, countNodesWithLabel(CONCEPT));
-        assertEquals("Number of aggregate terms", 1, countNodesWithLabel(ConceptManager.ConceptLabel.AGGREGATE));
+        assertEquals("Number of aggregate terms", 1, countNodesWithLabel(ConceptLabel.AGGREGATE));
 
         try (Transaction tx = graphDb.beginTx()) {
-            ResourceIterator<Node> aggregateIt = tx.findNodes(ConceptManager.ConceptLabel.AGGREGATE);
+            ResourceIterator<Node> aggregateIt = tx.findNodes(ConceptLabel.AGGREGATE);
             assertTrue("There is at least one aggregate term", aggregateIt.hasNext());
             Node aggregate = aggregateIt.next();
             assertFalse("There is no second aggregate term", aggregateIt.hasNext());
-            Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
+            Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
             int numElementRels = 0;
             for (Relationship elementRel : elementRels) {
                 String[] termSrcIds = NodeUtilities.getSourceIds(elementRel.getEndNode());
+                assert termSrcIds != null;
                 assertTrue("Term is one of the defined aggregate elements",
                         aggregateElementSrcIds.contains(termSrcIds[0]));
                 numElementRels++;
@@ -887,11 +881,11 @@ public class ConceptManagerTest {
             int numRels = 0;
             for (Relationship rel : relationships) {
                 numRels++;
-                assertEquals(rel.getType().name(), EdgeTypes.HAS_ROOT_CONCEPT.toString());
+                assertEquals(rel.getType().name(), ConceptEdgeTypes.HAS_ROOT_CONCEPT.toString());
             }
             assertEquals("Term on position 4 has exactly one relationship (HAS_ROOT)", 1, numRels);
             // Now let's copy the term properties into the aggregate.
-            RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) cm
+            RecursiveMappingRepresentation report = (RecursiveMappingRepresentation) cam
                     .copyAggregateProperties();
             Map<String, ?> reportMap = report.getUnderlyingMap();
             assertEquals("Number of aggregates", 1, reportMap.get(ConceptManager.RET_KEY_NUM_AGGREGATES));
@@ -907,7 +901,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testAddAggregateAsHierarchyNode() throws Exception {
+    public void testAddAggregateAsHierarchyNode() {
         // Insert an aggregate and check the relationships.
 
         ImportConcepts testTerms = getTestTerms(2);
@@ -928,22 +922,22 @@ public class ConceptManagerTest {
             assertEquals(1, aggregateCount);
 
             Node aggregateNode = NodeUtilities.getSingleNode(tx.findNodes(ConceptLabel.AGGREGATE));
-            assertEquals(2, countRelationships(aggregateNode.getRelationships(EdgeTypes.HAS_ELEMENT)));
-            assertEquals(2, countRelationships(aggregateNode.getRelationships(EdgeTypes.IS_BROADER_THAN)));
-            assertEquals(1, countRelationships(aggregateNode.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT)));
+            assertEquals(2, countRelationships(aggregateNode.getRelationships(ConceptEdgeTypes.HAS_ELEMENT)));
+            assertEquals(2, countRelationships(aggregateNode.getRelationships(ConceptEdgeTypes.IS_BROADER_THAN)));
+            assertEquals(1, countRelationships(aggregateNode.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT)));
 
             Node term0 = tx.findNode(CONCEPT, PROP_ID, NodeIDPrefixConstants.TERM + 0);
-            Relationship broaderThan = term0.getSingleRelationship(EdgeTypes.IS_BROADER_THAN, Direction.INCOMING);
+            Relationship broaderThan = term0.getSingleRelationship(ConceptEdgeTypes.IS_BROADER_THAN, Direction.INCOMING);
             assertEquals(aggregateNode, broaderThan.getStartNode());
 
             Node term1 = tx.findNode(CONCEPT, PROP_ID, NodeIDPrefixConstants.TERM + 1);
-            broaderThan = term1.getSingleRelationship(EdgeTypes.IS_BROADER_THAN, Direction.INCOMING);
+            broaderThan = term1.getSingleRelationship(ConceptEdgeTypes.IS_BROADER_THAN, Direction.INCOMING);
             assertEquals(aggregateNode, broaderThan.getStartNode());
         }
     }
 
     @Test
-    public void testAddAggregateAsHierarchyNode2() throws Exception {
+    public void testAddAggregateAsHierarchyNode2() {
         // Insert aggregate with an additional label and check that it has been
         // applied.
 
@@ -1014,20 +1008,20 @@ public class ConceptManagerTest {
             Iterable<Relationship> relationships = aggregate.getRelationships();
             int relCount = 0;
             for (Relationship rel : relationships) {
-                assertEquals(EdgeTypes.HAS_ELEMENT.name(), rel.getType().name());
+                assertEquals(ConceptEdgeTypes.HAS_ELEMENT.name(), rel.getType().name());
                 ++relCount;
             }
             assertEquals(2, relCount);
 
             // now: get the "children" of the aggregate (should be the elements)
-            Map<String, Object> relAndChildMap = (Map<String, Object>) cm.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), ConceptLabel.AGGREGATE).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
+            Map<String, Object> relAndChildMap = (Map<String, Object>) ConceptRetrieval.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), ConceptLabel.AGGREGATE).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
             assertEquals(2, ((Map<?, ?>) relAndChildMap.get(ConceptManager.RET_KEY_RELTYPES)).size());
             assertEquals(2, ((Set<?>) relAndChildMap.get(ConceptManager.RET_KEY_CHILDREN)).size());
         }
     }
 
     @Test
-    public void testHollowParent() throws Exception {
+    public void testHollowParent() {
         // In this test, we will add a node with a single parent. However, we
         // won't add the parent itself, thus creating
         // a "hollow" parent node.
@@ -1063,14 +1057,14 @@ public class ConceptManagerTest {
                 int numRootTermRels = 0;
                 int numBroaderRels = 0;
                 for (Relationship rel : rels) {
-                    if (rel.getType().name().equals(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT.name())) {
+                    if (rel.getType().name().equals(ConceptEdgeTypes.HAS_ROOT_CONCEPT.name())) {
                         numRootTermRels++;
                         numRoots++;
-                    } else if (rel.getType().name().equals(ConceptManager.EdgeTypes.IS_BROADER_THAN.name())) {
+                    } else if (rel.getType().name().equals(ConceptEdgeTypes.IS_BROADER_THAN.name())) {
                         numBroaderRels++;
                     }
                 }
-                if (n.hasLabel(ConceptManager.ConceptLabel.HOLLOW)) {
+                if (n.hasLabel(ConceptLabel.HOLLOW)) {
                     numHollow++;
                     assertEquals("Hollow parent is the root term", 1, numRootTermRels);
                     assertEquals("Hollow parent has one child", 1, numBroaderRels);
@@ -1112,14 +1106,14 @@ public class ConceptManagerTest {
                 int numRootTermRels = 0;
                 int numBroaderRels = 0;
                 for (Relationship rel : rels) {
-                    if (rel.getType().name().equals(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT.name())) {
+                    if (rel.getType().name().equals(ConceptEdgeTypes.HAS_ROOT_CONCEPT.name())) {
                         numRootTermRels++;
                         numRoots++;
-                    } else if (rel.getType().name().equals(ConceptManager.EdgeTypes.IS_BROADER_THAN.name())) {
+                    } else if (rel.getType().name().equals(ConceptEdgeTypes.IS_BROADER_THAN.name())) {
                         numBroaderRels++;
                     }
                 }
-                if (n.hasLabel(ConceptManager.ConceptLabel.HOLLOW))
+                if (n.hasLabel(ConceptLabel.HOLLOW))
                     numHollow++;
                 if (n.getProperty(PROP_PREF_NAME).equals("prefname1")) {
                     assertEquals("Number of facet root relations", 0, numRootTermRels);
@@ -1156,12 +1150,12 @@ public class ConceptManagerTest {
             // Would throw an exception if there were multiple terms found.
             Node hollowParent = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "parentid42");
             assertNotNull(hollowParent);
-            assertTrue(hollowParent.hasLabel(ConceptManager.ConceptLabel.HOLLOW));
+            assertTrue(hollowParent.hasLabel(ConceptLabel.HOLLOW));
         }
     }
 
     @Test
-    public void testNonFacetGroupCommand() throws Exception {
+    public void testNonFacetGroupCommand() {
         // We will test whether it works correctly to sort terms into the
         // "non-facet" facet group according to a
         // particular criterium, e.g. "no parent".
@@ -1199,7 +1193,7 @@ public class ConceptManagerTest {
             Node noFacetGroup = it.next().getEndNode();
             assertFalse("There is a second no-facet group.", it.hasNext());
             Node noFacet = NodeUtilities.getSingleOtherNode(noFacetGroup, FacetManager.EdgeTypes.HAS_FACET);
-            Iterator<Relationship> termRelIt = noFacet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT)
+            Iterator<Relationship> termRelIt = noFacet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT)
                     .iterator();
             assertTrue("There is no no-facet term.", termRelIt.hasNext());
             int i = 0;
@@ -1217,7 +1211,7 @@ public class ConceptManagerTest {
             // the facet, although hollow terms are allowed.
             Node facet = tx.findNode(FacetManager.FacetLabel.FACET, PROP_ID,
                     "fid0");
-            for (Relationship relationship : facet.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT)) {
+            for (Relationship relationship : facet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT)) {
                 Node facetTerm = relationship.getEndNode();
                 String termName = (String) facetTerm.getProperty(PROP_PREF_NAME);
                 assertTrue("Term name was " + termName, termName.equals("prefname0") || termName.equals("prefname1"));
@@ -1230,7 +1224,7 @@ public class ConceptManagerTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testGetPathsFromFacetroots() throws Exception {
+    public void testGetPathsFromFacetroots() {
         // In this test we want to see that we get back all paths at once for
         // multiple nodes. In the following, source1
         // and source2 are the facet roots, all other nodes are direct or
@@ -1307,7 +1301,7 @@ public class ConceptManagerTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testGetPathsFromFacetrootsInSpecificFacet() throws Exception {
+    public void testGetPathsFromFacetrootsInSpecificFacet() {
         // In this test we want to see that we get back the right path when only
         // counting in nodes from a specific facet
         // in path finding.
@@ -1377,7 +1371,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testUpdateChildrenInformation() throws Exception {
+    public void testUpdateChildrenInformation() {
         // In this test we check whether the array property of in which facet a
         // term has children is computed correctly.
         // For this, we do two concept imports to create two facets. We will have
@@ -1418,7 +1412,7 @@ public class ConceptManagerTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void testGetTermChildren() throws Exception {
+    public void testGetTermChildren() {
         ImportConcepts testTerms;
         ConceptManager cm = new ConceptManager(graphDBMS);
         testTerms = getTestTerms(5);
@@ -1430,7 +1424,7 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             // Get the children of a single node.
-            Map<String, ?> childMap = cm.getChildrenOfConcepts(tx, List.of("tid0"), CONCEPT);
+            Map<String, ?> childMap = ConceptRetrieval.getChildrenOfConcepts(tx, List.of("tid0"), CONCEPT);
             // We asked for only one node, thus there should be one result
             assertEquals(1, childMap.size());
             Map<String, Object> term0Children = (Map<String, Object>) childMap.get(NodeIDPrefixConstants.TERM + 0);
@@ -1454,7 +1448,7 @@ public class ConceptManagerTest {
             // We get the children of three nodes, where two of queried nodes
             // are the same. This shouldn't change the
             // result, i.e. there should be two elements in the result map.
-            childMap = cm.getChildrenOfConcepts(tx, List.of("tid0", "tid3", "tid3"), CONCEPT);
+            childMap = ConceptRetrieval.getChildrenOfConcepts(tx, List.of("tid0", "tid3", "tid3"), CONCEPT);
             // We asked for three nodes' children, however two were equal thus
             // there should be two elements.
             assertEquals(2, childMap.size());
@@ -1499,7 +1493,7 @@ public class ConceptManagerTest {
         try (Transaction tx = graphDb.beginTx()) {
             Node term0 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
-            Iterable<Relationship> relationships = term0.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
+            Iterable<Relationship> relationships = term0.getRelationships(ConceptEdgeTypes.IS_MAPPED_TO);
             int relCounter = 0;
             for (Relationship rel : relationships) {
                 Node otherNode = rel.getOtherNode(term0);
@@ -1510,7 +1504,7 @@ public class ConceptManagerTest {
 
             Node term1 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 1);
-            relationships = term1.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
+            relationships = term1.getRelationships(ConceptEdgeTypes.IS_MAPPED_TO);
             relCounter = 0;
             for (Relationship rel : relationships) {
                 Node otherNode = rel.getOtherNode(term1);
@@ -1540,7 +1534,7 @@ public class ConceptManagerTest {
         try (Transaction tx = graphDb.beginTx()) {
             Node term0 = tx.findNode(CONCEPT,
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
-            Iterable<Relationship> relationships = term0.getRelationships(ConceptManager.EdgeTypes.IS_MAPPED_TO);
+            Iterable<Relationship> relationships = term0.getRelationships(ConceptEdgeTypes.IS_MAPPED_TO);
             int relCounter = 0;
             for (Relationship rel : relationships) {
                 Node otherNode = rel.getOtherNode(term0);
@@ -1579,7 +1573,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testMergeTerms() throws Exception {
+    public void testMergeTerms() {
         // Here, we will insert some terms as normal. Then, we will insert some
         // terms anew, with new property values
         // that should then be merged. We won't define a new facet, we just want
@@ -1640,7 +1634,7 @@ public class ConceptManagerTest {
 
             Node facet = tx.findNode(FacetManager.FacetLabel.FACET,
                     FacetConstants.PROP_ID, "fid0");
-            Iterable<Relationship> rootTermRelations = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT);
+            Iterable<Relationship> rootTermRelations = facet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT);
             int rootTermCounter = 0;
             for (@SuppressWarnings("unused")
                     Relationship rel : rootTermRelations) {
@@ -1660,7 +1654,7 @@ public class ConceptManagerTest {
     // let go. If this feature is necessary, we need to add some "properties" map into the ImportConcept class
     // and copy from there into the Neo4j node properties. EF, August 21st 2019
     @Ignore
-    public void testIntegerProperty() throws Exception {
+    public void testIntegerProperty() {
         List<Map<String, Object>> terms = new ArrayList<>();
         Map<String, Object> term = new HashMap<>();
         term.put(PROP_PREF_NAME, "testPrefName");
@@ -1739,7 +1733,7 @@ public class ConceptManagerTest {
 
 
     @Test
-    public void testAddFacetTwice() throws Exception {
+    public void testAddFacetTwice() {
         // Two equal facets. We want to see that they are not imported twice
         ImportConcepts facet1 = getTestTerms(1);
         ImportConcepts facet2 = getTestTerms(1);
@@ -1777,7 +1771,7 @@ public class ConceptManagerTest {
             Node variantsNode = tx.findNode(MorphoLabel.WRITING_VARIANT, MorphoConstants.PROP_ID, "var1");
             assertNotNull(variantsNode);
             Iterable<Relationship> relationships = variantsNode.getRelationships(Direction.INCOMING,
-                    EdgeTypes.HAS_ELEMENT);
+                    ConceptEdgeTypes.HAS_ELEMENT);
             List<Relationship> relList = new ArrayList<>();
             for (Relationship rel : relationships)
                 relList.add(rel);
@@ -1838,7 +1832,7 @@ public class ConceptManagerTest {
             Node variantsNode = tx.findNode(MorphoLabel.WRITING_VARIANT, MorphoConstants.PROP_ID, "var1");
             assertNotNull(variantsNode);
             Iterable<Relationship> relationships = variantsNode.getRelationships(Direction.INCOMING,
-                    EdgeTypes.HAS_ELEMENT);
+                    ConceptEdgeTypes.HAS_ELEMENT);
             List<Relationship> relList = new ArrayList<>();
             for (Relationship rel : relationships)
                 relList.add(rel);
@@ -1872,7 +1866,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testUniqueSourceIds() throws Exception {
+    public void testUniqueSourceIds() {
         ImportConcepts testTerms = getTestTerms(2);
         // first, remove original ID and source because otherwise the original
         // ID checks will take over
@@ -1895,7 +1889,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testGetFacetRootsWithLimit() throws Exception {
+    public void testGetFacetRootsWithLimit() {
 
         // the exact same test as testGetAllFacetRoots() but with a limit on
         // maximum roots
@@ -1905,14 +1899,14 @@ public class ConceptManagerTest {
         // Insert two times so we have two facets
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         try (Transaction tx = graphDb.beginTx()) {
-            Map<String, List<Node>> facetRoots = tm
+            Map<String, List<Node>> facetRoots = FacetRootsRetrieval
                     .getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), null, 2);
             assertThat(facetRoots).hasSize(0);
         }
     }
 
     @Test
-    public void testGetSpecificFacetRoots() throws Exception {
+    public void testGetSpecificFacetRoots() {
         ConceptManager tm = new ConceptManager(graphDBMS);
         ImportConcepts testTerms = getTestTerms(3);
         // Insert three times so we have three facets
@@ -1929,7 +1923,7 @@ public class ConceptManagerTest {
         // for the third facet, we want all roots returned
 
         try (Transaction tx = graphDb.beginTx()) {
-            Map<String, List<Node>> facetRoots = tm.getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0,
+            Map<String, List<Node>> facetRoots = FacetRootsRetrieval.getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0,
                     NodeIDPrefixConstants.FACET + 1, NodeIDPrefixConstants.FACET + 2), requestedRoots, 0);
 
             // Roots of two facets
@@ -1962,7 +1956,7 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testGetAllFacetRoots() throws Exception {
+    public void testGetAllFacetRoots() {
         ConceptManager tm = new ConceptManager(graphDBMS);
         ImportConcepts testTerms = getTestTerms(3);
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
@@ -1970,7 +1964,7 @@ public class ConceptManagerTest {
         testTerms.getFacet().setName("secondfacet");
         tm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
         try (Transaction tx = graphDb.beginTx()) {
-            Map<String, List<Node>> facetRoots = tm
+            Map<String, List<Node>> facetRoots = FacetRootsRetrieval
                     .getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), null, 0);
 
             // Roots of two facets

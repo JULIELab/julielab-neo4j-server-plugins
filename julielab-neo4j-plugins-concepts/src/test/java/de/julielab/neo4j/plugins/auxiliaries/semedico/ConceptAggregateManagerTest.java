@@ -5,10 +5,8 @@ import com.google.common.collect.Sets;
 import de.julielab.neo4j.plugins.FacetManagerTest;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
-import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager;
+import de.julielab.neo4j.plugins.concepts.*;
 import de.julielab.neo4j.plugins.concepts.ConceptAggregateManager.CopyAggregatePropertiesStatistics;
-import de.julielab.neo4j.plugins.concepts.ConceptManager;
-import de.julielab.neo4j.plugins.concepts.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
@@ -86,10 +84,10 @@ public class ConceptAggregateManagerTest {
             element4.setProperty("synonyms", new String[]{"apfelsine"});
 
             // Connect the element nodes to the aggregate.
-            aggregate.createRelationshipTo(element1, ConceptManager.EdgeTypes.HAS_ELEMENT);
-            aggregate.createRelationshipTo(element2, ConceptManager.EdgeTypes.HAS_ELEMENT);
-            aggregate.createRelationshipTo(element3, ConceptManager.EdgeTypes.HAS_ELEMENT);
-            aggregate.createRelationshipTo(element4, ConceptManager.EdgeTypes.HAS_ELEMENT);
+            aggregate.createRelationshipTo(element1, ConceptEdgeTypes.HAS_ELEMENT);
+            aggregate.createRelationshipTo(element2, ConceptEdgeTypes.HAS_ELEMENT);
+            aggregate.createRelationshipTo(element3, ConceptEdgeTypes.HAS_ELEMENT);
+            aggregate.createRelationshipTo(element4, ConceptEdgeTypes.HAS_ELEMENT);
 
             // Copy the element properties to the aggregate.
             CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
@@ -148,25 +146,25 @@ public class ConceptAggregateManagerTest {
         ImportConcept t12 = cs.apply("t12", "t12");
         t12.parentCoordinates = List.of(coords.apply("t11"));
         ImportConcept t13 = cs.apply("t13", "t13");
-        t13.parentCoordinates = asList(coords.apply("t12"));
+        t13.parentCoordinates = Collections.singletonList(coords.apply("t12"));
         ArrayList<ImportConcept> concepts1 = Lists.newArrayList(t11, t12, t13);
         ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
         ImportConcept t21 = cs.apply("t21", "t21");
         ImportConcept t22 = cs.apply("t22", "t22");
-        t22.parentCoordinates = asList(coords.apply("t21"));
+        t22.parentCoordinates = Collections.singletonList(coords.apply("t21"));
         ImportConcept t23 = cs.apply("t23", "t3");
-        t23.parentCoordinates = asList(coords.apply("t22"));
+        t23.parentCoordinates = Collections.singletonList(coords.apply("t22"));
         ArrayList<ImportConcept> concepts2 = Lists.newArrayList(t21, t22, t23);
         ImportFacet importFacet2 = FacetManagerTest.getImportFacet();
 
-        List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t12", "t21", "EQUAL"));
+        List<ImportMapping> mapping = List.of(new ImportMapping("t12", "t21", "EQUAL"));
 
-        ConceptManager tm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS);
 
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)));
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)));
-        tm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)));
+        cm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
         Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -180,10 +178,11 @@ public class ConceptAggregateManagerTest {
 
                 // Check that all element terms are there
                 Set<String> elementIds = new HashSet<>();
-                Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
+                Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
                     String[] srcIds = NodeUtilities.getSourceIds(element);
+                    assertNotNull(srcIds);
                     elementIds.add(srcIds[0]);
                 }
                 assertTrue(elementIds.contains(t12.coordinates.sourceId));
@@ -198,7 +197,7 @@ public class ConceptAggregateManagerTest {
         // elements via the respective FacetManager
         // method
         try (Transaction tx = graphDb.beginTx()) {
-            Map<String, Object> map = (Map<String, Object>) tm.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + 0), aggregatedTermsLabel).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
+            Map<String, Object> map = (Map<String, Object>) ConceptRetrieval.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + 0), aggregatedTermsLabel).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
             Map<String, List<String>> reltypes = (Map<String, List<String>>) map.get(ConceptManager.RET_KEY_RELTYPES);
             List<String> list1 = reltypes.get(NodeIDPrefixConstants.TERM + 1);
             assertEquals("HAS_ELEMENT", list1.get(0));
@@ -207,7 +206,7 @@ public class ConceptAggregateManagerTest {
             Set<Node> children = (Set<Node>) map.get(ConceptManager.RET_KEY_CHILDREN);
             Set<String> childrenIds = new HashSet<>();
             for (Node term : children)
-                childrenIds.add(NodeUtilities.getSourceIds(term)[0]);
+                childrenIds.add(Objects.requireNonNull(NodeUtilities.getSourceIds(term))[0]);
             assertTrue(childrenIds.contains(t12.coordinates.sourceId));
             assertTrue(childrenIds.contains(t21.coordinates.sourceId));
         }
@@ -266,10 +265,12 @@ public class ConceptAggregateManagerTest {
 
                 // Check that all element terms are there
                 Set<String> elementIds = new HashSet<>();
-                Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
+                Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
                     String[] srcIds = NodeUtilities.getSourceIds(element);
+                    assertNotNull(srcIds);
+                    assertNotNull(srcIds[0]);
                     elementIds.add(srcIds[0]);
                 }
                 assertTrue(aggregate.hasLabel(aggLabel));
@@ -290,15 +291,15 @@ public class ConceptAggregateManagerTest {
         // Term 6 is not mapped at all and thus forms "its own aggregate".
         ImportConcept t1 = cs.apply("t1", "t1");
         ImportConcept t2 = cs.apply("t2", "t2");
-        t2.parentCoordinates = asList(coords.apply("t1"));
+        t2.parentCoordinates = Collections.singletonList(coords.apply("t1"));
         ImportConcept t3 = cs.apply("t3", "t3");
-        t3.parentCoordinates = asList(coords.apply("t2"));
+        t3.parentCoordinates = Collections.singletonList(coords.apply("t2"));
         ImportConcept t4 = cs.apply("t4", "t4");
-        t4.parentCoordinates = asList(coords.apply("t3"));
+        t4.parentCoordinates = Collections.singletonList(coords.apply("t3"));
         ImportConcept t5 = cs.apply("t5", "t5");
-        t5.parentCoordinates = asList(coords.apply("t4"));
+        t5.parentCoordinates = Collections.singletonList(coords.apply("t4"));
         ImportConcept t6 = cs.apply("t6", "t6");
-        t6.parentCoordinates = asList(coords.apply("t5"));
+        t6.parentCoordinates = Collections.singletonList(coords.apply("t5"));
         ArrayList<ImportConcept> concepts = Lists.newArrayList(t1, t2, t3, t4, t5, t6);
         ImportFacet importFacet1 = FacetManagerTest.getImportFacet();
 
@@ -329,10 +330,12 @@ public class ConceptAggregateManagerTest {
 
                 // Check that all element terms are there
                 Set<String> elementIds = new HashSet<>();
-                Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
+                Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
                     String[] srcIds = NodeUtilities.getSourceIds(element);
+                    assertNotNull(srcIds);
+                    assertNotNull(srcIds[0]);
                     elementIds.add(srcIds[0]);
                 }
                 if (elementIds.size() == 3) {
@@ -348,7 +351,7 @@ public class ConceptAggregateManagerTest {
             assertEquals(2, aggCount);
 
             ResourceIterable<Node> aggregatedTerms = () -> tx.findNodes(aggLabel);
-            // Count of all terms that represent the result of the aggegation,
+            // Count of all terms that represent the result of the aggregation,
             // i.e. aggregate terms as well as original
             // terms that are no element of an aggregate term and as such "are
             // their own aggregate".
@@ -358,10 +361,12 @@ public class ConceptAggregateManagerTest {
 
                 // Check that all element terms are there
                 Iterable<Relationship> elementRels = aggregatedTerm
-                        .getRelationships(ConceptManager.EdgeTypes.HAS_ELEMENT);
+                        .getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 Iterator<Relationship> elementIt = elementRels.iterator();
                 if (!elementIt.hasNext()) {
                     String[] srcIds = NodeUtilities.getSourceIds(aggregatedTerm);
+                    assertNotNull(srcIds);
+                    assertNotNull(srcIds[0]);
                     assertEquals(t6.coordinates.sourceId, srcIds[0]);
                 }
             }

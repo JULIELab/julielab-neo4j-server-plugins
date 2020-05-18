@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 
 public class JacksonTest {
-    public static void main(String args[]) throws JsonProcessingException {
+    public static void main(String[] args) throws JsonProcessingException {
         ImportConcepts testTerms = new ImportConcepts(null);
 //        testTerms = getTestTerms(1);
 //        testTerms.getConcepts().get(0).coordinates.originalId = "orgId";

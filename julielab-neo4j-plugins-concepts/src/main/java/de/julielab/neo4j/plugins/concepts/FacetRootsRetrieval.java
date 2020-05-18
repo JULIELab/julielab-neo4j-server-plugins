@@ -14,8 +14,8 @@ import java.util.*;
 
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 
-public class FacetRootsReturning {
-    private final static Logger log = LoggerFactory.getLogger(FacetRootsReturning.class);
+public class FacetRootsRetrieval {
+    private final static Logger log = LoggerFactory.getLogger(FacetRootsRetrieval.class);
     /**
      * Returns the facet roots of the requested facets, optionally filtered by the given IDs per facet.
      *
@@ -47,7 +47,7 @@ public class FacetRootsReturning {
             if (requestedFacetId.contains(facetId)) {
                 List<Node> roots = new ArrayList<>();
                 Iterable<Relationship> relationships = facetNode.getRelationships(Direction.OUTGOING,
-                        EdgeTypes.HAS_ROOT_CONCEPT);
+                        ConceptEdgeTypes.HAS_ROOT_CONCEPT);
                 for (Relationship rel : relationships) {
                     Node rootConcept = rel.getEndNode();
                     boolean include = true;

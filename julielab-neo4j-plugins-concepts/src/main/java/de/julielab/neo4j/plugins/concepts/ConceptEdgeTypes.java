@@ -2,7 +2,7 @@ package de.julielab.neo4j.plugins.concepts;
 
 import org.neo4j.graphdb.RelationshipType;
 
-public enum EdgeTypes implements RelationshipType {
+public enum ConceptEdgeTypes implements RelationshipType {
     /**
      * Relationship type for connecting aggregate classes with their element
      * concepts.

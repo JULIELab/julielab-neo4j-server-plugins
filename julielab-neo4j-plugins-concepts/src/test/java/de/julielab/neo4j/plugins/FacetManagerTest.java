@@ -46,9 +46,8 @@ public class FacetManagerTest {
 
         ImportFacetGroup facetGroup = new ImportFacetGroup("facetGroup1", 1,
                 Lists.newArrayList("showForSearch"));
-        ImportFacet testFacet = new ImportFacet(facetGroup, "testfacet" + n, "testfacet" + n, "testfacet" + n,
-                SRC_TYPE_HIERARCHICAL, Arrays.asList("hidden"), false);
-        return testFacet;
+        return new ImportFacet(facetGroup, "testfacet" + n, "testfacet" + n, "testfacet" + n,
+                SRC_TYPE_HIERARCHICAL, Collections.singletonList("hidden"), false);
     }
 
     @AfterClass
@@ -193,8 +192,7 @@ public class FacetManagerTest {
     }
 
     @Test
-    public void testInsertFacets() throws Exception,
-            IllegalArgumentException, IllegalAccessException {
+    public void testInsertFacets() throws Exception {
         List<ImportFacet> jsonFacets = new ArrayList<>();
         ImportFacet facetMap = getTestFacetMap(1);
         jsonFacets.add(facetMap);
@@ -285,7 +283,7 @@ public class FacetManagerTest {
     }
 
     @Test
-    public void testGetFacetSize() throws Exception {
+    public void testGetFacetSize() {
         new Indexes(graphDBMS).createIndexes((String) null);
         int amount = 10;
         String facet = "fid0";

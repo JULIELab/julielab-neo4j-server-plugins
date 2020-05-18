@@ -48,15 +48,15 @@ public class ConceptTermInsertion {
         Label variantsAggregationLabel;
         Label variantNodeLabel;
 
-        EdgeTypes variantRelationshipType;
+        ConceptEdgeTypes variantRelationshipType;
         if (type.equals("writingVariants")) {
             variantsAggregationLabel = MorphoLabel.WRITING_VARIANTS;
             variantNodeLabel = MorphoLabel.WRITING_VARIANT;
-            variantRelationshipType = EdgeTypes.HAS_VARIANTS;
+            variantRelationshipType = ConceptEdgeTypes.HAS_VARIANTS;
         } else if (type.equals("acronyms")) {
             variantsAggregationLabel = MorphoLabel.ACRONYMS;
             variantNodeLabel = MorphoLabel.ACRONYM;
-            variantRelationshipType = EdgeTypes.HAS_ACRONYMS;
+            variantRelationshipType = ConceptEdgeTypes.HAS_ACRONYMS;
         } else
             throw new IllegalArgumentException("Unknown lexico-morphological type \"" + type + "\".");
         try (StringReader stringReader = new StringReader(conceptVariants)) {
@@ -140,7 +140,7 @@ public class ConceptTermInsertion {
                         // ambiguity!)
                         Relationship specificElementRel = null;
                         for (Relationship elementRel : variantNode.getRelationships(Direction.INCOMING,
-                                EdgeTypes.HAS_ELEMENT)) {
+                                ConceptEdgeTypes.HAS_ELEMENT)) {
                             if (elementRel.getStartNode().equals(variantsNode)
                                     && elementRel.getEndNode().equals(variantNode)) {
                                 specificElementRel = elementRel;
@@ -149,7 +149,7 @@ public class ConceptTermInsertion {
                         }
                         if (null == specificElementRel) {
                             specificElementRel = variantsNode.createRelationshipTo(variantNode,
-                                    EdgeTypes.HAS_ELEMENT);
+                                    ConceptEdgeTypes.HAS_ELEMENT);
                             specificElementRel.setProperty(MorphoRelationConstants.PROP_DOCS, new String[0]);
                             specificElementRel.setProperty(MorphoRelationConstants.PROP_COUNTS, new int[0]);
                         }

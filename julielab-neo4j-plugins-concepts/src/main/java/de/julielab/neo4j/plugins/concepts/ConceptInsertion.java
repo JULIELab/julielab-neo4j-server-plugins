@@ -27,7 +27,6 @@ import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConcept;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_SOURCE;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 import static java.util.stream.Collectors.joining;
 
 public class ConceptInsertion {
@@ -42,7 +41,7 @@ public class ConceptInsertion {
             facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
         RelationshipType relBroaderThanInFacet = null;
         if (null != facet)
-            relBroaderThanInFacet = RelationshipType.withName(EdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
+            relBroaderThanInFacet = RelationshipType.withName(ConceptEdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
         AddToNonFacetGroupCommand noFacetCmd = importOptions.noFacetCmd;
         Node noFacet = null;
         int quarter = jsonConcepts.size() / 4;
@@ -80,7 +79,7 @@ public class ConceptInsertion {
                         if (importOptions.cutParents.contains(parentSrcId)) {
                             log.debug("Concept node " + coordinates
                                     + " has a parent that is marked to be cut away. Concept will be a facet root.");
-                            createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+                            createRelationshipIfNotExists(facet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
                             continue;
                         }
 
@@ -107,7 +106,7 @@ public class ConceptInsertion {
                             log.trace("Parent with " + parentCoordinates + " was found by source ID for concept "
                                     + coordinates + ".");
                             long creationTime = System.currentTimeMillis();
-                            createRelationshipIfNotExists(parent, concept, EdgeTypes.IS_BROADER_THAN, insertionReport);
+                            createRelationshipIfNotExists(parent, concept, ConceptEdgeTypes.IS_BROADER_THAN, insertionReport);
                             // Since a concept may appear in multiple facets, we
                             // connect concepts with a general taxonomic
                             // relation as well as a special relation only
@@ -155,10 +154,10 @@ public class ConceptInsertion {
                                 // nodesByCoordinates.put(parentCoordinates,
                                 // hollowParent);
                                 // insertionReport.numConcepts++;
-                                createRelationshipIfNotExists(parent, concept, EdgeTypes.IS_BROADER_THAN,
+                                createRelationshipIfNotExists(parent, concept, ConceptEdgeTypes.IS_BROADER_THAN,
                                         insertionReport);
                                 createRelationshipIfNotExists(parent, concept, relBroaderThanInFacet, insertionReport);
-                                createRelationshipIfNotExists(facet, parent, EdgeTypes.HAS_ROOT_CONCEPT,
+                                createRelationshipIfNotExists(facet, parent, ConceptEdgeTypes.HAS_ROOT_CONCEPT,
                                         insertionReport);
                             } else {
                                 assert facet != null;
@@ -168,7 +167,7 @@ public class ConceptInsertion {
                                 // Connect the concept as a root, it's the best we
                                 // can
                                 // do.
-                                createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT,
+                                createRelationshipIfNotExists(facet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT,
                                         insertionReport);
                             }
                         }
@@ -192,7 +191,7 @@ public class ConceptInsertion {
                             noFacet = FacetManager.getNoFacet(tx, (String) facet.getProperty(PROP_ID));
                         }
 
-                        createRelationshipIfNotExists(noFacet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+                        createRelationshipIfNotExists(noFacet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
                     } else if (null != facet) {
                         // This concept does not have a concept parent. It is a facet
                         // root,
@@ -200,7 +199,7 @@ public class ConceptInsertion {
                         log.trace("Installing concept with source ID " + srcId + " (ID: " + concept.getProperty(PROP_ID)
                                 + ") as root for facet " + facet.getProperty(NodeConstants.PROP_NAME) + "(ID: "
                                 + facet.getProperty(PROP_ID) + ")");
-                        createRelationshipIfNotExists(facet, concept, EdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+                        createRelationshipIfNotExists(facet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
                     }
                     // else: nothing, because the concept already existed, we are
                     // merely merging here.
@@ -220,7 +219,7 @@ public class ConceptInsertion {
                             log.debug("Creating hollow relationship target with orig Id/orig source " + targetCoordinates);
                             target = registerNewHollowConceptNode(tx, targetCoordinates);
                         }
-                        EdgeTypes type = EdgeTypes.valueOf(rsTypeStr);
+                        ConceptEdgeTypes type = ConceptEdgeTypes.valueOf(rsTypeStr);
                         Object[] properties = null;
                         if (jsonRelationship.properties != null) {
                             Set<String> propNames = jsonRelationship.properties.keySet();
@@ -344,7 +343,7 @@ public class ConceptInsertion {
             log.trace("Got HOLLOW concept node with coordinates " + coordinates + " and will create full concept.");
             concept.removeLabel(ConceptLabel.HOLLOW);
             concept.addLabel(ConceptLabel.CONCEPT);
-            Iterable<Relationship> relationships = concept.getRelationships(EdgeTypes.HAS_ROOT_CONCEPT);
+            Iterable<Relationship> relationships = concept.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT);
             for (Relationship rel : relationships) {
                 Node startNode = rel.getStartNode();
                 if (startNode.hasLabel(FacetManager.FacetLabel.FACET))
@@ -748,7 +747,7 @@ public class ConceptInsertion {
             }
             insertionReport.addExistingConcept(n1);
             insertionReport.addExistingConcept(n2);
-            createRelationShipIfNotExists(n1, n2, EdgeTypes.IS_MAPPED_TO, insertionReport, Direction.BOTH,
+            createRelationShipIfNotExists(n1, n2, ConceptEdgeTypes.IS_MAPPED_TO, insertionReport, Direction.BOTH,
                     ConceptRelationConstants.PROP_MAPPING_TYPE, new String[]{mappingType});
         }
         tx.commit();

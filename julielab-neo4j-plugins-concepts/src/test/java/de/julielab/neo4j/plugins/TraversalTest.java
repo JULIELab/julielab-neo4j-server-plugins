@@ -21,7 +21,6 @@ import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
 
-import java.io.IOException;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_ACRONYMS;
@@ -41,7 +40,7 @@ public class TraversalTest {
 	}
 
 	@Before
-	public void cleanForTest() throws IOException {
+	public void cleanForTest() {
 		TestUtilities.deleteEverythingInDB(graphDb);
 		new Indexes(graphDBMS).createIndexes(DEFAULT_DATABASE_NAME);
 	}
