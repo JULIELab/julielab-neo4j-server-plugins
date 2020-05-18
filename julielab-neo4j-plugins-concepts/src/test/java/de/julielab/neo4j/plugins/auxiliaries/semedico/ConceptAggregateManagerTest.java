@@ -20,10 +20,12 @@ import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 
+import java.io.ByteArrayInputStream;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
@@ -164,7 +166,7 @@ public class ConceptAggregateManagerTest {
 
         cm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)));
         cm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)));
-        cm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
+        cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -250,9 +252,9 @@ public class ConceptAggregateManagerTest {
         List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
                 new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(terms1, importFacet1)));
-        tm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(terms1, importFacet1)));
+        cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         Label aggLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -307,9 +309,9 @@ public class ConceptAggregateManagerTest {
         List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
                 new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts, importFacet1)));
-        tm.insertMappings(ConceptsJsonSerializer.toJson(mapping));
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts, importFacet1)));
+        cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         // The label by which we will identify all nodes representing an
         // aggregated unit, i.e. an actual aggregate node
         // or a term without any mappings that is its own aggregate.

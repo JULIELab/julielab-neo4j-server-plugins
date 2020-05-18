@@ -63,7 +63,7 @@ public class Export {
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     @javax.ws.rs.Path("/" + CONCEPT_ID_MAPPING)
-    public Object exportIdMapping(@QueryParam(PARAM_SOURCE_ID_PROPERTY) String sourceIdProperty, @QueryParam(PARAM_TARGET_ID_PROPERTY) String targetIdProperty, @QueryParam(PARAM_LABELS) String labelStrings) throws Exception {
+    public Object exportIdMapping(@QueryParam(PARAM_SOURCE_ID_PROPERTY) String sourceIdProperty, @QueryParam(PARAM_TARGET_ID_PROPERTY) String targetIdProperty, @QueryParam(PARAM_LABELS) String labelStrings) {
         try {
             final ObjectMapper om = new ObjectMapper();
             log.info("Exporting ID mapping data.");

@@ -15,7 +15,6 @@ import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcept;
 import de.julielab.neo4j.plugins.datarepresentation.ImportOptions;
 import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
@@ -25,6 +24,7 @@ import org.neo4j.graphdb.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.Path;
 import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
@@ -35,6 +35,8 @@ import java.util.*;
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
 import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
 import static de.julielab.neo4j.plugins.concepts.ConceptInsertion.registerNewHollowConceptNode;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.AGGREGATE;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.*;
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConcept;
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConceptBySourceId;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_SOURCE;
@@ -107,25 +109,25 @@ public class ConceptAggregateManager {
             Node aggregate = lookupConcept(tx, aggCoordinates);
             if (null != aggregate) {
                 String isHollowMessage = "";
-                if (aggregate.hasLabel(ConceptLabel.HOLLOW))
+                if (aggregate.hasLabel(HOLLOW))
                     isHollowMessage = ", however it is hollow and its properties will be set now.";
                 log.trace("    aggregate does already exist {}", isHollowMessage);
-                if (!aggregate.hasLabel(ConceptLabel.HOLLOW))
+                if (!aggregate.hasLabel(HOLLOW))
                     return;
                 // remove the HOLLOW label, we have to aggregate information now and
                 // will set it to the node in the following
-                aggregate.removeLabel(ConceptLabel.HOLLOW);
-                aggregate.addLabel(ConceptLabel.AGGREGATE);
+                aggregate.removeLabel(HOLLOW);
+                aggregate.addLabel(AGGREGATE);
             }
             if (aggregate == null) {
                 log.trace("    aggregate is being created");
-                aggregate = tx.createNode(ConceptLabel.AGGREGATE);
+                aggregate = tx.createNode(AGGREGATE);
             }
             boolean includeAggreationInHierarchy = jsonConcept.aggregateIncludeInHierarchy;
             // If the aggregate is to be included into the hierarchy, it also should
             // be a CONCEPT for path creation
             if (includeAggreationInHierarchy)
-                aggregate.addLabel(ConceptLabel.CONCEPT);
+                aggregate.addLabel(CONCEPT);
             List<ConceptCoordinates> elementCoords = jsonConcept.elementCoordinates;
             log.trace("    looking up aggregate elements");
             for (ConceptCoordinates elementCoordinates : elementCoords) {
@@ -184,7 +186,7 @@ public class ConceptAggregateManager {
                 aggregate.setProperty(PROP_ORG_SRC, aggOrgSource);
             List<String> copyProperties = jsonConcept.copyProperties;
             if (null != copyProperties && !copyProperties.isEmpty())
-                aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties.toArray(new String[0]));
+                aggregate.setProperty(PROP_COPY_PROPERTIES, copyProperties.toArray(new String[0]));
 
             List<String> generalLabels = jsonConcept.generalLabels;
             for (int i = 0; null != generalLabels && i < generalLabels.size(); i++) {
@@ -216,7 +218,7 @@ public class ConceptAggregateManager {
     @SuppressWarnings("unchecked")
     @PUT
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(BUILD_AGGREGATES_BY_MAPPINGS)
+    @Path(BUILD_AGGREGATES_BY_MAPPINGS)
     public void buildAggregatesByMappings(String jsonParameterObject)
             throws IOException {
         ObjectMapper om = new ObjectMapper();
@@ -246,7 +248,7 @@ public class ConceptAggregateManager {
      */
     @DELETE
     @Consumes(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path(DELETE_AGGREGATES)
+    @Path(DELETE_AGGREGATES)
     public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
         Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
@@ -259,14 +261,14 @@ public class ConceptAggregateManager {
 
     @PUT
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(COPY_AGGREGATE_PROPERTIES)
+    @Path(COPY_AGGREGATE_PROPERTIES)
     public Object copyAggregateProperties() {
         try {
             int numAggregates = 0;
             CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
-                try (ResourceIterator<Node> aggregateIt = tx.findNodes(ConceptLabel.AGGREGATE)) {
+                try (ResourceIterator<Node> aggregateIt = tx.findNodes(AGGREGATE)) {
                     while (aggregateIt.hasNext()) {
                         Node aggregate = aggregateIt.next();
                         numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, new HashSet<>());
@@ -292,7 +294,7 @@ public class ConceptAggregateManager {
         Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
         for (Relationship elementRel : elementRels) {
             Node endNode = elementRel.getEndNode();
-            if (endNode.hasLabel(ConceptLabel.AGGREGATE) && !alreadySeen.contains(endNode))
+            if (endNode.hasLabel(AGGREGATE) && !alreadySeen.contains(endNode))
                 elementAggregates.add(endNode);
         }
         for (Node elementAggregate : elementAggregates) {
@@ -319,7 +321,7 @@ public class ConceptAggregateManager {
         TermNameAndSynonymComparator nameAndSynonymComparator = new TermNameAndSynonymComparator();
         // At first, delete all equal-name aggregates since they will be
         // built again afterwards.
-        ResourceIterable<Node> aggregates = () -> tx.findNodes(ConceptLabel.AGGREGATE_EQUAL_NAMES);
+        ResourceIterable<Node> aggregates = () -> tx.findNodes(AGGREGATE_EQUAL_NAMES);
         for (Node aggregate : aggregates) {
             for (Relationship rel : aggregate.getRelationships())
                 rel.delete();
@@ -327,15 +329,15 @@ public class ConceptAggregateManager {
         }
 
         // Get all terms and sort them by name and synonyms
-        ResourceIterable<Node> termIterable = () -> tx.findNodes(ConceptLabel.CONCEPT);
+        ResourceIterable<Node> termIterable = () -> tx.findNodes(CONCEPT);
         List<Node> terms = new ArrayList<>();
         for (Node term : termIterable) {
             terms.add(term);
         }
         terms.sort(nameAndSynonymComparator);
 
-        String[] copyProperties = new String[]{ConceptConstants.PROP_PREF_NAME, ConceptConstants.PROP_SYNONYMS,
-                ConceptConstants.PROP_DESCRIPTIONS};
+        String[] copyProperties = new String[]{PROP_PREF_NAME, PROP_SYNONYMS,
+                PROP_DESCRIPTIONS};
         List<Node> equalNameTerms = new ArrayList<>();
         for (Node term : terms) {
             boolean equalTerm = 0 == equalNameTerms.size()
@@ -344,8 +346,8 @@ public class ConceptAggregateManager {
                 equalNameTerms.add(term);
             } else if (equalNameTerms.size() > 1) {
                 createAggregate(tx, copyProperties, new HashSet<>(equalNameTerms),
-                        new String[]{ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()},
-                        ConceptLabel.AGGREGATE_EQUAL_NAMES);
+                        new String[]{AGGREGATE_EQUAL_NAMES.toString()},
+                        AGGREGATE_EQUAL_NAMES);
                 for (Node equalNameTerm : equalNameTerms)
                     NodeUtilities.mergeArrayProperty(equalNameTerm, termPropertyKey, propertyValues);
                 equalNameTerms.clear();
@@ -357,8 +359,8 @@ public class ConceptAggregateManager {
         }
         if (equalNameTerms.size() > 1)
             createAggregate(tx, copyProperties, new HashSet<>(equalNameTerms),
-                    new String[]{ConceptLabel.AGGREGATE_EQUAL_NAMES.toString()},
-                    ConceptLabel.AGGREGATE_EQUAL_NAMES);
+                    new String[]{AGGREGATE_EQUAL_NAMES.toString()},
+                    AGGREGATE_EQUAL_NAMES);
         for (Node term : equalNameTerms)
             NodeUtilities.mergeArrayProperty(term, termPropertyKey, propertyValues);
 
@@ -367,7 +369,7 @@ public class ConceptAggregateManager {
     public static void deleteAggregates(Transaction tx, Label aggregateLabel) {
         ResourceIterable<Node> aggregates = () -> tx.findNodes(aggregateLabel);
         for (Node aggregate : aggregates) {
-            if (!aggregate.hasLabel(ConceptLabel.AGGREGATE)) {
+            if (!aggregate.hasLabel(AGGREGATE)) {
                 // For terms that are not really aggregates, we just remove
                 // the label - we want to keep the term
                 // itself.
@@ -401,15 +403,15 @@ public class ConceptAggregateManager {
                                                   Label allowedTermLabel, Label aggregatedTermsLabel) {
         log.info("Building aggregates for mappings " + allowedMappingTypes + " and terms with label "
                 + allowedTermLabel);
-        String[] copyProperties = new String[]{ConceptConstants.PROP_PREF_NAME, ConceptConstants.PROP_SYNONYMS,
-                ConceptConstants.PROP_WRITING_VARIANTS, ConceptConstants.PROP_DESCRIPTIONS, ConceptConstants.PROP_FACETS};
+        String[] copyProperties = new String[]{PROP_PREF_NAME, PROP_SYNONYMS,
+                PROP_WRITING_VARIANTS, PROP_DESCRIPTIONS, PROP_FACETS};
         // At first, delete all mapping aggregates since they will be built
         // again afterwards.
         deleteAggregates(tx, aggregatedTermsLabel);
 
         // Iterate through terms, look for mappings and generate mapping
         // aggregates
-        Label label = null == allowedTermLabel ? ConceptLabel.CONCEPT : allowedTermLabel;
+        Label label = null == allowedTermLabel ? CONCEPT : allowedTermLabel;
         ResourceIterable<Node> termIterable = () -> tx.findNodes(label);
         for (Node term : termIterable) {
             // Determine recursively other nodes with which a new aggregate
@@ -420,7 +422,7 @@ public class ConceptAggregateManager {
             // We use this for duplicate avoidance.
             Set<Node> aggregateNodes = getMatchingAggregates(term, allowedMappingTypes, aggregatedTermsLabel);
             if (aggregateNodes.size() > 1)
-                throw new IllegalStateException("Term with ID " + term.getProperty(ConceptConstants.PROP_ID)
+                throw new IllegalStateException("Term with ID " + term.getProperty(PROP_ID)
                         + " is part of multiple aggregates of the same type, thus duplicates. The aggregate nodes are: "
                         + aggregateNodes);
             if (aggregateNodes.size() == 1)
@@ -467,7 +469,7 @@ public class ConceptAggregateManager {
      * <tt>aggregate</tt>
      */
     public static String[] getPropertyValueOfElements(Node aggregate, String property) {
-        if (!aggregate.hasLabel(ConceptLabel.AGGREGATE))
+        if (!aggregate.hasLabel(AGGREGATE))
             throw new IllegalArgumentException(
                     "Node " + NodeUtilities.getNodePropertiesAsString(aggregate) + " is not an aggregate.");
         Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
@@ -531,8 +533,8 @@ public class ConceptAggregateManager {
         Iterable<Relationship> elementRelationships = conceptNode.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
         for (Relationship elementRelationship : elementRelationships) {
             Node aggregate = elementRelationship.getOtherNode(conceptNode);
-            if (aggregate.hasLabel(aggregateLabel) && aggregate.hasLabel(ConceptLabel.AGGREGATE) && aggregate.hasProperty(ConceptConstants.PROP_MAPPING_TYPE)) {
-                String[] mappingTypes = (String[]) aggregate.getProperty(ConceptConstants.PROP_MAPPING_TYPE);
+            if (aggregate.hasLabel(aggregateLabel) && aggregate.hasLabel(AGGREGATE) && aggregate.hasProperty(PROP_MAPPING_TYPE)) {
+                String[] mappingTypes = (String[]) aggregate.getProperty(PROP_MAPPING_TYPE);
                 List<String> mappingTypesList = Arrays.asList(mappingTypes);
                 boolean correctMappingTypes = true;
                 for (String mappingType : mappingTypesList) {
@@ -559,9 +561,9 @@ public class ConceptAggregateManager {
         if (elementTerms.isEmpty())
             return null;
         Node aggregate = tx.createNode(labels);
-        aggregate.addLabel(ConceptLabel.AGGREGATE);
-        aggregate.setProperty(ConceptConstants.PROP_COPY_PROPERTIES, copyProperties);
-        aggregate.setProperty(ConceptConstants.PROP_MAPPING_TYPE, mappingTypes);
+        aggregate.addLabel(AGGREGATE);
+        aggregate.setProperty(PROP_COPY_PROPERTIES, copyProperties);
+        aggregate.setProperty(PROP_MAPPING_TYPE, mappingTypes);
         for (Label termLabel : labels) {
             aggregate.addLabel(termLabel);
         }
@@ -667,13 +669,13 @@ public class ConceptAggregateManager {
         // already resolved by a majority
         // vote above. We now additionally merge the minority names to the
         // synonyms.
-        PropertyUtilities.mergeArrayProperty(aggregate, ConceptConstants.PROP_SYNONYMS,
+        PropertyUtilities.mergeArrayProperty(aggregate, PROP_SYNONYMS,
                 (Object[]) PropertyUtilities.getNonNullNodeProperty(aggregate,
-                        ConceptConstants.PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY));
+                        PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY));
 
         // As a last step, remove duplicate synonyms, case ignored
-        if (aggregate.hasProperty(ConceptConstants.PROP_SYNONYMS)) {
-            String[] synonyms = (String[]) aggregate.getProperty(ConceptConstants.PROP_SYNONYMS);
+        if (aggregate.hasProperty(PROP_SYNONYMS)) {
+            String[] synonyms = (String[]) aggregate.getProperty(PROP_SYNONYMS);
             Set<String> lowerCaseSynonyms = new HashSet<>();
             List<String> acceptedSynonyms = new ArrayList<>();
             for (String synonym : synonyms) {
@@ -684,7 +686,7 @@ public class ConceptAggregateManager {
                 }
             }
             Collections.sort(acceptedSynonyms);
-            aggregate.setProperty(ConceptConstants.PROP_SYNONYMS,
+            aggregate.setProperty(PROP_SYNONYMS,
                     acceptedSynonyms.toArray(new String[0]));
         }
     }

@@ -10,7 +10,10 @@ import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.*;
-import de.julielab.neo4j.plugins.datarepresentation.constants.*;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
@@ -23,6 +26,9 @@ import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
 import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
+import static de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes.HAS_ROOT_CONCEPT;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.AGGREGATE;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.*;
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.lookupConcept;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
@@ -78,7 +84,7 @@ public class ConceptInsertion {
                         if (importOptions.cutParents.contains(parentSrcId)) {
                             log.debug("Concept node " + coordinates
                                     + " has a parent that is marked to be cut away. Concept will be a facet root.");
-                            createRelationshipIfNotExists(facet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+                            createRelationshipIfNotExists(facet, concept, HAS_ROOT_CONCEPT, insertionReport);
                             continue;
                         }
 
@@ -138,7 +144,7 @@ public class ConceptInsertion {
                             if (!importOptions.doNotCreateHollowParents) {
                                 log.debug(
                                         "Creating hollow parents is switched on. The parent will be created with the label \""
-                                                + ConceptLabel.HOLLOW + "\" and be connected to the facet root.");
+                                                + HOLLOW + "\" and be connected to the facet root.");
                                 // We create the parent as a "hollow" concept and
                                 // connect it to the facet root. The latter
                                 // is the only thing we can do because we can't
@@ -149,14 +155,14 @@ public class ConceptInsertion {
                                 // registerNewHollowConceptNode(graphDb,
                                 // parentCoordinates, idIndex,
                                 // ConceptLabel.CONCEPT);
-                                parent.addLabel(ConceptLabel.CONCEPT);
+                                parent.addLabel(CONCEPT);
                                 // nodesByCoordinates.put(parentCoordinates,
                                 // hollowParent);
                                 // insertionReport.numConcepts++;
                                 createRelationshipIfNotExists(parent, concept, ConceptEdgeTypes.IS_BROADER_THAN,
                                         insertionReport);
                                 createRelationshipIfNotExists(parent, concept, relBroaderThanInFacet, insertionReport);
-                                createRelationshipIfNotExists(facet, parent, ConceptEdgeTypes.HAS_ROOT_CONCEPT,
+                                createRelationshipIfNotExists(facet, parent, HAS_ROOT_CONCEPT,
                                         insertionReport);
                             } else {
                                 assert facet != null;
@@ -166,15 +172,15 @@ public class ConceptInsertion {
                                 // Connect the concept as a root, it's the best we
                                 // can
                                 // do.
-                                createRelationshipIfNotExists(facet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT,
+                                createRelationshipIfNotExists(facet, concept, HAS_ROOT_CONCEPT,
                                         insertionReport);
                             }
                         }
-                        if (parent.hasLabel(ConceptLabel.AGGREGATE) && !parent.hasLabel(ConceptLabel.CONCEPT))
+                        if (parent.hasLabel(AGGREGATE) && !parent.hasLabel(CONCEPT))
                             throw new IllegalArgumentException("Concept with source ID " + srcId
                                     + " specifies source ID " + parentSrcId
                                     + " as parent. This node is an aggregate but not a CONCEPT itself and thus is not included in the hierarchy and cannot be the conceptual parent of other concepts. To achieve this, import the aggregate with the property "
-                                    + ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY
+                                    + AGGREGATE_INCLUDE_IN_HIERARCHY
                                     + " set to true or build the aggregates in a way that assignes the CONCEPT label to them. The parent is "
                                     + NodeUtilities.getNodePropertiesAsString(parent)
                                     + " and has the following labels: "
@@ -190,7 +196,7 @@ public class ConceptInsertion {
                             noFacet = FacetManager.getNoFacet(tx, (String) facet.getProperty(PROP_ID));
                         }
 
-                        createRelationshipIfNotExists(noFacet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+                        createRelationshipIfNotExists(noFacet, concept, HAS_ROOT_CONCEPT, insertionReport);
                     } else if (null != facet) {
                         // This concept does not have a concept parent. It is a facet
                         // root,
@@ -198,7 +204,7 @@ public class ConceptInsertion {
                         log.trace("Installing concept with source ID " + srcId + " (ID: " + concept.getProperty(PROP_ID)
                                 + ") as root for facet " + facet.getProperty(NodeConstants.PROP_NAME) + "(ID: "
                                 + facet.getProperty(PROP_ID) + ")");
-                        createRelationshipIfNotExists(facet, concept, ConceptEdgeTypes.HAS_ROOT_CONCEPT, insertionReport);
+                        createRelationshipIfNotExists(facet, concept, HAS_ROOT_CONCEPT, insertionReport);
                     }
                     // else: nothing, because the concept already existed, we are
                     // merely merging here.
@@ -254,13 +260,13 @@ public class ConceptInsertion {
      * Creates a node with the {@link ConceptLabel#HOLLOW} label, sets the given
      * coordinates and adds the node to the index.
      *
-     * @param tx The current transaction.
+     * @param tx          The current transaction.
      * @param coordinates The concept coordinates to register the hollow node for.
      * @return The newly created hollow node.
      */
     static Node registerNewHollowConceptNode(Transaction tx, ConceptCoordinates coordinates,
                                              Label... additionalLabels) {
-        Node node = tx.createNode(ConceptLabel.HOLLOW);
+        Node node = tx.createNode(HOLLOW);
         for (Label label : additionalLabels) {
             node.addLabel(label);
         }
@@ -338,11 +344,11 @@ public class ConceptInsertion {
             // we are in merging mode, for nodes we don't know we just do
             // nothing
             return;
-        if (concept.hasLabel(ConceptLabel.HOLLOW)) {
+        if (concept.hasLabel(HOLLOW)) {
             log.trace("Got HOLLOW concept node with coordinates " + coordinates + " and will create full concept.");
-            concept.removeLabel(ConceptLabel.HOLLOW);
-            concept.addLabel(ConceptLabel.CONCEPT);
-            Iterable<Relationship> relationships = concept.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT);
+            concept.removeLabel(HOLLOW);
+            concept.addLabel(CONCEPT);
+            Iterable<Relationship> relationships = concept.getRelationships(HAS_ROOT_CONCEPT);
             for (Relationship rel : relationships) {
                 Node startNode = rel.getStartNode();
                 if (startNode.hasLabel(FacetManager.FacetLabel.FACET))
@@ -369,7 +375,7 @@ public class ConceptInsertion {
         PropertyUtilities.mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
         PropertyUtilities.mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
         PropertyUtilities.mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));
-        mergeArrayProperty(concept, ConceptConstants.PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
+        mergeArrayProperty(concept, PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
         addToArrayProperty(concept, PROP_FACETS, facetId);
 
         // There could be multiple sources containing a concept. For
@@ -455,11 +461,11 @@ public class ConceptInsertion {
      * the properties instead of creating a new relationship.
      * </p>
      *
-     * @param source The node to create a new relationship from (note that the relationship direction has yet to be considered).
-     * @param target The node to create the new relationship to (note that the relationship direction has yet to be considered).
-     * @param type The relationship type of new new relationship.
+     * @param source          The node to create a new relationship from (note that the relationship direction has yet to be considered).
+     * @param target          The node to create the new relationship to (note that the relationship direction has yet to be considered).
+     * @param type            The relationship type of new new relationship.
      * @param insertionReport The insertion report keeping track of the number of inserted elements.
-     * @param direction The relationship direction.
+     * @param direction       The relationship direction.
      * @param properties      A sequence of property key and property values. These properties
      *                        will be used to determine whether a relationship - with those
      *                        properties - already exists.
@@ -506,9 +512,9 @@ public class ConceptInsertion {
      * Creates a relationship of type <tt>type</tt> from <tt>source</tt> to
      * <tt>target</tt>, if this relationship does not already exist.
      *
-     * @param source The node to create a new relationship from (note that the relationship direction has yet to be considered).
-     * @param target The node to create the new relationship to (note that the relationship direction has yet to be considered).
-     * @param type The relationship type of new new relationship.
+     * @param source          The node to create a new relationship from (note that the relationship direction has yet to be considered).
+     * @param target          The node to create the new relationship to (note that the relationship direction has yet to be considered).
+     * @param type            The relationship type of new new relationship.
      * @param insertionReport The insertion report keeping track of the number of inserted elements.
      * @return The newly created relationship. Null if the relationship did already exist.
      */
@@ -613,17 +619,17 @@ public class ConceptInsertion {
      *
      * </ul>
      *
-     * @param tx The current transaction.
-     * @param concepts The concepts to be imported.
-     * @param facetId The ID of the facet the imported concepts belong to.
+     * @param tx                 The current transaction.
+     * @param concepts           The concepts to be imported.
+     * @param facetId            The ID of the facet the imported concepts belong to.
      * @param nodesByCoordinates The insertion process specific in-memory map keeping track of inserted nodes.
-     * @param importOptions The concept import options.
+     * @param importOptions      The concept import options.
      * @return The report of the insertions, counting created nodes, relationships and the passed time.
      * @throws AggregateConceptInsertionException If the insertion of an aggregate concept failed.
-     * @throws ConceptInsertionException If concept insertion failed.
+     * @throws ConceptInsertionException          If concept insertion failed.
      */
     private static InsertionReport insertConcepts(Transaction tx, List<ImportConcept> concepts, String facetId,
-                                          CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
+                                                  CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         InsertionReport insertionReport = new InsertionReport();
         // Idea: First create all nodes and just store which Node has which
@@ -750,14 +756,16 @@ public class ConceptInsertion {
         return !uniqueOnConcept && uniqueOnConcept != uniqueSourceId;
     }
 
-    static int insertMappings(Transaction tx, List<Map<String, String>> mappings) {
-        Map<String, Node> nodesBySrcId = new HashMap<>(mappings.size());
+    static int insertMappings(Transaction tx, Iterator<ImportMapping> mappings) {
+        Map<String, Node> nodesBySrcId = new HashMap<>();
         InsertionReport insertionReport = new InsertionReport();
 
-        for (Map<String, String> mapping : mappings) {
-            String id1 = mapping.get("id1");
-            String id2 = mapping.get("id2");
-            String mappingType = mapping.get("mappingType");
+        int count = 0;
+        for (ImportMapping mapping : (Iterable<ImportMapping>) () -> mappings) {
+            ++count;
+            String id1 = mapping.id1;
+            String id2 = mapping.id2;
+            String mappingType = mapping.mappingType;
 
             log.debug("Inserting mapping " + id1 + " -" + mappingType + "- " + id2);
 
@@ -811,7 +819,7 @@ public class ConceptInsertion {
                     // classes; possible they are even asserted to be equal.
                     // But this is nothing LOOM would detect.
                     log.debug("Omitting LOOM mapping between " + id1 + " and " + id2
-                            + " because both concepts appear in the same conceptinology. We assume that the conceptinology does not have two equal concepts and that LOOM is wrong here.");
+                            + " because both concepts appear in the same terminology. We assume that the conceptinology does not have two equal concepts and that LOOM is wrong here.");
                     continue;
                 }
             }
@@ -821,8 +829,7 @@ public class ConceptInsertion {
                     ConceptRelationConstants.PROP_MAPPING_TYPE, new String[]{mappingType});
         }
         tx.commit();
-        log.info(insertionReport.numRelationships + " of " + mappings.size()
-                + " new mappings successfully added.");
+        log.info("{} of {} new mappings successfully added.", insertionReport.numRelationships, count);
         return insertionReport.numRelationships;
     }
 }

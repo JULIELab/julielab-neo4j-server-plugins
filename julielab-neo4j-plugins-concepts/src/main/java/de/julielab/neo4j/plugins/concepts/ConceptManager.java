@@ -1,10 +1,10 @@
 package de.julielab.neo4j.plugins.concepts;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
+import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.CM_REST_ENDPOINT;
@@ -165,7 +166,7 @@ public class ConceptManager {
             InsertionReport insertionReport = new InsertionReport();
             log.debug("Beginning processing of concept insertion.");
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-                Map<String, Object> response = new HashMap<>();
+            Map<String, Object> response = new HashMap<>();
             try (Transaction tx = graphDb.beginTx()) {
                 insertionReport = ConceptInsertion.insertConcepts(tx, importConcepts, response, insertionReport);
                 tx.commit();
@@ -178,7 +179,6 @@ public class ConceptManager {
             return getErrorResponse(throwable);
         }
     }
-
 
 
     /**
@@ -231,21 +231,22 @@ public class ConceptManager {
      * Parameter:  An array of mappings in JSON format. Each mapping is an object with the keys for "id1", "id2" and "mappingType", respectively.
      * </p>
      *
-     * @param mappingsJson The mappings in JSON format.
+     * @param is The mappings in JSON format, wrapped in an InputStream.
      * @return The number of insertes mappings.
      * @throws IOException If the input JSON cannot be read.
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(INSERT_MAPPINGS)
-    public int insertMappings(String mappingsJson) throws IOException {
-        final ObjectMapper om = new ObjectMapper();
-        final List<Map<String, String>> mappings = om.readValue(mappingsJson, new TypeReference<List<Map<String, String>>>() {
-        });
-        log.info("Starting to insert " + mappings.size() + " mappings.");
+    public int insertMappings(InputStream is) throws IOException {
+        // ObjectMapper.readValues(JsonParser, ...) will NOT work for an array, as
+        // that assumes a non-wrapped sequence of values. See source of MappingIterator.
+        // (comment taken from https://gist.github.com/KlausBrunner/9915362)
+        Iterator<ImportMapping> importMappingIterator = new ObjectMapper().readerFor(ImportMapping.class).readValues(is);
+        log.info("Starting to insert mappings.");
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            return ConceptInsertion.insertMappings(tx, mappings);
+            return ConceptInsertion.insertMappings(tx, importMappingIterator);
         }
     }
 

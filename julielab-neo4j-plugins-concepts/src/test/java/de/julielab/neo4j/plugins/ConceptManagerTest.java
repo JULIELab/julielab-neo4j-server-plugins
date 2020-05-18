@@ -22,6 +22,7 @@ import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.*;
 
+import java.io.ByteArrayInputStream;
 import java.util.*;
 import java.util.stream.Stream;
 
@@ -31,6 +32,7 @@ import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERM
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
@@ -991,9 +993,9 @@ public class ConceptManagerTest {
         cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms3));
         cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms4));
 
-        List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("CONCEPT0", "CONCEPT1", "loom"));
+        List<ImportMapping> mappings = List.of(new ImportMapping("CONCEPT0", "CONCEPT1", "loom"));
 
-        int numInsertedRels = cm.insertMappings(ConceptsJsonSerializer.toJson(mappings));
+        int numInsertedRels = cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mappings).getBytes(UTF_8)));
         assertEquals(1, numInsertedRels);
 
 
@@ -1463,7 +1465,7 @@ public class ConceptManagerTest {
         ImportConcepts testTerms2;
         ImportConcepts testTerms3;
         ImportConcepts testTerms4;
-        ConceptManager ftm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS);
         // Create terms in DIFFERENT facets we will then map to each other
         testTerms = getTestConcepts(1, 0);
         testTerms1 = getTestConcepts(1, 1);
@@ -1479,16 +1481,16 @@ public class ConceptManagerTest {
         testTerms2.getConcepts().get(0).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT1", "TEST_DATA", SRC));
         testTerms3.getConcepts().get(0).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT2", "TEST_DATA", SRC));
         testTerms4.getConcepts().get(0).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT3", "TEST_DATA", SRC));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms1));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms2));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms3));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms4));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms1));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms2));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms3));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms4));
 
         List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("CONCEPT0", "CONCEPT1", "loom"),
                 new ImportMapping("CONCEPT3", "CONCEPT2", "same_uris"));
 
-        int numInsertedRels = ftm.insertMappings(ConceptsJsonSerializer.toJson(mappings));
+        int numInsertedRels = cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mappings).getBytes(UTF_8)));
         assertEquals(2, numInsertedRels);
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -1517,7 +1519,7 @@ public class ConceptManagerTest {
         }
 
         // Check that there are no duplicates created.
-        numInsertedRels = ftm.insertMappings(ConceptsJsonSerializer.toJson(mappings));
+        numInsertedRels = cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mappings).getBytes(UTF_8)));
         assertEquals(0, numInsertedRels);
 
         // Even if we add a mapping with a new type between two classes that
@@ -1529,7 +1531,7 @@ public class ConceptManagerTest {
         mappings = Lists.newArrayList(new ImportMapping("CONCEPT0", "CONCEPT1", "new_type"),
                 new ImportMapping("CONCEPT0", "CONCEPT1", "new_type"),
                 new ImportMapping("CONCEPT_DOES_NOT_EXIST", "CONCEPT1", "new_type"));
-        numInsertedRels = ftm.insertMappings(ConceptsJsonSerializer.toJson(mappings));
+        numInsertedRels = cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mappings).getBytes(UTF_8)));
         assertEquals(0, numInsertedRels);
         // But the relationship now should know both mapping types.
         try (Transaction tx = graphDb.beginTx()) {
@@ -1554,22 +1556,22 @@ public class ConceptManagerTest {
 
     @Test
     public void testAddMappingsInSameFacet() throws Exception {
-        ImportConcepts testTerms;
-        ConceptManager ftm = new ConceptManager(graphDBMS);
+        ImportConcepts testConcepts;
+        ConceptManager cm = new ConceptManager(graphDBMS);
         // Create terms in THE SAME facets we will then map to each other
-        testTerms = getTestConcepts(5);
-        testTerms.getConcepts().get(1).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
-        testTerms.getConcepts().get(2).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT1", "TEST_DATA", SRC));
-        testTerms.getConcepts().get(3).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT2", "TEST_DATA", SRC));
-        testTerms.getConcepts().get(4).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT3", "TEST_DATA", SRC));
-        ftm.insertConcepts(ConceptsJsonSerializer.toJson(testTerms));
+        testConcepts = getTestConcepts(5);
+        testConcepts.getConcepts().get(1).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC));
+        testConcepts.getConcepts().get(2).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT1", "TEST_DATA", SRC));
+        testConcepts.getConcepts().get(3).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT2", "TEST_DATA", SRC));
+        testConcepts.getConcepts().get(4).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT3", "TEST_DATA", SRC));
+        cm.insertConcepts(ConceptsJsonSerializer.toJson(testConcepts));
 
         List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("CONCEPT0", "CONCEPT1", "loom"),
                 new ImportMapping("CONCEPT3", "CONCEPT2", "same_uris"));
 
         // We have a loom mapping between CONCEPT0 and CONCEPT1 which should be
         // filtered out since both terms appear in the same facet.
-        int numInsertedRels = ftm.insertMappings(ConceptsJsonSerializer.toJson(mappings));
+        int numInsertedRels = cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mappings).getBytes(UTF_8)));
         assertEquals(1, numInsertedRels);
     }
 
