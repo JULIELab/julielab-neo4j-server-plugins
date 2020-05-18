@@ -1,7 +1,6 @@
 package de.julielab.neo4j.plugins;
 
 import de.julielab.neo4j.plugins.concepts.ConceptInsertion;
-import de.julielab.neo4j.plugins.concepts.InsertionReport;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.io.IOUtils;
@@ -25,7 +24,7 @@ public class ExportIntegrationTest {
                 new Indexes(null).createIndexes(graphDatabaseService);
                 try (Transaction tx = graphDatabaseService.beginTx()) {
                     ImportConcepts testConcepts = ConceptManagerTest.getTestConcepts(10);
-                    ConceptInsertion.insertConcepts(tx, testConcepts, new HashMap<>(), new InsertionReport());
+                    ConceptInsertion.insertConcepts(tx, testConcepts, new HashMap<>());
                     tx.commit();
                 } catch (ConceptInsertionException e) {
                     throw new IllegalArgumentException(e);

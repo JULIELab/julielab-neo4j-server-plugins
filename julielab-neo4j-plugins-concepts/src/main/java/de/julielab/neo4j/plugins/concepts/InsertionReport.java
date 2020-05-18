@@ -19,7 +19,7 @@ public class InsertionReport {
     public final Set<String> createdRelationshipsCache = new HashSet<>();
     /**
      * The concept nodes that already existed before they should have been inserted
-     * again (duplicate detection). This is used to deconceptine whether a check
+     * again (duplicate detection). This is used to determine whether a check
      * about already existing relationships between two nodes is necessary. If at
      * least one of two concepts between which a relationships should be created did
      * not exist before, no check is necessary: A concept that did not exist could
@@ -62,5 +62,10 @@ public class InsertionReport {
 
     public void addImportedCoordinates(ConceptCoordinates coordinates) {
         importedCoordinates.add(coordinates);
+    }
+
+    public void merge(InsertionReport other) {
+        this.numConcepts += other.numConcepts;
+        this.numRelationships += other.numRelationships;
     }
 }

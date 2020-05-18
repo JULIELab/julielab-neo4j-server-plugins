@@ -517,16 +517,17 @@ public class ConceptInsertion {
         return createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
     }
 
-    public static InsertionReport insertConcepts(Transaction tx, ImportConcepts importConcepts, Map<String, Object> response, InsertionReport insertionReport) throws ConceptInsertionException {
-        return insertConcepts(tx, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response, insertionReport);
+    public static InsertionReport insertConcepts(Transaction tx, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
+        return insertConcepts(tx, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
     }
 
-    public static InsertionReport insertConcepts(Transaction tx, InputStream importConceptsStream, Map<String, Object> response, InsertionReport insertionReport) throws ConceptInsertionException {
+    public static InsertionReport insertConcepts(Transaction tx, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         ObjectMapper mapper = new ObjectMapper().registerModule(new Jdk8Module());
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         JsonParser parser;
+        InsertionReport insertionReport = new InsertionReport();
         try {
             parser = new JsonFactory(mapper).createParser(importConceptsStream);
 
@@ -598,15 +599,16 @@ public class ConceptInsertion {
                     while (importConcepts.hasNext() && buffer.size() < 1000)
                         buffer.add(importConcepts.next());
                     CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                    insertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
+                    InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
                     // If the nodesBySrcId map is empty we either have no concepts or
                     // at least no concepts with a source ID. Then,
                     // relationship creation is currently not supported.
                     if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
                         createRelationships(tx, buffer, facet, nodesByCoordinates, importOptions,
-                                insertionReport);
+                                bufferInsertionReport);
                     else
                         log.info("This is a property merging import, no relationships are created.");
+                    insertionReport.merge(bufferInsertionReport);
                     response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
                     response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
                 }
