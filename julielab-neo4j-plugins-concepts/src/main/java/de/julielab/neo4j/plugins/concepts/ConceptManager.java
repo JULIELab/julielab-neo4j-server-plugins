@@ -9,6 +9,8 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.slf4j.Slf4jLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +18,8 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.CM_REST_ENDPOINT;
@@ -67,6 +71,8 @@ public class ConceptManager {
     public static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
     private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
 
+
+
     private final DatabaseManagementService dbms;
 
     public ConceptManager(@Context DatabaseManagementService dbms) {
@@ -84,7 +90,9 @@ public class ConceptManager {
     }
 
     public static Response getErrorResponse(Throwable throwable) {
-        return Response.serverError().entity(throwable.getMessage() != null ? throwable.getMessage() : throwable).build();
+        StringWriter sw = new StringWriter();
+        throwable.printStackTrace(new PrintWriter(sw));
+        return Response.serverError().entity(sw.toString()).build();
     }
 
     /**
@@ -151,15 +159,24 @@ public class ConceptManager {
         }
     }
 
+    /**
+     * Calls {@link #insertConcepts(InputStream, Log)} with the SLF4J logger defined in this class.
+     * @param is The concepts input.
+     * @return The JavaX RS response.
+     */
+    public Object insertConcepts(InputStream is) {
+        return insertConcepts(is, new Slf4jLog(log));
+    }
+
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(INSERT_CONCEPTS)
-    public Object insertConcepts(InputStream is) {
+    public Object insertConcepts(InputStream is, @Context Log log) {
         try {
-            log.info("{} was called", INSERT_CONCEPTS);
+            log.info("%s was called", INSERT_CONCEPTS);
 
-            InsertionReport insertionReport = new InsertionReport();
+            InsertionReport insertionReport;
             log.debug("Beginning processing of concept insertion.");
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             Map<String, Object> response = new HashMap<>();
@@ -168,10 +185,10 @@ public class ConceptManager {
                 tx.commit();
             }
             log.info("Concept insertion complete.");
-            log.info(INSERT_CONCEPTS + " is finished processing after {} ms. " + insertionReport.numConcepts
-                    + " concepts and " + insertionReport.numRelationships + " relationships have been created.", response.get(KEY_TIME));
+            log.info("%s is finished processing after %s ms. %s concepts and %s relationships have been created.", INSERT_CONCEPTS, insertionReport.numConcepts, insertionReport.numRelationships, response.get(KEY_TIME));
             return Response.ok(response).build();
         } catch (Throwable throwable) {
+            log.error("Concept insertion failed", throwable);
             return getErrorResponse(throwable);
         }
     }

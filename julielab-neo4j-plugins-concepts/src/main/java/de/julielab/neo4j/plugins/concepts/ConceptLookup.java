@@ -5,6 +5,7 @@ import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.QueryExecutionException;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.slf4j.Logger;
@@ -98,8 +99,13 @@ public class ConceptLookup {
     public static Node lookupConceptBySourceId(Transaction tx, String srcId, String source, boolean uniqueSourceId) {
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
         ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
-        if (!indexHits.hasNext())
-            log.trace("    Did not find any concept with source ID {}", srcId);
+        try {
+            if (!indexHits.hasNext())
+                log.trace("    Did not find any concept with source ID {}", srcId);
+        } catch (QueryExecutionException e) {
+            log.error("Could not find index hits for sourceId {} due to error", srcId, e);
+            throw e;
+        }
 
         Node soughtConcept = null;
         boolean uniqueSourceIdNodeFound = false;

@@ -33,13 +33,13 @@ public class FullTextIndexUtils {
 
     public static ResourceIterator<Object> getNodes(Transaction tx, String indexName, String property, String propertyValue) {
         // after https://neo4j.com/docs/java-reference/current/java-embedded/unique-nodes/
-        return tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":" + propertyValue)).columnAs("node");
+        return tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":\"" + propertyValue + "\"")).columnAs("node");
     }
 
     public static Node getNode(Transaction tx, String indexName, String property, String propertyValue) {
         // after https://neo4j.com/docs/java-reference/current/java-embedded/unique-nodes/
         Node n = null;
-        Result r = tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":" + propertyValue));
+        Result r = tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":\"" + propertyValue+"\""));
         try (ResourceIterator<Node> it = tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":\"" + propertyValue + "\"")).columnAs("node")) {
             if (it.hasNext())
                 n = it.next();

@@ -611,6 +611,7 @@ public class ConceptInsertion {
                     insertionReport.merge(bufferInsertionReport);
                     response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
                     response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
+                    buffer.clear();
                 }
                 log.debug("Done creating concepts and relationships.");
             } else {
@@ -788,7 +789,7 @@ public class ConceptInsertion {
         return !uniqueOnConcept && uniqueOnConcept != uniqueSourceId;
     }
 
-    static int insertMappings(Transaction tx, Iterator<ImportMapping> mappings) {
+    public static int insertMappings(Transaction tx, Iterator<ImportMapping> mappings) {
         Map<String, Node> nodesBySrcId = new HashMap<>();
         InsertionReport insertionReport = new InsertionReport();
 

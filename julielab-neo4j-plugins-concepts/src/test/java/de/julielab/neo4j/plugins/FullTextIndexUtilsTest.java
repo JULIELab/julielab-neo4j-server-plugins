@@ -6,15 +6,11 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Label;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.*;
 
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 public class FullTextIndexUtilsTest {
@@ -69,6 +65,24 @@ public class FullTextIndexUtilsTest {
             // We do NOT want fuzzy search here
             assertNull(FullTextIndexUtils.getNode(tx, "ftTestIndex", "testprop", "http"));
             assertNull(FullTextIndexUtils.getNode(tx, "ftTestIndex", testProp, "http:/lala.org/someid"));
+        }
+    }
+
+    @Test
+    public void getNodeDifficultName() {
+        Label testLabel = Label.label("TESTLABEL");
+        String testProp = "testProp";
+        try (Transaction tx = graphDb.beginTx()) {
+            FullTextIndexUtils.createTextIndex(tx, "ftTestIndex", null, new Label[]{testLabel}, new String[]{testProp});
+            tx.commit();
+        }
+        try (Transaction tx = graphDb.beginTx()) {
+            Node testNode = tx.createNode(testLabel);
+            testNode.setProperty(testProp, "http://some.url");
+            ResourceIterator<Object> it = FullTextIndexUtils.getNodes(tx, "ftTestIndex", testProp, "http://some.url");
+            assertTrue(it.hasNext());
+            Node receivedNode = (Node) it.next();
+            assertEquals(testNode.getId(), receivedNode.getId());
         }
     }
 }

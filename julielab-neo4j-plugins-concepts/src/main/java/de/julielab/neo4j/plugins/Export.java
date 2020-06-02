@@ -257,7 +257,7 @@ public class Export {
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path("/" + LINGPIPE_DICT)
+    @javax.ws.rs.Path(LINGPIPE_DICT)
     public String exportLingpipeDictionary(
             @QueryParam(PARAM_LABEL) String labelString,
             @QueryParam(PARAM_EXCLUSION_LABEL) String exclusionLabelString,

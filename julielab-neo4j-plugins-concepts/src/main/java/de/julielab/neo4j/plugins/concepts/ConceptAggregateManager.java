@@ -29,7 +29,6 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
@@ -44,25 +43,27 @@ import static de.julielab.neo4j.plugins.concepts.ConceptManager.getErrorResponse
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
+@Path("/" + ConceptAggregateManager.CAM_REST_ENDPOINT)
 public class ConceptAggregateManager {
 
-    private final static Logger log = LoggerFactory.getLogger(ConceptAggregateManager.class);
-    private final DatabaseManagementService dbms;
     public static final String COPY_AGGREGATE_PROPERTIES = "copy_aggregate_properties";
     public static final String BUILD_AGGREGATES_BY_NAME_AND_SYNONYMS = "build_aggregates_by_name_and_synonyms";
     public static final String BUILD_AGGREGATES_BY_MAPPINGS = "build_aggregates_by_mappings";
     public static final String DELETE_AGGREGATES = "delete_aggregates";
-
+    public static final String CAM_REST_ENDPOINT = "concept_aggregate_manager";
     public static final String KEY_LABEL = "label";
     public static final String KEY_AGGREGATED_LABEL = "aggregatedLabel";
     public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
-
     public static final String RET_KEY_NUM_AGGREGATES = "numAggregates";
     public static final String RET_KEY_NUM_ELEMENTS = "numElements";
     public static final String RET_KEY_NUM_PROPERTIES = "numProperties";
+    private final static Logger log = LoggerFactory.getLogger(ConceptAggregateManager.class);
+    private final DatabaseManagementService dbms;
+
     public ConceptAggregateManager(@Context DatabaseManagementService dbms) {
         this.dbms = dbms;
     }
+
     /**
      * Adds an aggregate concept. An aggregate concept is a concept of the following
      * input form:<br/>
@@ -93,7 +94,7 @@ public class ConceptAggregateManager {
      * @throws AggregateConceptInsertionException If the aggregate could not be added.
      */
     static void insertAggregateConcept(Transaction tx, ImportConcept jsonConcept,
-                                        CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
+                                       CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
             throws AggregateConceptInsertionException {
         try {
             ConceptCoordinates aggCoordinates = jsonConcept.coordinates != null ? jsonConcept.coordinates
@@ -205,110 +206,6 @@ public class ConceptAggregateManager {
     }
 
     /**
-     * <ul>
-     *  <li>{@link #KEY_ALLOWED_MAPPING_TYPES}: The allowed types for IS_MAPPED_TO relationships to be included in aggregation building.</li>
-     *  <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm. Such concepts
-     *  can be aggregate concepts (with the label AGGREGATE) or just plain concepts (with the label CONCEPT) that are not an element of an aggregate.</li>
-     *  <li>{@link #KEY_LABEL}:Label to restrict the concepts to that are considered for aggregation creation. </li>
-     * </ul>
-     *
-     * @param jsonParameterObject The parameter JSON object.
-     * @throws IOException When the JSON parameter cannot be read.
-     */
-    @SuppressWarnings("unchecked")
-    @PUT
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Path(BUILD_AGGREGATES_BY_MAPPINGS)
-    public void buildAggregatesByMappings(String jsonParameterObject)
-            throws IOException {
-        ObjectMapper om = new ObjectMapper();
-        var parameterMap = om.readValue(jsonParameterObject, Map.class);
-        final Set<String> allowedMappingTypes = new HashSet<>((List<String>) parameterMap.get(KEY_ALLOWED_MAPPING_TYPES));
-        Label aggregatedConceptsLabel = Label.label((String) parameterMap.get(KEY_AGGREGATED_LABEL));
-        Label allowedConceptLabel = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL))
-                : null;
-        log.info("Creating mapping aggregates for concepts with label {} and mapping types {}", allowedConceptLabel,
-                allowedMappingTypes);
-        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateManager.buildAggregatesForMappings(tx, allowedMappingTypes, allowedConceptLabel,
-                    aggregatedConceptsLabel);
-            tx.commit();
-        }
-    }
-
-    /**
-     * <ul>
-     *     <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm.
-     *     Such concepts can be aggregate concepts (with the label AGGREGATE) or just plain concepts
-     *     (with the label CONCEPT) that are not an element of an aggregate.</li>
-     * </ul>
-     *
-     * @param aggregatedConceptsLabelString The aggregate node label for which to delete the aggregate nodes.
-     */
-    @DELETE
-    @Consumes(MediaType.TEXT_PLAIN)
-    @Path(DELETE_AGGREGATES)
-    public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
-        Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
-        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateManager.deleteAggregates(tx, aggregatedConceptsLabel);
-            tx.commit();
-        }
-    }
-
-
-    @PUT
-    @Produces(MediaType.APPLICATION_JSON)
-    @Path(COPY_AGGREGATE_PROPERTIES)
-    public Object copyAggregateProperties() {
-        try {
-            int numAggregates = 0;
-            CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
-            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-            try (Transaction tx = graphDb.beginTx()) {
-                try (ResourceIterator<Node> aggregateIt = tx.findNodes(AGGREGATE)) {
-                    while (aggregateIt.hasNext()) {
-                        Node aggregate = aggregateIt.next();
-                        numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, new HashSet<>());
-                    }
-                }
-                tx.commit();
-            }
-            Map<String, Object> reportMap = new HashMap<>();
-            reportMap.put(RET_KEY_NUM_AGGREGATES, numAggregates);
-            reportMap.put(RET_KEY_NUM_ELEMENTS, copyStats.numElements);
-            reportMap.put(RET_KEY_NUM_PROPERTIES, copyStats.numProperties);
-            return Response.ok(reportMap).build();
-        } catch (Throwable t) {
-            return getErrorResponse(t);
-        }
-    }
-
-    private int copyAggregatePropertiesRecursively(Node aggregate, CopyAggregatePropertiesStatistics copyStats,
-                                                   Set<Node> alreadySeen) {
-        if (alreadySeen.contains(aggregate))
-            return 0;
-        List<Node> elementAggregates = new ArrayList<>();
-        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
-        for (Relationship elementRel : elementRels) {
-            Node endNode = elementRel.getEndNode();
-            if (endNode.hasLabel(AGGREGATE) && !alreadySeen.contains(endNode))
-                elementAggregates.add(endNode);
-        }
-        for (Node elementAggregate : elementAggregates) {
-            copyAggregatePropertiesRecursively(elementAggregate, copyStats, alreadySeen);
-        }
-        if (aggregate.hasProperty(PROP_COPY_PROPERTIES)) {
-            String[] copyProperties = (String[]) aggregate.getProperty(PROP_COPY_PROPERTIES);
-            ConceptAggregateManager.copyAggregateProperties(aggregate, copyProperties, copyStats);
-        }
-        alreadySeen.add(aggregate);
-        return alreadySeen.size();
-    }
-
-    /**
      * Aggregates terms that have equal preferred name and synonyms, after some
      * minor normalization.
      *
@@ -398,11 +295,13 @@ public class ConceptAggregateManager {
      *                             algorithm. Such terms can be aggregate terms (with the label
      *                             {@link ConceptLabel#AGGREGATE}) or just plain terms (with the label
      *                             {@link ConceptLabel#CONCEPT}) that are not an element of an aggregate.
+     * @return
      */
-    public static void buildAggregatesForMappings(Transaction tx, Set<String> allowedMappingTypes,
-                                                  Label allowedTermLabel, Label aggregatedTermsLabel) {
+    public static int buildAggregatesForMappings(Transaction tx, Set<String> allowedMappingTypes,
+                                                 Label allowedTermLabel, Label aggregatedTermsLabel) {
         log.info("Building aggregates for mappings " + allowedMappingTypes + " and terms with label "
                 + allowedTermLabel);
+        int numCreatedAggregates = 0;
         String[] copyProperties = new String[]{PROP_PREF_NAME, PROP_SYNONYMS,
                 PROP_WRITING_VARIANTS, PROP_DESCRIPTIONS, PROP_FACETS};
         // At first, delete all mapping aggregates since they will be built
@@ -444,6 +343,7 @@ public class ConceptAggregateManager {
                         allowedMappingTypes.toArray(new String[0]),
                         // TermLabel.AGGREGATE_MAPPING);
                         aggregatedTermsLabel);
+                ++numCreatedAggregates;
 
                 // aggregate could be null if we have a term that just has
                 // no mappings
@@ -455,8 +355,8 @@ public class ConceptAggregateManager {
                 // it is "its own" aggregate.
                 term.addLabel(aggregatedTermsLabel);
             }
-
         }
+        return numCreatedAggregates;
     }
 
     /**
@@ -689,6 +589,113 @@ public class ConceptAggregateManager {
             aggregate.setProperty(PROP_SYNONYMS,
                     acceptedSynonyms.toArray(new String[0]));
         }
+    }
+
+    /**
+     * <ul>
+     *  <li>{@link #KEY_ALLOWED_MAPPING_TYPES}: The allowed types for IS_MAPPED_TO relationships to be included in aggregation building.</li>
+     *  <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm. Such concepts
+     *  can be aggregate concepts (with the label AGGREGATE) or just plain concepts (with the label CONCEPT) that are not an element of an aggregate.</li>
+     *  <li>{@link #KEY_LABEL}:Label to restrict the concepts to that are considered for aggregation creation. </li>
+     * </ul>
+     *
+     * @param jsonParameterObject The parameter JSON object.
+     */
+    @SuppressWarnings("unchecked")
+    @PUT
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(BUILD_AGGREGATES_BY_MAPPINGS)
+    public Response buildAggregatesByMappings(String jsonParameterObject) {
+        try {
+            ObjectMapper om = new ObjectMapper();
+            var parameterMap = om.readValue(jsonParameterObject, Map.class);
+            final Set<String> allowedMappingTypes = new HashSet<>((List<String>) parameterMap.get(KEY_ALLOWED_MAPPING_TYPES));
+            Label aggregatedConceptsLabel = Label.label((String) parameterMap.get(KEY_AGGREGATED_LABEL));
+            Label allowedConceptLabel = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL))
+                    : null;
+            log.info("Creating mapping aggregates for concepts with label {} and mapping types {}", allowedConceptLabel,
+                    allowedMappingTypes);
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+            int createdAggregates;
+            try (Transaction tx = graphDb.beginTx()) {
+                createdAggregates = ConceptAggregateManager.buildAggregatesForMappings(tx, allowedMappingTypes, allowedConceptLabel,
+                        aggregatedConceptsLabel);
+                tx.commit();
+            }
+            return Response.ok(createdAggregates).build();
+        } catch (Throwable t) {
+            return ConceptManager.getErrorResponse(t);
+        }
+    }
+
+    /**
+     * <ul>
+     *     <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm.
+     *     Such concepts can be aggregate concepts (with the label AGGREGATE) or just plain concepts
+     *     (with the label CONCEPT) that are not an element of an aggregate.</li>
+     * </ul>
+     *
+     * @param aggregatedConceptsLabelString The aggregate node label for which to delete the aggregate nodes.
+     */
+    @DELETE
+    @Consumes(MediaType.TEXT_PLAIN)
+    @Path(DELETE_AGGREGATES)
+    public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString) {
+        Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        try (Transaction tx = graphDb.beginTx()) {
+            ConceptAggregateManager.deleteAggregates(tx, aggregatedConceptsLabel);
+            tx.commit();
+        }
+    }
+
+    @PUT
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path(COPY_AGGREGATE_PROPERTIES)
+    public Object copyAggregateProperties() {
+        try {
+            int numAggregates = 0;
+            CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+            try (Transaction tx = graphDb.beginTx()) {
+                try (ResourceIterator<Node> aggregateIt = tx.findNodes(AGGREGATE)) {
+                    while (aggregateIt.hasNext()) {
+                        Node aggregate = aggregateIt.next();
+                        numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, new HashSet<>());
+                    }
+                }
+                tx.commit();
+            }
+            Map<String, Object> reportMap = new HashMap<>();
+            reportMap.put(RET_KEY_NUM_AGGREGATES, numAggregates);
+            reportMap.put(RET_KEY_NUM_ELEMENTS, copyStats.numElements);
+            reportMap.put(RET_KEY_NUM_PROPERTIES, copyStats.numProperties);
+            return Response.ok(reportMap).build();
+        } catch (Throwable t) {
+            return getErrorResponse(t);
+        }
+    }
+
+    private int copyAggregatePropertiesRecursively(Node aggregate, CopyAggregatePropertiesStatistics copyStats,
+                                                   Set<Node> alreadySeen) {
+        if (alreadySeen.contains(aggregate))
+            return 0;
+        List<Node> elementAggregates = new ArrayList<>();
+        Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
+        for (Relationship elementRel : elementRels) {
+            Node endNode = elementRel.getEndNode();
+            if (endNode.hasLabel(AGGREGATE) && !alreadySeen.contains(endNode))
+                elementAggregates.add(endNode);
+        }
+        for (Node elementAggregate : elementAggregates) {
+            copyAggregatePropertiesRecursively(elementAggregate, copyStats, alreadySeen);
+        }
+        if (aggregate.hasProperty(PROP_COPY_PROPERTIES)) {
+            String[] copyProperties = (String[]) aggregate.getProperty(PROP_COPY_PROPERTIES);
+            ConceptAggregateManager.copyAggregateProperties(aggregate, copyProperties, copyStats);
+        }
+        alreadySeen.add(aggregate);
+        return alreadySeen.size();
     }
 
     public static class CopyAggregatePropertiesStatistics {

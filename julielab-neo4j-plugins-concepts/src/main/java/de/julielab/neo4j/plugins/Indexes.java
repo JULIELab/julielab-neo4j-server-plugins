@@ -13,19 +13,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import java.util.Arrays;
 import java.util.Set;
 
+import static de.julielab.neo4j.plugins.Indexes.INDEXES_REST_ENDPOINT;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
+@Path("/" + INDEXES_REST_ENDPOINT)
 public class Indexes {
+    public static final String INDEXES_REST_ENDPOINT = "indexes";
     public static final String CREATE_INDEXES = "create_indexes";
     public static final String DB_NAME = "db_name";
     private final static Logger log = LoggerFactory.getLogger(Indexes.class);
     private final DatabaseManagementService dbms;
 
-    public Indexes(DatabaseManagementService dbms) {
+    public Indexes(@Context DatabaseManagementService dbms) {
         this.dbms = dbms;
     }
 
@@ -80,7 +85,7 @@ public class Indexes {
      * @param databaseName The name of the database to create the indexes in.
      */
     @PUT
-    @javax.ws.rs.Path("/{" + CREATE_INDEXES + "}")
+    @javax.ws.rs.Path(CREATE_INDEXES)
     public void createIndexes(@QueryParam(DB_NAME) String databaseName) {
         final String effectiveDbName = databaseName == null ? DEFAULT_DATABASE_NAME : databaseName;
         GraphDatabaseService graphDb = dbms.database(effectiveDbName);
