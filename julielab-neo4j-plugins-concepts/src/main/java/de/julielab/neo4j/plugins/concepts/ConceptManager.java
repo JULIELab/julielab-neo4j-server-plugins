@@ -263,6 +263,15 @@ public class ConceptManager {
         }
     }
 
+    /**
+     * Convenience access to {@link #getFacetRoots(UriInfo, Log)}.
+     *
+     * @param uriInfo
+     * @return
+     */
+    public Object getFacetRoots(@Context UriInfo uriInfo) {
+        return getFacetRoots(uriInfo, new Slf4jLog(log));
+    }
 
     /**
      * <p>
@@ -282,7 +291,7 @@ public class ConceptManager {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(GET_FACET_ROOTS)
-    public Object getFacetRoots(@Context UriInfo uriInfo) {
+    public Object getFacetRoots(@Context UriInfo uriInfo, @Context Log log) {
         try {
             Set<String> requestedFacetIds = new HashSet<>();
             MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();

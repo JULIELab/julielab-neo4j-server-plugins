@@ -7,13 +7,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
 // The order is important for streaming. The list of concepts should come at the end so we don't need to have the
 // complete data available to begin importing them
-@JsonPropertyOrder({ImportConcepts.NAME_FACET, ImportConcepts.NAME_IMPORT_OPTIONS, ImportConcepts.NAME_CONCEPTS})
+@JsonPropertyOrder({ImportConcepts.NAME_FACET, ImportConcepts.NAME_IMPORT_OPTIONS, ImportConcepts.NAME_NUM_CONCEPTS, ImportConcepts.NAME_CONCEPTS})
 public class ImportConcepts {
     public static final String NAME_FACET = "facet";
     public static final String NAME_IMPORT_OPTIONS = "importOptions";
     public static final String NAME_CONCEPTS = "concepts";
+    public static final String NAME_NUM_CONCEPTS = "name_num_concepts";
 
     @JsonProperty(NAME_CONCEPTS)
     private List<ImportConcept> concepts;
@@ -21,6 +23,8 @@ public class ImportConcepts {
     private ImportFacet facet;
     @JsonProperty(NAME_IMPORT_OPTIONS)
     private ImportOptions importOptions;
+    @JsonProperty(NAME_NUM_CONCEPTS)
+    private long numConcepts = -1;
 
     public ImportConcepts() {
     }
@@ -37,7 +41,6 @@ public class ImportConcepts {
         this(termList, importFacet);
         this.importOptions = importOptions;
     }
-
 
     /**
      * Constructor for an already existing list of concepts. The list will directly
@@ -61,6 +64,20 @@ public class ImportConcepts {
      */
     public ImportConcepts(List<ImportConcept> concepts, ImportFacet importFacet, ImportOptions importOptions) {
         this((Stream<ImportConcept>) null, importFacet, importOptions);
+    }
+
+    /**
+     * Optional specification of the number of elements returned by the concept stream. If this returns -1, the total
+     * number of concepts is unknown.
+     *
+     * @return The total number of concepts.
+     */
+    public long getNumConcepts() {
+        return numConcepts;
+    }
+
+    public void setNumConcepts(long numConcepts) {
+        this.numConcepts = numConcepts;
     }
 
     /**
