@@ -1,5 +1,6 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
@@ -36,6 +37,13 @@ public class ImportConcept {
     public List<String> copyProperties = Collections.emptyList();
     @JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
     public boolean aggregateIncludeInHierarchy;
+
+    /**
+     * This map may contain specific properties required during concept creation. It is not meant to be imported
+     * into the database.
+     */
+    @JsonIgnore
+    public Map<String, Object> auxProperties;
 
     public ImportConcept(String preferredName, ConceptCoordinates coordinates) {
         prefName = preferredName;
