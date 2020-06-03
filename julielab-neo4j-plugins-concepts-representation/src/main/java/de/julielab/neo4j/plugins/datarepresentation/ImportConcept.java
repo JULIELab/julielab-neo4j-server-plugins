@@ -139,6 +139,12 @@ public class ImportConcept {
     public ImportConcept() {
     }
 
+    public void putAuxProperty(String key, Object value) {
+        if (auxProperties == null)
+            auxProperties = new HashMap<>();
+        auxProperties.put(key, value);
+    }
+
     public void addRelationship(ImportConceptRelationship relationship) {
         if (relationships.isEmpty())
             relationships = new ArrayList<>();
