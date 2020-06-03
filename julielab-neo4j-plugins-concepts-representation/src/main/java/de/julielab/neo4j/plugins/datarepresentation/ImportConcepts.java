@@ -1,9 +1,9 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -18,13 +18,15 @@ public class ImportConcepts {
     public static final String NAME_NUM_CONCEPTS = "name_num_concepts";
 
     @JsonProperty(NAME_CONCEPTS)
-    private List<ImportConcept> concepts;
+    private Stream<ImportConcept> concepts;
     @JsonProperty(NAME_FACET)
     private ImportFacet facet;
     @JsonProperty(NAME_IMPORT_OPTIONS)
     private ImportOptions importOptions;
     @JsonProperty(NAME_NUM_CONCEPTS)
     private long numConcepts = -1;
+    @JsonIgnore
+    private List<ImportConcept> conceptsList;
 
     public ImportConcepts() {
     }
@@ -33,8 +35,9 @@ public class ImportConcepts {
         this.facet = facet;
     }
 
-    public ImportConcepts(Stream<ImportConcept> termList, ImportFacet facet) {
-        this(termList != null ? termList.collect(Collectors.toList()) : Collections.emptyList(), facet);
+    public ImportConcepts(Stream<ImportConcept> conceptStream, ImportFacet facet) {
+        this.concepts = conceptStream;
+        this.facet = facet;
     }
 
     public ImportConcepts(Stream<ImportConcept> termList, ImportFacet importFacet, ImportOptions importOptions) {
@@ -44,19 +47,18 @@ public class ImportConcepts {
 
     /**
      * Constructor for an already existing list of concepts. The list will directly
-     * be used for {@link #getConcepts()} and {@link #getConcepts()};
+     * be used for {@link #getConceptsAsList()} and {@link #getConceptsAsList()};
      *
      * @param concepts    The list of concepts.
      * @param importFacet The facet to add the concepts to.
      */
     public ImportConcepts(List<ImportConcept> concepts, ImportFacet importFacet) {
-        this.concepts = concepts;
-        this.facet = importFacet;
+        this(concepts.stream(), importFacet);
     }
 
     /**
      * Constructor for an already existing list of concepts. The list will directly
-     * be used for {@link #getConcepts()} and {@link #getConcepts()};
+     * be used for {@link #getConceptsAsList()} and {@link #getConceptsAsList()};
      *
      * @param concepts      The list of concepts.
      * @param importFacet   The facet to add the concepts to.
@@ -64,6 +66,18 @@ public class ImportConcepts {
      */
     public ImportConcepts(List<ImportConcept> concepts, ImportFacet importFacet, ImportOptions importOptions) {
         this((Stream<ImportConcept>) null, importFacet, importOptions);
+    }
+
+    public Stream<ImportConcept> getConcepts() {
+        return concepts;
+    }
+
+    public void setConcepts(List<ImportConcept> concepts) {
+        this.concepts = concepts.stream();
+    }
+
+    public void setConcepts(Stream<ImportConcept> concepts) {
+        this.concepts = concepts;
     }
 
     /**
@@ -84,16 +98,17 @@ public class ImportConcepts {
      * Returns the concepts as a stream. This may be the single, original stream
      * given to the constructor, or a stream derived from a underlying list in case
      * a list of concepts was passed to a constructor or
-     * {@link #getConcepts()} was called at least once.
+     * {@link #getConceptsAsList()} was called at least once.
      *
      * @return The concepts as a stream.
      */
-    public List<ImportConcept> getConcepts() {
-        return concepts;
-    }
-
-    public void setConcepts(List<ImportConcept> concepts) {
-        this.concepts = concepts;
+    @JsonIgnore
+    public List<ImportConcept> getConceptsAsList() {
+        if (conceptsList == null) {
+            conceptsList = concepts.collect(Collectors.toList());
+            concepts = conceptsList.stream();
+        }
+        return conceptsList;
     }
 
     public ImportFacet getFacet() {

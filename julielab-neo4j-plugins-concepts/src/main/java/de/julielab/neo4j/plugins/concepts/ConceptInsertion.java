@@ -18,13 +18,14 @@ import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.*;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.slf4j.Slf4jLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,7 +49,7 @@ import static java.util.stream.Collectors.joining;
 public class ConceptInsertion {
     private final static Logger log = LoggerFactory.getLogger(ConceptInsertion.class);
 
-    static void createRelationships(Transaction tx, List<ImportConcept> jsonConcepts, Node facet,
+    static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, Node facet,
                                     CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
         log.info("Creating relationship between inserted concepts.");
         String facetId = null;
@@ -113,8 +114,6 @@ public class ConceptInsertion {
                         // if (null != parent) {
                         if (insertionReport.importedCoordinates.contains(parentCoordinates)
                                 || insertionReport.existingConcepts.contains(parent)) {
-                            log.trace("Parent with " + parentCoordinates + " was found by source ID for concept "
-                                    + coordinates + ".");
                             createRelationshipIfNotExists(parent, concept, ConceptEdgeTypes.IS_BROADER_THAN, insertionReport);
                             // Since a concept may appear in multiple facets, we
                             // connect concepts with a general taxonomic
@@ -204,9 +203,6 @@ public class ConceptInsertion {
                         // This concept does not have a concept parent. It is a facet
                         // root,
                         // thus connect it to the facet node.
-                        log.trace("Installing concept with source ID " + srcId + " (ID: " + concept.getProperty(PROP_ID)
-                                + ") as root for facet " + facet.getProperty(NodeConstants.PROP_NAME) + "(ID: "
-                                + facet.getProperty(PROP_ID) + ")");
                         createRelationshipIfNotExists(facet, concept, HAS_ROOT_CONCEPT, insertionReport);
                     }
                     // else: nothing, because the concept already existed, we are
@@ -218,7 +214,6 @@ public class ConceptInsertion {
             // whatever...)
             {
                 if (jsonConcept.relationships != null) {
-                    log.info("Adding explicitly specified relationships");
                     for (ImportConceptRelationship jsonRelationship : jsonConcept.relationships) {
                         String rsTypeStr = jsonRelationship.type;
                         final ConceptCoordinates targetCoordinates = jsonRelationship.targetCoordinates;
@@ -518,16 +513,17 @@ public class ConceptInsertion {
     }
 
     public static InsertionReport insertConcepts(Transaction tx, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
-        return insertConcepts(tx, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
+        return insertConcepts(new Slf4jLog(log), tx, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
     }
 
-    public static InsertionReport insertConcepts(Transaction tx, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {
+    public static InsertionReport insertConcepts(Log log, Transaction tx, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         ObjectMapper mapper = new ObjectMapper().registerModule(new Jdk8Module());
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         JsonParser parser;
         InsertionReport insertionReport = new InsertionReport();
+        long numConcepts = -1;
         try {
             parser = new JsonFactory(mapper).createParser(importConceptsStream);
 
@@ -546,12 +542,14 @@ public class ConceptInsertion {
                         importFacet = parser.readValueAs(ImportFacet.class);
                     else if (lastName != null && lastName.equals(ImportConcepts.NAME_IMPORT_OPTIONS))
                         importOptions = parser.readValueAs(ImportOptions.class);
+                    else if (lastName != null && lastName.equals(ImportConcepts.NAME_NUM_CONCEPTS))
+                        numConcepts = parser.readValueAs(Long.class);
                 } else if (lastName != null && lastName.equals(ImportConcepts.NAME_CONCEPTS) && currentToken == JsonToken.START_ARRAY) {
                     importConcepts = parser.readValuesAs(ImportConcept.class);
                 }
             }
 
-            log.info("Got input concepts for import.");
+            log.info("Got input %s concepts to import.", numConcepts);
             Node facet = null;
             String facetId = null;
             // The facet Id will be added to the facets-property of the concept
@@ -593,10 +591,12 @@ public class ConceptInsertion {
             }
 
             if (null != importConcepts) {
+                int batchsize = 10000;
                 log.debug("Beginning to create concept nodes and relationships.");
-                List<ImportConcept> buffer = new ArrayList<>(1000);
+                List<ImportConcept> buffer = new ArrayList<>(batchsize);
+                long imported = 0;
                 while (importConcepts.hasNext()) {
-                    while (importConcepts.hasNext() && buffer.size() < 1000)
+                    while (importConcepts.hasNext() && buffer.size() < batchsize)
                         buffer.add(importConcepts.next());
                     CoordinatesMap nodesByCoordinates = new CoordinatesMap();
                     InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
@@ -604,15 +604,17 @@ public class ConceptInsertion {
                     // at least no concepts with a source ID. Then,
                     // relationship creation is currently not supported.
                     if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
-                        createRelationships(tx, buffer, facet, nodesByCoordinates, importOptions,
+                        createRelationships(log, tx, buffer, facet, nodesByCoordinates, importOptions,
                                 bufferInsertionReport);
                     else
                         log.info("This is a property merging import, no relationships are created.");
                     insertionReport.merge(bufferInsertionReport);
-                    response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
-                    response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
                     buffer.clear();
+                    imported += bufferInsertionReport.numConcepts;
+                    log.info("Imported %s concepts", imported);
                 }
+                response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
+                response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
                 log.debug("Done creating concepts and relationships.");
             } else {
                 log.info("No concepts were included in the request.");

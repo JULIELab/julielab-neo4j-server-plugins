@@ -181,7 +181,7 @@ public class ConceptManager {
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             Map<String, Object> response = new HashMap<>();
             try (Transaction tx = graphDb.beginTx()) {
-                insertionReport = ConceptInsertion.insertConcepts(tx, is, response);
+                insertionReport = ConceptInsertion.insertConcepts(log, tx, is, response);
                 tx.commit();
             }
             log.info("Concept insertion complete.");
