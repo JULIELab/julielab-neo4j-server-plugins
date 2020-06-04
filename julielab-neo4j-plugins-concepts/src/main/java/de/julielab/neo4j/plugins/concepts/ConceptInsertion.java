@@ -48,13 +48,12 @@ import static java.util.stream.Collectors.joining;
 
 public class ConceptInsertion {
     private final static Logger log = LoggerFactory.getLogger(ConceptInsertion.class);
+    public static long lookupTime = 0;
 
-    static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, Node facet,
+    static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
                                     CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
         log.info("Creating relationship between inserted concepts.");
-        String facetId = null;
-        if (null != facet)
-            facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
+        Node facet = FacetManager.getFacetNode(tx, facetId);
         RelationshipType relBroaderThanInFacet = null;
         if (null != facet)
             relBroaderThanInFacet = RelationshipType.withName(ConceptEdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
@@ -103,15 +102,6 @@ public class ConceptInsertion {
                                     + " should have been created in the insertConcepts method before, but it is null. The parent coordinates are "
                                     + parentCoordinates);
 
-                        // The parent was not in the imported data; check if it
-                        // already exists in the database
-                        // if (parent == null) {
-                        // log.debug("Searching for parent concept to create
-                        // hierarchical relationships");
-                        // parent = lookupConcept(parentCoordinates, idIndex);
-                        // }
-
-                        // if (null != parent) {
                         if (insertionReport.importedCoordinates.contains(parentCoordinates)
                                 || insertionReport.existingConcepts.contains(parent)) {
                             createRelationshipIfNotExists(parent, concept, ConceptEdgeTypes.IS_BROADER_THAN, insertionReport);
@@ -512,11 +502,11 @@ public class ConceptInsertion {
         return createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
     }
 
-    public static InsertionReport insertConcepts(Transaction tx, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
-        return insertConcepts(new Slf4jLog(log), tx, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
+    public static InsertionReport insertConcepts(GraphDatabaseService graphDb, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
+        return insertConcepts(new Slf4jLog(log), graphDb, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
     }
 
-    public static InsertionReport insertConcepts(Log log, Transaction tx, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {
+    public static InsertionReport insertConcepts(Log log, GraphDatabaseService graphDb, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         ObjectMapper mapper = new ObjectMapper().registerModule(new Jdk8Module());
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
@@ -550,44 +540,47 @@ public class ConceptInsertion {
             }
 
             log.info("Got %s concepts to import.", numConcepts);
-            Node facet = null;
             String facetId = null;
-            // The facet Id will be added to the facets-property of the concept
-            // nodes.
-            log.debug("Handling import of facet.");
-            if (null != importFacet && importFacet.getId() != null) {
-                facetId = importFacet.getId();
-                log.info("Facet ID {} has been given to add the concepts to.", facetId);
-                boolean isNoFacet = importFacet.isNoFacet();
-                if (isNoFacet)
-                    facet = FacetManager.getNoFacet(tx, facetId);
-                else
-                    facet = FacetManager.getFacetNode(tx, facetId);
-                if (null == facet)
-                    throw new IllegalArgumentException("The facet with ID \"" + facetId
-                            + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
-            } else if (null != importFacet && importFacet.getName() != null) {
-                ResourceIterator<Node> facetIterator = tx.findNodes(FacetManager.FacetLabel.FACET);
-                while (facetIterator.hasNext()) {
-                    facet = facetIterator.next();
-                    if (facet.getProperty(FacetConstants.PROP_NAME)
-                            .equals(importFacet.getName()))
-                        break;
-                    facet = null;
-                }
+            try (Transaction tx = graphDb.beginTx()) {
+                Node facet = null;
+                // The facet Id will be added to the facets-property of the concept
+                // nodes.
+                log.debug("Handling import of facet.");
+                if (null != importFacet && importFacet.getId() != null) {
+                    facetId = importFacet.getId();
+                    log.info("Facet ID {} has been given to add the concepts to.", facetId);
+                    boolean isNoFacet = importFacet.isNoFacet();
+                    if (isNoFacet)
+                        facet = FacetManager.getNoFacet(tx, facetId);
+                    else
+                        facet = FacetManager.getFacetNode(tx, facetId);
+                    if (null == facet)
+                        throw new IllegalArgumentException("The facet with ID \"" + facetId
+                                + "\" was not found. You must pass the ID of an existing facet or deliver all information required to create the facet from scratch. Then, the facetId must not be included in the request, it will be created dynamically.");
+                } else if (null != importFacet && importFacet.getName() != null) {
+                    ResourceIterator<Node> facetIterator = tx.findNodes(FacetManager.FacetLabel.FACET);
+                    while (facetIterator.hasNext()) {
+                        facet = facetIterator.next();
+                        if (facet.getProperty(FacetConstants.PROP_NAME)
+                                .equals(importFacet.getName()))
+                            break;
+                        facet = null;
+                    }
 
-            }
-            if (null != importFacet && null == facet) {
-                // No existing ID is given, create a new facet.
-                facet = FacetManager.createFacet(tx, importFacet);
-            }
-            if (null != facet) {
-                facetId = (String) facet.getProperty(PROP_ID);
-                log.debug("Facet {} was successfully created or determined by ID.", facetId);
-            } else {
-                log.debug(
-                        "No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
-                importOptions.merge = true;
+                }
+                if (null != importFacet && null == facet) {
+                    // No existing ID is given, create a new facet.
+                    facet = FacetManager.createFacet(tx, importFacet);
+                }
+                if (null != facet) {
+                    facetId = (String) facet.getProperty(PROP_ID);
+                    log.debug("Facet {} was successfully created or determined by ID.", facetId);
+                } else {
+                    log.debug(
+                            "No facet was specified for this import. This is currently equivalent to specifying the merge import option, i.e. concept properties will be merged but no new nodes or relationships will be created.");
+                    importOptions.merge = true;
+                }
+                tx.commit();
             }
 
             if (null != importConcepts) {
@@ -598,22 +591,25 @@ public class ConceptInsertion {
                 while (importConcepts.hasNext()) {
                     while (importConcepts.hasNext() && buffer.size() < batchsize)
                         buffer.add(importConcepts.next());
-                    CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                    InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
-                    // If the nodesBySrcId map is empty we either have no concepts or
-                    // at least no concepts with a source ID. Then,
-                    // relationship creation is currently not supported.
-                    if (!nodesByCoordinates.isEmpty() && !importOptions.merge) {
-                        log.debug("Beginning to create relationships between the imported concepts.");
-                        createRelationships(log, tx, buffer, facet, nodesByCoordinates, importOptions,
-                                bufferInsertionReport);
+                    try (Transaction tx = graphDb.beginTx()) {
+                        CoordinatesMap nodesByCoordinates = new CoordinatesMap();
+                        log.debug("Importing a batch of %s concepts", batchsize);
+                        InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
+                        // If the nodesBySrcId map is empty we either have no concepts or
+                        // at least no concepts with a source ID. Then,
+                        // relationship creation is currently not supported.
+                        if (!nodesByCoordinates.isEmpty() && !importOptions.merge) {
+                            log.debug("Beginning to create relationships between the imported concepts.");
+                            createRelationships(log, tx, buffer, facetId, nodesByCoordinates, importOptions,
+                                    bufferInsertionReport);
+                        } else
+                            log.debug("This is a property merging import, no relationships are created.");
+                        insertionReport.merge(bufferInsertionReport);
+                        buffer.clear();
+                        imported += bufferInsertionReport.numConcepts;
+                        log.debug("Imported %s concepts", imported);
+                        tx.commit();
                     }
-                    else
-                        log.debug("This is a property merging import, no relationships are created.");
-                    insertionReport.merge(bufferInsertionReport);
-                    buffer.clear();
-                    imported += bufferInsertionReport.numConcepts;
-                    log.debug("Imported %s concepts", imported);
                 }
                 response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
                 response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
@@ -697,6 +693,7 @@ public class ConceptInsertion {
                 }
             }
         }
+        log.trace("Finished finding parents.");
         // Finished finding parents
 
         // When merging, we remove those import concepts that are not known in
@@ -708,6 +705,7 @@ public class ConceptInsertion {
         // HOLLOW nodes.
         // The following methods can then just access the nodes by their source
         // Id which ought to be unique for each import.
+        log.trace("Now importing the concepts.");
         for (int i = 0; i < concepts.size(); i++) {
             ImportConcept jsonConcept = concepts.get(i);
             ConceptCoordinates coordinates;
@@ -723,7 +721,10 @@ public class ConceptInsertion {
             // above
             if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
                 continue;
+            long lt = System.currentTimeMillis();
             Node conceptNode = lookupConcept(tx, coordinates);
+            lt = System.currentTimeMillis() - lt;
+            lookupTime += lt;
             if (conceptNode != null) {
                 insertionReport.addExistingConcept(conceptNode);
                 nodesByCoordinates.put(coordinates, conceptNode);

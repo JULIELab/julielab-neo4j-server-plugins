@@ -17,6 +17,8 @@ import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_C
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 
 public class ConceptLookup {
+    public static int lookupTime = 0;
+    public static int lookupTimeBySource = 0;
     private final static Logger log = LoggerFactory.getLogger(ConceptLookup.class);
     /**
      * RULE: Two concepts are equal, iff they have the same original source ID
@@ -28,6 +30,7 @@ public class ConceptLookup {
      * @return The node corresponding to the given coordinates or null, if none is found.
      */
     public static Node lookupConcept(Transaction tx, ConceptCoordinates coordinates) {
+        long time = System.currentTimeMillis();
         String orgId = coordinates.originalId;
         String orgSource = coordinates.originalSource;
         String srcId = coordinates.sourceId;
@@ -43,7 +46,9 @@ public class ConceptLookup {
         }
         Node concept;
         // Do we know the original ID?
+        long lookupTime = System.currentTimeMillis();
         concept = null != orgId ? tx.findNode(ConceptLabel.CONCEPT, PROP_ORG_ID, orgId) : null;
+        lookupTime = System.currentTimeMillis() - lookupTime;
         if (concept != null)
             log.trace("Found concept by original ID {}", orgId);
         // 1. Check if there is a concept with the given original ID and a matching
@@ -81,6 +86,8 @@ public class ConceptLookup {
             log.trace(
                     "    Did not find an existing concept with original ID and source ({}, {}) or source ID and source ({}, {}).",
                     orgId, orgSource, srcId, source);
+        time = System.currentTimeMillis() - time;
+        lookupTime += time;
         return concept;
     }
 
@@ -97,15 +104,23 @@ public class ConceptLookup {
      * @return The requested concept node or <tt>null</tt> if no such node is found.
      */
     public static Node lookupConceptBySourceId(Transaction tx, String srcId, String source, boolean uniqueSourceId) {
+        long time = System.currentTimeMillis();
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
+//        ResourceIterator<Node> indexHits = tx.findNodes(ConceptLabel.CONCEPT, PROP_SRC_IDS, srcId, StringSearchMode.CONTAINS);
         ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
         try {
-            if (!indexHits.hasNext())
+            if (!indexHits.hasNext()) {
                 log.trace("    Did not find any concept with source ID {}", srcId);
+                time = System.currentTimeMillis() - time;
+                lookupTimeBySource += time;
+                System.out.println("Single FT lookup: " + time);
+                return null;
+            }
         } catch (QueryExecutionException e) {
             log.error("Could not find index hits for sourceId {} due to error", srcId, e);
             throw e;
         }
+        System.out.println("SHOULDNT COME HERE");
 
         Node soughtConcept = null;
         boolean uniqueSourceIdNodeFound = false;
@@ -149,6 +164,8 @@ public class ConceptLookup {
                             "There are multiple concept nodes with source ID " + srcId + " and source " + source);
             }
         }
+        time = System.currentTimeMillis() - time;
+        lookupTimeBySource += time;
         return soughtConcept;
     }
 }

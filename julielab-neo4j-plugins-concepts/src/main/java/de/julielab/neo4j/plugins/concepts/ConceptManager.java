@@ -72,7 +72,6 @@ public class ConceptManager {
     private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
 
 
-
     private final DatabaseManagementService dbms;
 
     public ConceptManager(@Context DatabaseManagementService dbms) {
@@ -81,11 +80,11 @@ public class ConceptManager {
 
 
     public static void createIndexes(Transaction tx) {
-        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, true, ConceptConstants.PROP_ID);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, "ConceptId", ConceptLabel.CONCEPT, true, Indexes.PROVIDER_NATIVE_1_0, ConceptConstants.PROP_ID);
         // The org ID can actually be duplicated. Only the composite (orgId,orgSource) should be unique but this isn't supported
         // by schema indexes it seems
-        Indexes.createSinglePropertyIndexIfAbsent(tx, ConceptLabel.CONCEPT, false, ConceptConstants.PROP_ORG_ID);
-        Indexes.createSinglePropertyIndexIfAbsent(tx, NodeConstants.Labels.ROOT, true, NodeConstants.PROP_NAME);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, "OriginalId", ConceptLabel.CONCEPT, false, Indexes.PROVIDER_NATIVE_1_0, ConceptConstants.PROP_ORG_ID);
+        Indexes.createSinglePropertyIndexIfAbsent(tx, "FacetRoots", NodeConstants.Labels.ROOT, true, Indexes.PROVIDER_NATIVE_1_0, NodeConstants.PROP_NAME);
         FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT, ConceptLabel.HOLLOW}, new String[]{PROP_SRC_IDS});
     }
 
@@ -150,7 +149,6 @@ public class ConceptManager {
             final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             try (Transaction tx = graphDb.beginTx()) {
-
                 Map<String, Object> pathsWrappedInMap = ConceptRetrieval.getPathsFromFacetRoots(tx, conceptIds, idProperty, returnIdProperty, sort, facetId);
                 return Response.ok(pathsWrappedInMap).build();
             }
@@ -161,6 +159,7 @@ public class ConceptManager {
 
     /**
      * Calls {@link #insertConcepts(InputStream, Log)} with the SLF4J logger defined in this class.
+     *
      * @param is The concepts input.
      * @return The JavaX RS response.
      */
@@ -180,10 +179,7 @@ public class ConceptManager {
             log.debug("Beginning processing of concept insertion.");
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             Map<String, Object> response = new HashMap<>();
-            try (Transaction tx = graphDb.beginTx()) {
-                insertionReport = ConceptInsertion.insertConcepts(log, tx, is, response);
-                tx.commit();
-            }
+            insertionReport = ConceptInsertion.insertConcepts(log, graphDb, is, response);
             log.info("Concept insertion complete.");
             log.info("%s is finished processing after %s ms. %s concepts and %s relationships have been created.", INSERT_CONCEPTS, insertionReport.numConcepts, insertionReport.numRelationships, response.get(KEY_TIME));
             return Response.ok(response).build();

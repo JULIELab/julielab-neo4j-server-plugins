@@ -6,9 +6,6 @@ import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.schema.IndexCreator;
-import org.neo4j.graphdb.schema.IndexDefinition;
-import org.neo4j.graphdb.schema.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,8 +13,8 @@ import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
-import java.util.Arrays;
-import java.util.Set;
+import java.util.List;
+import java.util.Map;
 
 import static de.julielab.neo4j.plugins.Indexes.INDEXES_REST_ENDPOINT;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
@@ -27,6 +24,10 @@ public class Indexes {
     public static final String INDEXES_REST_ENDPOINT = "indexes";
     public static final String CREATE_INDEXES = "create_indexes";
     public static final String DB_NAME = "db_name";
+
+    public static final String PROVIDER_NATIVE_1_0 = "native-btree-1.0";
+    public static final String PROVIDER_LUCENE_NATIVE_1_0 = "lucene+native-3.0";
+
     private final static Logger log = LoggerFactory.getLogger(Indexes.class);
     private final DatabaseManagementService dbms;
 
@@ -38,36 +39,17 @@ public class Indexes {
      * Checks whether an automatic index for the <tt>label</tt> exists on the
      * <tt>property</tt> and creates it, if not.
      *
-     * @param tx         The current transaction.
-     * @param label      The node label to create the index for.
-     * @param properties The node property to create the index for.
-     * @param unique     Whether or not to impose a unique constraint for this label/property combination.
+     * @param tx       The current transaction.
+     * @param label    The node label to create the index for.
+     * @param property The node property to create the index for.
+     * @param unique   Whether or not to impose a unique constraint for this label/property combination.
      */
-    public static void createSinglePropertyIndexIfAbsent(Transaction tx, Label label, boolean unique, String... properties) {
-        Schema schema = tx.schema();
-        Set<String> propertySet = Set.of(properties);
-        int foundProperties = 0;
-        for (IndexDefinition id : schema.getIndexes(label)) {
-            for (String propertyKey : id.getPropertyKeys()) {
-                if (propertySet.contains(propertyKey))
-                    ++foundProperties;
-            }
-        }
-        boolean indexExists = foundProperties == properties.length;
-        if (!indexExists) {
-            log.info("Creating index for label {} on properties {} (unique: {}).", label, Arrays.toString(properties), unique);
-            if (!unique) {
-                IndexCreator indexCreator = schema.indexFor(label);
-                for (String property : properties) {
-                    indexCreator = indexCreator.on(property);
-                }
-                indexCreator.create();
-            } else {
-                if (properties.length > 1)
-                    throw new IllegalArgumentException("Passed multiple properties for a unique constraint. Unique constraints are only supported on single properties in the Neo4j community edition.");
-                schema.constraintFor(label).assertPropertyIsUnique(properties[0]).create();
-            }
-        }
+    public static void createSinglePropertyIndexIfAbsent(Transaction tx, String indexName, Label label, boolean unique, String indexProvider, String property) {
+        String indexCreationProcedure = unique ? "createUniquePropertyConstraint" : "createIndex";
+        if (indexProvider == null)
+            tx.execute("CALL db." + indexCreationProcedure + "($indexName, $label, $property)", Map.of("indexName", indexName, "label", List.of(label.name()), "property", List.of(property)));
+        else
+            tx.execute("CALL db." + indexCreationProcedure + "($indexName, $label, $property, $indexProvider)", Map.of("indexName", indexName, "label", List.of(label.name()), "property", List.of(property), "indexProvider", indexProvider));
     }
 
     /**

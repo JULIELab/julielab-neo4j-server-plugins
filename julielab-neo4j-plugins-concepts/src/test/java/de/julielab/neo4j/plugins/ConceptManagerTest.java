@@ -136,15 +136,15 @@ public class ConceptManagerTest {
         // This test assures that pure term merging works by addressing terms
         // via their original ID without
         // specification of their source ID.
-        ConceptManager tm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS);
 
-        ImportConcepts testTerms;
-        testTerms = getTestConcepts(1);
-        testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
-        testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
-        testTerms.getConceptsAsList().get(0).coordinates.source = "someSource";
-        testTerms.getConceptsAsList().get(0).descriptions = null;
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
+        ImportConcepts importConcepts;
+        importConcepts = getTestConcepts(1);
+        importConcepts.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+        importConcepts.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+        importConcepts.getConceptsAsList().get(0).coordinates.source = "someSource";
+        importConcepts.getConceptsAsList().get(0).descriptions = null;
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
             Node term = tx.findNode(CONCEPT,
@@ -155,15 +155,15 @@ public class ConceptManagerTest {
         }
 
         // Now add a description, only by knowing the term's original ID.
-        testTerms = getTestConcepts(1);
-        testTerms.getConceptsAsList().get(0).coordinates.originalId = "orgId";
-        testTerms.getConceptsAsList().get(0).coordinates.originalSource = "src1";
-        testTerms.getConceptsAsList().get(0).coordinates.sourceId = null;
-        testTerms.getConceptsAsList().get(0).descriptions = Lists.newArrayList("desc");
+        importConcepts = getTestConcepts(1);
+        importConcepts.getConceptsAsList().get(0).coordinates.originalId = "orgId";
+        importConcepts.getConceptsAsList().get(0).coordinates.originalSource = "src1";
+        importConcepts.getConceptsAsList().get(0).coordinates.sourceId = null;
+        importConcepts.getConceptsAsList().get(0).descriptions = Lists.newArrayList("desc");
         ImportOptions importOptions = new ImportOptions();
         importOptions.merge = true;
-        testTerms.setImportOptions(importOptions);
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
+        importConcepts.setImportOptions(importOptions);
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
             Node term = tx.findNode(CONCEPT,

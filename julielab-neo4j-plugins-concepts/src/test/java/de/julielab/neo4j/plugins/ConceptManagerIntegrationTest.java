@@ -3,6 +3,7 @@ package de.julielab.neo4j.plugins;
 import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.neo4j.harness.junit.rule.Neo4jRule;
@@ -23,10 +24,9 @@ public class ConceptManagerIntegrationTest {
 
     @Test
     public void testInsertConcepts() throws Exception {
-        ImportConcepts testTerms = ConceptManagerTest.getTestConcepts(10);
+        ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(10);
         String uri = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.INSERT_CONCEPTS).toString();
-        System.out.println(uri);
-        HTTP.Response response = HTTP.POST(uri, testTerms);
+        HTTP.Response response = HTTP.POST(uri, ConceptsJsonSerializer.toJsonTree(importConcepts));
         //{"numCreatedConcepts":10,"numCreatedRelationships":10,"facetId":"fid0","time":507}
         assertThat(response.get("numCreatedConcepts").asInt()).isEqualTo(10);
         assertThat(response.get("numCreatedRelationships").asInt()).isEqualTo(10);
@@ -36,12 +36,12 @@ public class ConceptManagerIntegrationTest {
     @Test
     public void insertMappings() {
         // Insert two sets of terms to create mappings between them
-        ImportConcepts testTerms = ConceptManagerTest.getTestConcepts(5);
-        HTTP.Response response = HTTP.POST(neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.INSERT_CONCEPTS).toString(), testTerms);
+        ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(5);
+        HTTP.Response response = HTTP.POST(neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.INSERT_CONCEPTS).toString(), ConceptsJsonSerializer.toJsonTree(importConcepts));
         assertThat(response.status()).isEqualTo(200);
-        testTerms = ConceptManagerTest.getTestConcepts(5, 5);
-        testTerms.getFacet().setName("facet2");
-        response = HTTP.POST(neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.INSERT_CONCEPTS).toString(), testTerms);
+        importConcepts = ConceptManagerTest.getTestConcepts(5, 5);
+        importConcepts.getFacet().setName("facet2");
+        response = HTTP.POST(neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.INSERT_CONCEPTS).toString(), ConceptsJsonSerializer.toJsonTree(importConcepts));
         assertThat(response.status()).isEqualTo(200);
 
         List<ImportMapping> importMappings = List.of(new ImportMapping("CONCEPT0", "CONCEPT7", "LOOM"), new ImportMapping("CONCEPT8", "CONCEPT4", "LOOM"));
