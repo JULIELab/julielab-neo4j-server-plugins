@@ -456,10 +456,10 @@ public class ConceptAggregateManager {
         return aggregateNodes;
     }
 
-    private static Node createAggregate(Transaction tx, String[] copyProperties, Set<Node> elementTerms,
+    private static void createAggregate(Transaction tx, String[] copyProperties, Set<Node> elementTerms,
                                         String[] mappingTypes, Label... labels) {
         if (elementTerms.isEmpty())
-            return null;
+            return;
         Node aggregate = tx.createNode(labels);
         aggregate.addLabel(AGGREGATE);
         aggregate.setProperty(PROP_COPY_PROPERTIES, copyProperties);
@@ -473,7 +473,6 @@ public class ConceptAggregateManager {
         String aggregateId = NodeIDPrefixConstants.AGGREGATE_TERM
                 + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_AGGREGATE_TERM);
         aggregate.setProperty(PROP_ID, aggregateId);
-        return aggregate;
     }
 
     /**

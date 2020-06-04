@@ -292,7 +292,7 @@ public class FacetManagerTest {
 
         ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(amount);
         ConceptManager termManager = new ConceptManager(graphDBMS);
-        termManager.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));;
+        termManager.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         FacetManager facetManager = new FacetManager(graphDBMS);
 
         assertEquals(amount, facetManager.getFacetSize(facet));

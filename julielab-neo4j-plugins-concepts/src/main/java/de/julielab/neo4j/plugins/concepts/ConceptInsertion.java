@@ -9,7 +9,6 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.collect.Sets;
 import de.julielab.neo4j.plugins.FacetManager;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
-import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesSet;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
@@ -348,10 +347,10 @@ public class ConceptInsertion {
             concept.setProperty(PROP_ORG_ID, coordinates.originalId);
             concept.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
-        PropertyUtilities.setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
-        PropertyUtilities.mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
-        PropertyUtilities.mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
-        PropertyUtilities.mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));
+        setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
+        mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
+        mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
+        mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));
         mergeArrayProperty(concept, PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
         addToArrayProperty(concept, PROP_FACETS, facetId);
 
@@ -466,7 +465,7 @@ public class ConceptInsertion {
             Iterable<Relationship> relationships = source.getRelationships(direction, type);
             for (Relationship relationship : relationships) {
                 if (relationship.getEndNode().equals(target)) {
-                    relationShipExists = PropertyUtilities.mergeProperties(relationship, properties);
+                    relationShipExists = mergeProperties(relationship, properties);
                 }
             }
         }
@@ -493,15 +492,14 @@ public class ConceptInsertion {
      * @param target          The node to create the new relationship to (note that the relationship direction has yet to be considered).
      * @param type            The relationship type of new new relationship.
      * @param insertionReport The insertion report keeping track of the number of inserted elements.
-     * @return The newly created relationship. Null if the relationship did already exist.
      */
-    private static Relationship createRelationshipIfNotExists(Node source, Node target, RelationshipType type,
-                                                              InsertionReport insertionReport) {
-        return createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
+    private static void createRelationshipIfNotExists(Node source, Node target, RelationshipType type,
+                                                      InsertionReport insertionReport) {
+        createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
     }
 
-    public static InsertionReport insertConcepts(GraphDatabaseService graphDb, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
-        return insertConcepts(new Slf4jLog(log), graphDb, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
+    public static void insertConcepts(GraphDatabaseService graphDb, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
+        insertConcepts(new Slf4jLog(log), graphDb, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
     }
 
     public static InsertionReport insertConcepts(Log log, GraphDatabaseService graphDb, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {

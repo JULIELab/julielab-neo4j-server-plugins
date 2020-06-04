@@ -57,9 +57,9 @@ public class TraversalTest {
 	public void testGetAcronymsTraversal() throws Exception {
 		ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(2);
 		ConceptManager tm = new ConceptManager(graphDBMS);
-		tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));;
+		tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
-		Map<String, Integer> acronymCounts = new HashMap<>();
+        Map<String, Integer> acronymCounts = new HashMap<>();
 		// acro1 is a shared acronym
 		acronymCounts.put("acro1", 2);
 		acronymCounts.put("acro2", 42);

@@ -162,7 +162,7 @@ public class ExportTest {
         term.coordinates.originalSource = "src2";
         importConcepts.getConceptsAsList().add(term);
         ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));;
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         Method method = Export.class.getDeclaredMethod("createIdMapping", OutputStream.class, String.class, String.class,
                 String[].class);

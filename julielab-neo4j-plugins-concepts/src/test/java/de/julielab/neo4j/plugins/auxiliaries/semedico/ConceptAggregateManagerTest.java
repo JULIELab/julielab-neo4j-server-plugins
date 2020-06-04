@@ -164,8 +164,8 @@ public class ConceptAggregateManagerTest {
 
         ConceptManager cm = new ConceptManager(graphDBMS);
 
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)).getBytes(UTF_8)));;
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)).getBytes(UTF_8)));;
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)).getBytes(UTF_8)));
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)).getBytes(UTF_8)));
         cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 
@@ -253,7 +253,7 @@ public class ConceptAggregateManagerTest {
                 new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
         ConceptManager cm = new ConceptManager(graphDBMS);
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(terms1, importFacet1)).getBytes(UTF_8)));;
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(terms1, importFacet1)).getBytes(UTF_8)));
         cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         Label aggLabel = Label.label("EQUAL_AGG");
 
@@ -310,7 +310,7 @@ public class ConceptAggregateManagerTest {
                 new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
         ConceptManager cm = new ConceptManager(graphDBMS);
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts, importFacet1)).getBytes(UTF_8)));;
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts, importFacet1)).getBytes(UTF_8)));
         cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         // The label by which we will identify all nodes representing an
         // aggregated unit, i.e. an actual aggregate node

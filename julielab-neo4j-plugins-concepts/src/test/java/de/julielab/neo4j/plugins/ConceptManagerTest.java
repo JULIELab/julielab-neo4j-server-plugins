@@ -1036,7 +1036,7 @@ public class ConceptManagerTest {
             assertEquals(2, relCount);
 
             // now: get the "children" of the aggregate (should be the elements)
-            Map<String, Object> relAndChildMap = (Map<String, Object>) ConceptRetrieval.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), ConceptLabel.AGGREGATE).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
+            @SuppressWarnings("unchecked") Map<String, Object> relAndChildMap = (Map<String, Object>) ConceptRetrieval.getChildrenOfConcepts(tx, List.of(NodeIDPrefixConstants.AGGREGATE_TERM + "0"), ConceptLabel.AGGREGATE).get(NodeIDPrefixConstants.AGGREGATE_TERM + 0);
             assertEquals(2, ((Map<?, ?>) relAndChildMap.get(ConceptManager.RET_KEY_RELTYPES)).size());
             assertEquals(2, ((Set<?>) relAndChildMap.get(ConceptManager.RET_KEY_CHILDREN)).size());
         }
@@ -1587,7 +1587,6 @@ public class ConceptManagerTest {
         testConcepts.getConceptsAsList().get(3).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT2", "TEST_DATA", SRC));
         testConcepts.getConceptsAsList().get(4).parentCoordinates = List.of(new ConceptCoordinates("CONCEPT3", "TEST_DATA", SRC));
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testConcepts).getBytes(UTF_8)));
-        ;
 
         List<ImportMapping> mappings = Lists.newArrayList(new ImportMapping("CONCEPT0", "CONCEPT1", "loom"),
                 new ImportMapping("CONCEPT3", "CONCEPT2", "same_uris"));
