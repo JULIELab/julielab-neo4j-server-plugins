@@ -40,6 +40,7 @@ public class ConceptManager {
     public static final String INSERT_CONCEPTS = "insert_concepts";
     public static final String GET_FACET_ROOTS = "get_facet_roots";
     public static final String ADD_CONCEPT_TERM = "add_concept_term";
+    public static final String ADD_IE_RELATIONS = "add_ie_relations";
     public static final String KEY_FACET = "facet";
     public static final String KEY_FACET_ID = "facetId";
     public static final String KEY_FACET_IDS = "facetIds";
@@ -348,5 +349,55 @@ public class ConceptManager {
         }
     }
 
+    /**
+     * <p>Adds semantic relations between concepts of the database as extracted from literature with information retrieval techniques.</p>
+     * <p>
+     *     The format is as follows:
+     *<pre>
+     * {
+     *     "id_property": &lt;one of "id", "sourceIds", "originalId"&gt;,
+     *     "id_source":   &lt;optional; will be used as a default when not given per concept Id&gt;
+     *      "relations": {
+     *          "&lt;docId1&gt;": {
+     *              "&lt;relationshipType1&gt;": [
+     *                  [
+     *                      ["&lt;concept id 1&gt;", "&lt;id 1 source if id_property not 'id' and not from 'id_source'&gt;],
+     *                      ["&lt;concept id 2&gt;"]
+     *                  ],
+     *                  [
+     *                      [...]
+     *                  ],
+     *                  ...
+     *              ]
+     *          },
+     *          "&lt;docId2&gt;": {
+     *              "&lt;relationshipType2&gt;": [
+     *                  [
+     *                      [...]
+     *                  ],
+     *                  [
+     *                      [...]
+     *                  ],
+     *              ]
+     *          }
+     *      }
+     *  }
+     *</pre>
+     * </p>
+     */
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @javax.ws.rs.Path(ADD_IE_RELATIONS)
+    public void addIERelations(InputStream is, @Context Log log) {
+
+    }
+
+    /**
+     * Convenience access to {@link #addIERelations(InputStream)}.
+     * @param is
+     */
+    public void addIERelations(InputStream is) {
+
+    }
 
 }

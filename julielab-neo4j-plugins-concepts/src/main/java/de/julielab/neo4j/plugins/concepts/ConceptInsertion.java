@@ -48,7 +48,6 @@ import static java.util.stream.Collectors.joining;
 
 public class ConceptInsertion {
     private final static Logger log = LoggerFactory.getLogger(ConceptInsertion.class);
-    public static long lookupTime = 0;
 
     static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
                                     CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
@@ -59,8 +58,7 @@ public class ConceptInsertion {
             relBroaderThanInFacet = RelationshipType.withName(ConceptEdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
         AddToNonFacetGroupCommand noFacetCmd = importOptions.noFacetCmd;
         Node noFacet = null;
-        for (int i = 0; i < jsonConcepts.size(); i++) {
-            ImportConcept jsonConcept = jsonConcepts.get(i);
+        for (ImportConcept jsonConcept : jsonConcepts) {
             // aggregates may be included into the taxonomy, but by default they
             // are not
             if (jsonConcept.aggregate
@@ -721,10 +719,7 @@ public class ConceptInsertion {
             // above
             if (nodesByCoordinates.containsKey(coordinates) || toBeCreated.contains(coordinates, true))
                 continue;
-            long lt = System.currentTimeMillis();
             Node conceptNode = lookupConcept(tx, coordinates);
-            lt = System.currentTimeMillis() - lt;
-            lookupTime += lt;
             if (conceptNode != null) {
                 insertionReport.addExistingConcept(conceptNode);
                 nodesByCoordinates.put(coordinates, conceptNode);

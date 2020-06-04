@@ -46,6 +46,7 @@ public class ConceptManagerTest {
     public static void initialize() {
         graphDBMS = TestUtilities.getGraphDBMS();
         graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
+        System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "false");
     }
 
     @AfterClass
@@ -444,72 +445,77 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testMergeTermProperties() {
-        // We will insert the same term (identified by the same original ID)
-        // multiple times with additional
-        // information each time. At the end, the information that can be merged
-        // should be complete.
-        ImportFacet facetMap = FacetManagerTest.getImportFacet();
+    public void testMergeConceptProperties() {
+        System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "true");
+        try {
+            // We will insert the same term (identified by the same original ID)
+            // multiple times with additional
+            // information each time. At the end, the information that can be merged
+            // should be complete.
+            ImportFacet facetMap = FacetManagerTest.getImportFacet();
 
-        // ------------ INSERT 1 ---------------
+            // ------------ INSERT 1 ---------------
 
-        ImportConcept concept = new ImportConcept("prefname1",
-                new ConceptCoordinates("CONCEPT1", "TEST_SOURCE", "ORGID", "orgSrc1"));
+            ImportConcept concept = new ImportConcept("prefname1",
+                    new ConceptCoordinates("CONCEPT1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+            ConceptManager cm = new ConceptManager(graphDBMS);
 
-        ImportConcepts importConcepts = new ImportConcepts();
-        importConcepts.setFacet(facetMap);
-        importConcepts.setConcepts(List.of(concept));
-        String termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
-        cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
+            ImportConcepts importConcepts = new ImportConcepts();
+            importConcepts.setFacet(facetMap);
+            importConcepts.setConcepts(List.of(concept));
+            String termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
+            cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
 
-        // ------------ INSERT 2 ---------------
-        concept = new ImportConcept("prefname1", "description1",
-                new ConceptCoordinates("CONCEPT1", "TEST_SOURCE", "ORGID", "orgSrc1"));
+            // ------------ INSERT 2 ---------------
+            concept = new ImportConcept("prefname1", "description1",
+                    new ConceptCoordinates("CONCEPT1", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-        importConcepts.setConcepts(List.of(concept));
-        termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
-        cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
+            importConcepts.setConcepts(List.of(concept));
+            termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
+            cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
 
-        // ------------ INSERT 3 ---------------
-        concept = new ImportConcept("prefname2", Collections.singletonList("syn1"),
-                new ConceptCoordinates("CONCEPT2", "TEST_SOURCE", "ORGID", "orgSrc1"));
+            // ------------ INSERT 3 ---------------
+            concept = new ImportConcept("prefname2", Collections.singletonList("syn1"),
+                    new ConceptCoordinates("CONCEPT2", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-        importConcepts.setConcepts(List.of(concept));
-        termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
-        cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
+            importConcepts.setConcepts(List.of(concept));
+            termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
+            cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
 
-        // ------------ INSERT 4 ---------------
-        concept = new ImportConcept("prefname3", Collections.singletonList("syn2"), "description2",
-                new ConceptCoordinates("CONCEPT3", "TEST_SOURCE", "ORGID", "orgSrc1"));
+            // ------------ INSERT 4 ---------------
+            concept = new ImportConcept("prefname3", Collections.singletonList("syn2"), "description2",
+                    new ConceptCoordinates("CONCEPT3", "TEST_SOURCE", "ORGID", "orgSrc1"));
 
-        importConcepts.setConcepts(List.of(concept));
-        termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
-        cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
+            importConcepts.setConcepts(List.of(concept));
+            termsAndFacetJson = ConceptsJsonSerializer.toJson(importConcepts);
+            cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
 
-        // ------------ MAKE TESTS ---------------
-        try (Transaction tx = graphDb.beginTx()) {
-            assertEquals(1, tx.findNodes(CONCEPT).stream().count());
-            // We only have one term, thus tid0.
-            Node concept1 = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            // ------------ MAKE TESTS ---------------
+            try (Transaction tx = graphDb.beginTx()) {
+                assertEquals(1, tx.findNodes(CONCEPT).stream().count());
+                // We only have one term, thus tid0.
+                Node concept1 = tx.findNode(CONCEPT, PROP_ID, "tid0");
 
-            assertEquals("prefname1", concept1.getProperty(PROP_PREF_NAME));
-            assertEquals("ORGID", concept1.getProperty(PROP_ORG_ID));
+                assertEquals("prefname1", concept1.getProperty(PROP_PREF_NAME));
+                assertEquals("ORGID", concept1.getProperty(PROP_ORG_ID));
 
-            String[] descs = (String[]) concept1.getProperty(PROP_DESCRIPTIONS);
-            assertEquals(2, descs.length);
-            Arrays.sort(descs);
-            assertEquals(Lists.newArrayList("description1", "description2"), Arrays.asList(descs));
-            List<String> synList = Lists.newArrayList((String[]) concept1.getProperty(PROP_SYNONYMS));
-            assertTrue(synList.contains("syn1"));
-            assertTrue(synList.contains("syn2"));
-            List<String> srcIdList = Arrays.asList(Objects.requireNonNull(NodeUtilities.getSourceIds(concept1)));
-            assertTrue(srcIdList.contains("CONCEPT1"));
-            assertTrue(srcIdList.contains("CONCEPT2"));
-            assertTrue(srcIdList.contains("CONCEPT3"));
+                String[] descs = (String[]) concept1.getProperty(PROP_DESCRIPTIONS);
+                assertEquals(2, descs.length);
+                Arrays.sort(descs);
+                assertEquals(Lists.newArrayList("description1", "description2"), Arrays.asList(descs));
+                List<String> synList = Lists.newArrayList((String[]) concept1.getProperty(PROP_SYNONYMS));
+                assertTrue(synList.contains("syn1"));
+                assertTrue(synList.contains("syn2"));
+                List<String> srcIdList = Arrays.asList(Objects.requireNonNull(NodeUtilities.getSourceIds(concept1)));
+                assertTrue(srcIdList.contains("CONCEPT1"));
+                assertTrue(srcIdList.contains("CONCEPT2"));
+                assertTrue(srcIdList.contains("CONCEPT3"));
 
-            tx.commit();
+                tx.commit();
+            }
+        } finally {
+            System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "false");
         }
     }
 
@@ -1591,7 +1597,9 @@ public class ConceptManagerTest {
     }
 
     @Test
-    public void testMergeTerms() {
+    public void testMergeConcepts() {
+        System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "true");
+        try {
         // Here, we will insert some terms as normal. Then, we will insert some
         // terms anew, with new property values
         // that should then be merged. We won't define a new facet, we just want
@@ -1663,6 +1671,8 @@ public class ConceptManagerTest {
             // a parent; this normally causes the term to be a root term, but
             // not if it did exist before.
             assertEquals(4, rootTermCounter);
+        }}finally {
+            System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "false");
         }
     }
 
@@ -1674,9 +1684,7 @@ public class ConceptManagerTest {
 
         ConceptManager tm = new ConceptManager(graphDBMS);
         tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(facet1).getBytes(UTF_8)));
-        ;
         tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(facet2).getBytes(UTF_8)));
-        ;
 
         try (Transaction ignored = graphDb.beginTx()) {
             assertEquals(1, countNodesWithLabel(FacetLabel.FACET));
@@ -1926,5 +1934,11 @@ public class ConceptManagerTest {
             assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 1));
             assertTrue(rootIds.contains(NodeIDPrefixConstants.TERM + 2));
         }
+    }
+
+    @Test
+    public void testInsertSimpleSemanticRelation() {
+        ConceptManager cm = new ConceptManager(graphDBMS);
+
     }
 }

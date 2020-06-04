@@ -1,5 +1,7 @@
 package de.julielab.neo4j.plugins.concepts;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
@@ -11,15 +13,27 @@ import org.neo4j.graphdb.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 
 public class ConceptLookup {
-    public static int lookupTime = 0;
-    public static int lookupTimeBySource = 0;
+    public static final String SYSPROP_ID_CACHE_ENABLED = "de.julielab.neo4j.plugins.conceptlookup.nodeidcache.enabled";
     private final static Logger log = LoggerFactory.getLogger(ConceptLookup.class);
+    private static Cache<String, Set<Long>> nodeIdsBySourceIds;
+
+    static {
+        nodeIdsBySourceIds = CacheBuilder.newBuilder()
+                .expireAfterWrite(30, TimeUnit.MINUTES)
+                .expireAfterAccess(30, TimeUnit.MINUTES)
+                .build();
+    }
+
     /**
      * RULE: Two concepts are equal, iff they have the same original source ID
      * assigned from the same original source or both have no contradicting original
@@ -44,25 +58,30 @@ public class ConceptLookup {
             log.debug("Neither original ID and original source nor source ID and source were given, returning null.");
             return null;
         }
-        Node concept;
+        Node concept = null;
         // Do we know the original ID?
-        long lookupTime = System.currentTimeMillis();
-        concept = null != orgId ? tx.findNode(ConceptLabel.CONCEPT, PROP_ORG_ID, orgId) : null;
-        lookupTime = System.currentTimeMillis() - lookupTime;
-        if (concept != null)
+        ResourceIterator<Node> concepts = null;
+        if (orgId != null) {
+            concepts = tx.findNodes(ConceptLabel.CONCEPT, PROP_ORG_ID, orgId);
+        }
+        if (concepts != null && concepts.hasNext()) {
             log.trace("Found concept by original ID {}", orgId);
-        // 1. Check if there is a concept with the given original ID and a matching
-        // original source.
-        if (null != concept) {
-            if (!PropertyUtilities.hasSamePropertyValue(concept, PROP_ORG_SRC, orgSource)) {
-                log.trace("Original source doesn't match; requested: {}, found concept has: {}", orgSource,
-                        NodeUtilities.getString(concept, PROP_ORG_SRC));
-                concept = null;
-            } else {
-                log.trace("Found existing concept for original ID {} and original source {}", orgId, orgSource);
+            // 1. Check if there is a concept with the given original ID and a matching
+            // original source.
+            while (concepts.hasNext()) {
+                Node foundConcept = concepts.next();
+                if (!PropertyUtilities.hasSamePropertyValue(foundConcept, PROP_ORG_SRC, orgSource)) {
+                    log.trace("Original source doesn't match; requested: {}, found concept has: {}", orgSource,
+                            NodeUtilities.getString(foundConcept, PROP_ORG_SRC));
+                } else {
+                    log.trace("Found existing concept for original ID {} and original source {}", orgId, orgSource);
+                    concept = foundConcept;
+                    concepts.close();
+                    break;
+                }
             }
         }
-        // 2. If there was no original ID, check for a concept with the same source
+        // 2. If we couldn't find the concept via original ID, check for a concept with the same source
         // ID and source and a non-contradicting original ID.
         if (null == concept && null != srcId) {
             concept = lookupConceptBySourceId(tx, srcId, source, uniqueSourceId);
@@ -86,8 +105,6 @@ public class ConceptLookup {
             log.trace(
                     "    Did not find an existing concept with original ID and source ({}, {}) or source ID and source ({}, {}).",
                     orgId, orgSource, srcId, source);
-        time = System.currentTimeMillis() - time;
-        lookupTime += time;
         return concept;
     }
 
@@ -95,7 +112,7 @@ public class ConceptLookup {
      * Returns the concept node with source ID <tt>srcId</tt> given from source
      * <tt>source</tt> or <tt>null</tt> if no such node exists.
      *
-     * @param tx The current transaction.
+     * @param tx             The current transaction.
      * @param srcId          The source ID of the requested concept node.
      * @param source         The source in which the concept node should be given
      *                       <tt>srcId</tt> as a source ID.
@@ -106,28 +123,35 @@ public class ConceptLookup {
     public static Node lookupConceptBySourceId(Transaction tx, String srcId, String source, boolean uniqueSourceId) {
         long time = System.currentTimeMillis();
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
-//        ResourceIterator<Node> indexHits = tx.findNodes(ConceptLabel.CONCEPT, PROP_SRC_IDS, srcId, StringSearchMode.CONTAINS);
-        ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
-        try {
-            if (!indexHits.hasNext()) {
-                log.trace("    Did not find any concept with source ID {}", srcId);
-                time = System.currentTimeMillis() - time;
-                lookupTimeBySource += time;
-                System.out.println("Single FT lookup: " + time);
-                return null;
+        List<Node> foundNodes = new ArrayList<>();
+        Set<Long> nodeIds = nodeIdsBySourceIds.getIfPresent(srcId);
+        if (nodeIds != null)
+            nodeIds.stream().map(tx::getNodeById).forEach(foundNodes::add);
+        else {
+            ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
+            try {
+                if (!indexHits.hasNext()) {
+                    log.trace("    Did not find any concept with source ID {}", srcId);
+                    return null;
+                }
+            } catch (QueryExecutionException e) {
+                log.error("Could not find index hits for sourceId {} due to error", srcId, e);
+                throw e;
             }
-        } catch (QueryExecutionException e) {
-            log.error("Could not find index hits for sourceId {} due to error", srcId, e);
-            throw e;
+            while (indexHits.hasNext()) {
+                Node conceptNode = (Node) indexHits.next();
+                foundNodes.add(conceptNode);
+                registerConceptNodeBySourceId(conceptNode, srcId);
+            }
         }
-        System.out.println("SHOULDNT COME HERE");
+
 
         Node soughtConcept = null;
         boolean uniqueSourceIdNodeFound = false;
 
-        while (indexHits.hasNext()) {
-            Node conceptNode = (Node) indexHits.next();
+        for (Node conceptNode : foundNodes) {
             if (null != conceptNode) {
+
                 // The rule goes as follows: Two concepts that share a source ID
                 // which is marked as being unique on both concepts are equal. If
                 // on at least one concept the source ID is not marked as
@@ -165,7 +189,18 @@ public class ConceptLookup {
             }
         }
         time = System.currentTimeMillis() - time;
-        lookupTimeBySource += time;
         return soughtConcept;
+    }
+
+    public static void registerConceptNodeBySourceId(Node conceptNode, String srcId) {
+        String cacheActivationPropertyValue = System.getProperty(SYSPROP_ID_CACHE_ENABLED);
+        if (cacheActivationPropertyValue != null && !Boolean.parseBoolean(cacheActivationPropertyValue))
+            return;
+        Set<Long> nodeIds = nodeIdsBySourceIds.getIfPresent(srcId);
+        if (nodeIds == null) {
+            nodeIds = new HashSet<>();
+            nodeIdsBySourceIds.put(srcId, nodeIds);
+        }
+        nodeIds.add(conceptNode.getId());
     }
 }
