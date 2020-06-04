@@ -549,7 +549,7 @@ public class ConceptInsertion {
                 }
             }
 
-            log.info("Got input %s concepts to import.", numConcepts);
+            log.info("Got %s concepts to import.", numConcepts);
             Node facet = null;
             String facetId = null;
             // The facet Id will be added to the facets-property of the concept
@@ -603,19 +603,21 @@ public class ConceptInsertion {
                     // If the nodesBySrcId map is empty we either have no concepts or
                     // at least no concepts with a source ID. Then,
                     // relationship creation is currently not supported.
-                    if (!nodesByCoordinates.isEmpty() && !importOptions.merge)
+                    if (!nodesByCoordinates.isEmpty() && !importOptions.merge) {
+                        log.debug("Beginning to create relationships between the imported concepts.");
                         createRelationships(log, tx, buffer, facet, nodesByCoordinates, importOptions,
                                 bufferInsertionReport);
+                    }
                     else
-                        log.info("This is a property merging import, no relationships are created.");
+                        log.debug("This is a property merging import, no relationships are created.");
                     insertionReport.merge(bufferInsertionReport);
                     buffer.clear();
                     imported += bufferInsertionReport.numConcepts;
-                    log.info("Imported %s concepts", imported);
+                    log.debug("Imported %s concepts", imported);
                 }
                 response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
                 response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);
-                log.debug("Done creating concepts and relationships.");
+                log.info("Done creating %s concepts and %s relationships.", insertionReport.numConcepts, insertionReport.numRelationships);
             } else {
                 log.info("No concepts were included in the request.");
             }

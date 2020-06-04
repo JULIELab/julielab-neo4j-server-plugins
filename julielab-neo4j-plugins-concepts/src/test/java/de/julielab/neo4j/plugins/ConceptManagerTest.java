@@ -371,18 +371,18 @@ public class ConceptManagerTest {
         // just be added to it.
         ImportFacet importFacet = FacetManagerTest.getTestFacetMap(1);
 
-        List<ImportConcept> termList = new ArrayList<>();
-        termList.add(
+        List<ImportConcept> concepts = new ArrayList<>();
+        concepts.add(
                 new ImportConcept("prefname1", "desc of term1", new ConceptCoordinates("CONCEPT1", "TEST_SOURCE", SRC)));
 
         // -------- SEND CONCEPT WITH FACET DEFINITION ------
         ConceptManager cm = new ConceptManager(graphDBMS);
 
-        ImportConcepts termsAndFacet = new ImportConcepts();
-        termsAndFacet.setFacet(importFacet);
-        termsAndFacet.setConcepts(termList);
-        String termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
-        cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
+        ImportConcepts importConcepts = new ImportConcepts();
+        importConcepts.setFacet(importFacet);
+        importConcepts.setConcepts(concepts);
+        String importConceptsJson = ConceptsJsonSerializer.toJson(importConcepts);
+        cm.insertConcepts(new ByteArrayInputStream(importConceptsJson.getBytes(UTF_8)));
         try (Transaction tx = graphDb.beginTx()) {
             // Create the 2nd facet separately.
             importFacet = FacetManagerTest.getTestFacetMap(2);
@@ -391,9 +391,9 @@ public class ConceptManagerTest {
         }
         // ---------- SEND CONCEPT ONLY WITH FACET ID --------
         importFacet = new ImportFacet("fid1");
-        termsAndFacet.setFacet(importFacet);
-        termsAndFacetJson = ConceptsJsonSerializer.toJson(termsAndFacet);
-        cm.insertConcepts(new ByteArrayInputStream(termsAndFacetJson.getBytes(UTF_8)));
+        importConcepts = new ImportConcepts(concepts, importFacet);
+        importConceptsJson = ConceptsJsonSerializer.toJson(importConcepts);
+        cm.insertConcepts(new ByteArrayInputStream(importConceptsJson.getBytes(UTF_8)));
         try (Transaction tx = graphDb.beginTx()) {
             // ------------------ MAKE TESTS ---------------
 
@@ -559,21 +559,22 @@ public class ConceptManagerTest {
 
     @Test
     public void testImportConceptMultipleTimes() {
-        List<ImportConcept> terms;
+        List<ImportConcept> concepts;
         ConceptManager cm;
-        terms = new ArrayList<>();
+        concepts = new ArrayList<>();
         ImportFacet importFacet;
         cm = new ConceptManager(graphDBMS);
-        ImportConcepts importTermAndFacet;
-        terms.add(new ImportConcept("name0", new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
-        terms.add(new ImportConcept("name1", new ConceptCoordinates("source1", "TEST_SOURCE", SRC),
+        ImportConcepts importConcepts;
+        concepts.add(new ImportConcept("name0", new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
+        concepts.add(new ImportConcept("name1", new ConceptCoordinates("source1", "TEST_SOURCE", SRC),
                 new ConceptCoordinates("source0", "TEST_SOURCE", SRC)));
         importFacet = FacetManagerTest.getImportFacet();
-        importTermAndFacet = new ImportConcepts(terms, importFacet);
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importTermAndFacet).getBytes(UTF_8)));
+        importConcepts = new ImportConcepts(concepts, importFacet);
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
+        importConcepts = new ImportConcepts(concepts, importFacet);
         // Insert another time.
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importTermAndFacet).getBytes(UTF_8)));
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -810,9 +811,9 @@ public class ConceptManagerTest {
 
     @Test
     public void testAdditionalRelationships2() {
-        ImportConcepts testTermsAndFacet = getTestConcepts(4);
-        List<ImportConcept> terms = testTermsAndFacet.getConceptsAsList();
-        String termSource = terms.get(0).coordinates.originalSource;
+        ImportConcepts importConcepts = getTestConcepts(4);
+        List<ImportConcept> concepts = importConcepts.getConceptsAsList();
+        String termSource = concepts.get(0).coordinates.originalSource;
         ImportConceptRelationship rel1 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, true),
                 ConceptEdgeTypes.HAS_SAME_NAMES.name());
         rel1.addProperty("prop1", "value1");
@@ -821,13 +822,14 @@ public class ConceptManagerTest {
                 ConceptEdgeTypes.HAS_SAME_NAMES.name());
         rel2.addProperty("prop1", "value1");
         rel2.addProperty("prop3", "value3");
-        terms.get(0).addRelationship(rel1);
-        terms.get(0).addRelationship(rel2);
+        concepts.get(0).addRelationship(rel1);
+        concepts.get(0).addRelationship(rel2);
 
         ConceptManager tm = new ConceptManager(graphDBMS);
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTermsAndFacet).getBytes(UTF_8)));
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTermsAndFacet).getBytes(UTF_8)));
+        importConcepts = new ImportConcepts(concepts, importConcepts.getFacet());
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
 
         try (Transaction tx = graphDb.beginTx()) {
@@ -1042,17 +1044,17 @@ public class ConceptManagerTest {
         // how there are then no hollow terms left and the new
         // "grandparent" will become the root.
         ImportFacet importFacet = FacetManagerTest.getImportFacet();
-        List<ImportConcept> terms = new ArrayList<>();
-        terms.add(new ImportConcept("prefname1", Lists.newArrayList("syn1"), "desc1",
+        List<ImportConcept> concepts = new ArrayList<>();
+        concepts.add(new ImportConcept("prefname1", Lists.newArrayList("syn1"), "desc1",
                 new ConceptCoordinates("srcid1", "TEST_SOURCE", SRC),
                 new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC)));
-        ImportConcepts termAndFacet = new ImportConcepts(terms, importFacet);
+        ImportConcepts importConcepts = new ImportConcepts(concepts, importFacet);
         // Allow hollow parents:
-        termAndFacet.setImportOptions(new ImportOptions());
-        termAndFacet.getImportOptions().doNotCreateHollowParents = false;
+        importConcepts.setImportOptions(new ImportOptions());
+        importConcepts.getImportOptions().doNotCreateHollowParents = false;
         ConceptManager cm = new ConceptManager(graphDBMS);
         OutboundJaxrsResponse report = (OutboundJaxrsResponse) cm.insertConcepts(
-                new ByteArrayInputStream(ConceptsJsonSerializer.toJson(termAndFacet).getBytes(UTF_8)));
+                new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         Map<String, ?> reportMap = (Map<String, ?>) report.getEntity();
         assertEquals("Number of inserted terms", 2, reportMap.get(ConceptManager.RET_KEY_NUM_CREATED_CONCEPTS));
         // we expect relations for the root term, broader than and broader than fid0
@@ -1095,17 +1097,17 @@ public class ConceptManagerTest {
         // parent of its own. The new parent should
         // become the facet root, the former hollow term shouldn't be
         // hollow anymore.
-        terms.clear();
-        terms.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2",
+        concepts.clear();
+        concepts.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2",
                 new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC),
                 new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
-        terms.add(new ImportConcept("prefname3", new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
+        concepts.add(new ImportConcept("prefname3", new ConceptCoordinates("parentid2", "TEST_SOURCE", SRC)));
         // We need to replace the facet definition by the ID of the already
         // created facet because a new facet will be
         // created otherwise.
-        termAndFacet.setFacet(new ImportFacet("fid0"));
+        importConcepts = new ImportConcepts(concepts, new ImportFacet("fid0"));
 
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(termAndFacet).getBytes(UTF_8)));
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
             Iterable<Node> allNodes = () -> tx.findNodes(CONCEPT);
@@ -1147,16 +1149,16 @@ public class ConceptManagerTest {
         // No make sure that when a hollow parent is referenced twice from the
         // same data, there is only one node
         // created.
-        terms.clear();
-        terms.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2",
+        concepts.clear();
+        concepts.add(new ImportConcept("prefname2", Lists.newArrayList("syn2"), "desc2",
                 new ConceptCoordinates("parentid1", "TEST_SOURCE", SRC),
                 new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
-        terms.add(new ImportConcept("prefname5", Lists.newArrayList("syn2"), "desc2",
+        concepts.add(new ImportConcept("prefname5", Lists.newArrayList("syn2"), "desc2",
                 new ConceptCoordinates("parentid8", "TEST_SOURCE", SRC),
                 new ConceptCoordinates("parentid42", "TEST_SOURCE", SRC)));
-        termAndFacet.setFacet(new ImportFacet("fid0"));
+        importConcepts = new ImportConcepts(concepts, new ImportFacet("fid0"));
 
-        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(termAndFacet).getBytes(UTF_8)));
+        cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
             // Would throw an exception if there were multiple terms found.
@@ -1895,11 +1897,12 @@ public class ConceptManagerTest {
     @Test
     public void testGetAllFacetRoots() {
         ConceptManager tm = new ConceptManager(graphDBMS);
-        ImportConcepts testTerms = getTestConcepts(3);
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
+        ImportConcepts importConcepts = getTestConcepts(3);
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         // Insert two times so we have two facets
-        testTerms.getFacet().setName("secondfacet");
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
+        importConcepts = getTestConcepts(3);
+        importConcepts.getFacet().setName("secondfacet");
+        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         try (Transaction tx = graphDb.beginTx()) {
             Map<String, List<Node>> facetRoots = FacetRootsRetrieval
                     .getFacetRoots(tx, Set.of(NodeIDPrefixConstants.FACET + 0, NodeIDPrefixConstants.FACET + 1), null, 0);

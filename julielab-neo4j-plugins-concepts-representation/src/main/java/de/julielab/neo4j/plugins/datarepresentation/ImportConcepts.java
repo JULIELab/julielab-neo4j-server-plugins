@@ -54,6 +54,7 @@ public class ImportConcepts {
      */
     public ImportConcepts(List<ImportConcept> concepts, ImportFacet importFacet) {
         this(concepts.stream(), importFacet);
+        this.conceptsList = concepts;
     }
 
     /**
@@ -65,7 +66,8 @@ public class ImportConcepts {
      * @param importOptions Options regarding the database import of the given concepts.
      */
     public ImportConcepts(List<ImportConcept> concepts, ImportFacet importFacet, ImportOptions importOptions) {
-        this((Stream<ImportConcept>) null, importFacet, importOptions);
+        this(concepts.stream(), importFacet, importOptions);
+        this.conceptsList = concepts;
     }
 
     public Stream<ImportConcept> getConcepts() {
