@@ -1,7 +1,5 @@
 package de.julielab.neo4j.plugins.concepts;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
@@ -14,10 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
@@ -25,14 +21,6 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptCons
 public class ConceptLookup {
     public static final String SYSPROP_ID_CACHE_ENABLED = "de.julielab.neo4j.plugins.conceptlookup.nodeidcache.enabled";
     private final static Logger log = LoggerFactory.getLogger(ConceptLookup.class);
-    private static Cache<String, Set<Long>> nodeIdsBySourceIds;
-
-    static {
-        nodeIdsBySourceIds = CacheBuilder.newBuilder()
-                .expireAfterWrite(30, TimeUnit.MINUTES)
-                .expireAfterAccess(30, TimeUnit.MINUTES)
-                .build();
-    }
 
     /**
      * RULE: Two concepts are equal, iff they have the same original source ID
@@ -124,25 +112,19 @@ public class ConceptLookup {
         long time = System.currentTimeMillis();
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
         List<Node> foundNodes = new ArrayList<>();
-        Set<Long> nodeIds = nodeIdsBySourceIds.getIfPresent(srcId);
-        if (nodeIds != null)
-            nodeIds.stream().map(tx::getNodeById).forEach(foundNodes::add);
-        else {
-            ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
-            try {
-                if (!indexHits.hasNext()) {
-                    log.trace("    Did not find any concept with source ID {}", srcId);
-                    return null;
-                }
-            } catch (QueryExecutionException e) {
-                log.error("Could not find index hits for sourceId {} due to error", srcId, e);
-                throw e;
+        ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
+        try {
+            if (!indexHits.hasNext()) {
+                log.trace("    Did not find any concept with source ID {}", srcId);
+                return null;
             }
-            while (indexHits.hasNext()) {
-                Node conceptNode = (Node) indexHits.next();
-                foundNodes.add(conceptNode);
-                registerConceptNodeBySourceId(conceptNode, srcId);
-            }
+        } catch (QueryExecutionException e) {
+            log.error("Could not find index hits for sourceId {} due to error", srcId, e);
+            throw e;
+        }
+        while (indexHits.hasNext()) {
+            Node conceptNode = (Node) indexHits.next();
+            foundNodes.add(conceptNode);
         }
 
 
@@ -190,17 +172,5 @@ public class ConceptLookup {
         }
         time = System.currentTimeMillis() - time;
         return soughtConcept;
-    }
-
-    public static void registerConceptNodeBySourceId(Node conceptNode, String srcId) {
-        String cacheActivationPropertyValue = System.getProperty(SYSPROP_ID_CACHE_ENABLED);
-        if (cacheActivationPropertyValue != null && !Boolean.parseBoolean(cacheActivationPropertyValue))
-            return;
-        Set<Long> nodeIds = nodeIdsBySourceIds.getIfPresent(srcId);
-        if (nodeIds == null) {
-            nodeIds = new HashSet<>();
-            nodeIdsBySourceIds.put(srcId, nodeIds);
-        }
-        nodeIds.add(conceptNode.getId());
     }
 }

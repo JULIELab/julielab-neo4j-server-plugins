@@ -29,6 +29,8 @@ import java.util.stream.Stream;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
+import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.PROP_COUNT_SUFFIX;
+import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.PROP_TOTAL_COUNT;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
@@ -1938,8 +1940,29 @@ public class ConceptManagerTest {
 
     @Test
     public void testInsertSimpleSemanticRelation() {
+        ImportConcepts importConcepts = getTestConcepts(2);
+
+        ImportIERelations relations = new ImportIERelations(PROP_ID);
+        RelationshipType regulationType = RelationshipType.withName("regulation");
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId", ImportIERelationMap.of(
+                        regulationType.name(), ImportIERelation.of(
+                                ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), 3))));
+
         ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(importConcepts);
+        cm.insertIERelations(relations);
 
-
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            assertThat(n).isNotNull();
+            assertThat(n.getDegree(regulationType)).isEqualTo(1);
+            Relationship rs = n.getSingleRelationship(regulationType, Direction.OUTGOING);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(3);
+            assertThat(rs.hasProperty(regulationType.name() + PROP_COUNT_SUFFIX));
+            assertThat(rs.getProperty(regulationType.name() + PROP_COUNT_SUFFIX)).isEqualTo(3);
+        }
     }
 }

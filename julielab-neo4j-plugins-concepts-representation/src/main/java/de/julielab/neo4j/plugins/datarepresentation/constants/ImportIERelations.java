@@ -17,6 +17,15 @@ public class ImportIERelations {
     @JsonProperty(NAME_ID_SOURCE)
     private String idSource;
     private List<ImportIERelationDocument> relations = new ArrayList<>();
+    public ImportIERelations(String idProperty, String idSource) {
+        this.idProperty = idProperty;
+        this.idSource = idSource;
+    }
+
+    public ImportIERelations(String idProperty) {
+        this.idProperty = idProperty;
+    }
+
 
     public void addRelationDocument(ImportIERelationDocument document) {
         relations.add(document);

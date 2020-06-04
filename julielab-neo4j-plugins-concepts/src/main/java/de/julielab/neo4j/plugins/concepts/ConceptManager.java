@@ -3,10 +3,13 @@ package de.julielab.neo4j.plugins.concepts;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.Indexes;
+import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ImportIERelations;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
@@ -16,15 +19,13 @@ import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.CM_REST_ENDPOINT;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_CHILDREN_IN_FACETS;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.PROP_SRC_IDS;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
 @javax.ws.rs.Path("/" + CM_REST_ENDPOINT)
@@ -40,7 +41,7 @@ public class ConceptManager {
     public static final String INSERT_CONCEPTS = "insert_concepts";
     public static final String GET_FACET_ROOTS = "get_facet_roots";
     public static final String ADD_CONCEPT_TERM = "add_concept_term";
-    public static final String ADD_IE_RELATIONS = "add_ie_relations";
+    public static final String INSERT_IE_RELATIONS = "insert_ie_relations";
     public static final String KEY_FACET = "facet";
     public static final String KEY_FACET_ID = "facetId";
     public static final String KEY_FACET_IDS = "facetIds";
@@ -360,24 +361,30 @@ public class ConceptManager {
      *      "relations": {
      *          "&lt;docId1&gt;": {
      *              "&lt;relationshipType1&gt;": [
-     *                  [
-     *                      ["&lt;concept id 1&gt;", "&lt;id 1 source if id_property not 'id' and not from 'id_source'&gt;],
-     *                      ["&lt;concept id 2&gt;"]
-     *                  ],
-     *                  [
-     *                      [...]
-     *                  ],
+     *                  {
+     *                      "count": &lt;count1&gt;,
+     *                      "args": [
+     *                          ["&lt;concept id 1&gt;", "&lt;id 1 source if id_property not 'id' and not from 'id_source'&gt;],
+     *                          ["&lt;concept id 2&gt;"]
+     *                      ]
+     *                  },
+     *                  {
+     *                      "count": &lt;count2&gt;,
+     *                      "args": [
+     *                          [...]
+     *                      ]
+     *                  },
      *                  ...
      *              ]
      *          },
      *          "&lt;docId2&gt;": {
      *              "&lt;relationshipType2&gt;": [
-     *                  [
-     *                      [...]
-     *                  ],
-     *                  [
-     *                      [...]
-     *                  ],
+     *                  {
+     *                      ...
+     *                  },
+     *                  {
+     *                      ...
+     *                  },
      *              ]
      *          }
      *      }
@@ -387,17 +394,28 @@ public class ConceptManager {
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(ADD_IE_RELATIONS)
-    public void addIERelations(InputStream is, @Context Log log) {
+    @javax.ws.rs.Path(INSERT_IE_RELATIONS)
+    public void insertIERelations(InputStream is, @Context Log log) {
 
     }
 
     /**
-     * Convenience access to {@link #addIERelations(InputStream)}.
+     * Convenience access to {@link #insertIERelations(InputStream)}.
      * @param is
      */
-    public void addIERelations(InputStream is) {
+    public void insertIERelations(InputStream is) {
 
     }
 
+    public void insertIERelations(ImportIERelations relations) {
+        insertIERelations(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(relations).getBytes(UTF_8)));
+    }
+
+    /**
+     * Convenience access to {@link #insertConcepts(InputStream)} and, as a consequence, {@link #insertConcepts(InputStream, Log)}.
+     * @param importConcepts
+     */
+    public void insertConcepts(ImportConcepts importConcepts) {
+        insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
+    }
 }
