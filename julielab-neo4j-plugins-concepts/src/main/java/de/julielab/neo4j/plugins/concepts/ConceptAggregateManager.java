@@ -5,7 +5,6 @@ import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Multiset.Entry;
 import de.julielab.neo4j.plugins.auxiliaries.JulieNeo4jUtilities;
-import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
@@ -519,7 +518,7 @@ public class ConceptAggregateManager {
                         mergeArrayProperty(aggregate, copyProperty, JulieNeo4jUtilities.convertArray(property));
                     } else {
                         setNonNullNodeProperty(aggregate, copyProperty, property);
-                        Object aggregateProperty = PropertyUtilities.getNonNullNodeProperty(aggregate, copyProperty);
+                        Object aggregateProperty = getNonNullNodeProperty(aggregate, copyProperty);
                         if (!aggregateProperty.equals(property)) {
                             divergentProperties.add(copyProperty);
                         }
@@ -537,7 +536,7 @@ public class ConceptAggregateManager {
             elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
             for (Relationship elementRel : elementRels) {
                 Node term = elementRel.getEndNode();
-                Object propertyValue = PropertyUtilities.getNonNullNodeProperty(term, divergentProperty);
+                Object propertyValue = getNonNullNodeProperty(term, divergentProperty);
                 if (null != propertyValue)
                     propertyValues.add(propertyValue);
             }
@@ -558,7 +557,7 @@ public class ConceptAggregateManager {
                 if (!propertyValue.equals(majorityValue)) {
                     Object[] convert = JulieNeo4jUtilities.convertElementsIntoArray(propertyValue.getClass(),
                             propertyValue);
-                    PropertyUtilities.mergeArrayProperty(aggregate,
+                    mergeArrayProperty(aggregate,
                             divergentProperty + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY, convert);
                 }
             }
@@ -568,8 +567,8 @@ public class ConceptAggregateManager {
         // already resolved by a majority
         // vote above. We now additionally merge the minority names to the
         // synonyms.
-        PropertyUtilities.mergeArrayProperty(aggregate, PROP_SYNONYMS,
-                (Object[]) PropertyUtilities.getNonNullNodeProperty(aggregate,
+        mergeArrayProperty(aggregate, PROP_SYNONYMS,
+                (Object[]) getNonNullNodeProperty(aggregate,
                         PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY));
 
         // As a last step, remove duplicate synonyms, case ignored
@@ -623,7 +622,7 @@ public class ConceptAggregateManager {
             }
             return Response.ok(createdAggregates).build();
         } catch (Throwable t) {
-            return ConceptManager.getErrorResponse(t);
+            return getErrorResponse(t);
         }
     }
 

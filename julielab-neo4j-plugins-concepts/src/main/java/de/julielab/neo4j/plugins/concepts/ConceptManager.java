@@ -17,6 +17,7 @@ import org.neo4j.logging.slf4j.Slf4jLog;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.Path;
 import javax.ws.rs.*;
 import javax.ws.rs.core.*;
 import java.io.*;
@@ -28,7 +29,7 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptCons
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-@javax.ws.rs.Path("/" + CM_REST_ENDPOINT)
+@Path("/" + CM_REST_ENDPOINT)
 public class ConceptManager {
 
     public static final String CM_REST_ENDPOINT = "concept_manager";
@@ -114,7 +115,7 @@ public class ConceptManager {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(GET_CHILDREN_OF_CONCEPTS)
+    @Path(GET_CHILDREN_OF_CONCEPTS)
     public Object getChildrenOfConcepts(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_LABEL) String labelString) {
         try {
             Label label = labelString != null ? Label.label(labelString) : ConceptLabel.CONCEPT;
@@ -145,7 +146,7 @@ public class ConceptManager {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(GET_PATHS_FROM_FACET_ROOTS)
+    @Path(GET_PATHS_FROM_FACET_ROOTS)
     public Object getPathsFromFacetRoots(@QueryParam(KEY_CONCEPT_IDS) String conceptIdsCsv, @QueryParam(KEY_ID_PROPERTY) String idProperty, @QueryParam(KEY_RETURN_ID_PROPERTY) String returnIdProperty, @QueryParam(KEY_SORT_RESULT) boolean sort, @QueryParam(KEY_FACET_ID) String facetId) {
         try {
             final List<String> conceptIds = Arrays.asList(conceptIdsCsv.split(","));
@@ -172,7 +173,7 @@ public class ConceptManager {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(INSERT_CONCEPTS)
+    @Path(INSERT_CONCEPTS)
     public Object insertConcepts(InputStream is, @Context Log log) {
         try {
             log.info("%s was called", INSERT_CONCEPTS);
@@ -199,7 +200,7 @@ public class ConceptManager {
      * the concept in question has children in the facet it is shown in or not.
      */
     @POST
-    @javax.ws.rs.Path(UPDATE_CHILD_INFORMATION)
+    @Path(UPDATE_CHILD_INFORMATION)
     public void updateChildrenInformation() {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
@@ -248,7 +249,7 @@ public class ConceptManager {
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(INSERT_MAPPINGS)
+    @Path(INSERT_MAPPINGS)
     public int insertMappings(InputStream is) throws IOException {
         // ObjectMapper.readValues(JsonParser, ...) will NOT work for an array, as
         // that assumes a non-wrapped sequence of values. See source of MappingIterator.
@@ -288,7 +289,7 @@ public class ConceptManager {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(GET_FACET_ROOTS)
+    @Path(GET_FACET_ROOTS)
     public Object getFacetRoots(@Context UriInfo uriInfo, @Context Log log) {
         try {
             Set<String> requestedFacetIds = new HashSet<>();
@@ -334,7 +335,7 @@ public class ConceptManager {
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(ADD_CONCEPT_TERM)
+    @Path(ADD_CONCEPT_TERM)
     public void addWritingVariants(String jsonParameterObject) throws IOException {
         ObjectMapper om = new ObjectMapper();
         var parameterMap = om.readValue(jsonParameterObject, Map.class);
@@ -394,7 +395,7 @@ public class ConceptManager {
      */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path(INSERT_IE_RELATIONS)
+    @Path(INSERT_IE_RELATIONS)
     public void insertIERelations(InputStream is, @Context Log log) {
 
     }

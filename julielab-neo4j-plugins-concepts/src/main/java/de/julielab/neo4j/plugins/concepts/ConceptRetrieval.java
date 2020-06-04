@@ -82,6 +82,7 @@ public class ConceptRetrieval {
         pathsWrappedInMap.put(RET_KEY_PATHS, pathsConceptIds);
         return pathsWrappedInMap;
     }
+
     public static Map<String, Object> getChildrenOfConcepts(Transaction tx, List<String> conceptIds, Label label) {
         Map<String, Object> childrenByConceptId = new HashMap<>();
         for (String id : conceptIds) {

@@ -11,7 +11,6 @@ import de.julielab.neo4j.plugins.concepts.ConceptLabel;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
@@ -35,6 +34,7 @@ import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static de.julielab.neo4j.plugins.Indexes.createSinglePropertyIndexIfAbsent;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
@@ -219,8 +219,8 @@ public class FacetManager {
     }
 
     public static void createIndexes(Transaction tx) {
-        Indexes.createSinglePropertyIndexIfAbsent(tx, "FacetIds", FacetLabel.FACET, true, Indexes.PROVIDER_NATIVE_1_0, FacetConstants.PROP_ID);
-        Indexes.createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.NO_FACET, true, Indexes.PROVIDER_NATIVE_1_0, FacetConstants.PROP_ID);
+        createSinglePropertyIndexIfAbsent(tx, "FacetIds", FacetLabel.FACET, true, Indexes.PROVIDER_NATIVE_1_0, PROP_ID);
+        createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.NO_FACET, true, Indexes.PROVIDER_NATIVE_1_0, PROP_ID);
     }
 
     public static Node getFacetNode(Transaction tx, String facetId) {
@@ -311,8 +311,8 @@ public class FacetManager {
             // organized by facet group name.
             for (org.neo4j.graphdb.Path facetPath : traverse) {
                 Node facet = facetPath.endNode();
-                Object sourceType = facet.getProperty(FacetConstants.PROP_SOURCE_TYPE);
-                boolean isFacetWithoutPredefinedRoots = !sourceType.equals(FacetConstants.SRC_TYPE_HIERARCHICAL);
+                Object sourceType = facet.getProperty(PROP_SOURCE_TYPE);
+                boolean isFacetWithoutPredefinedRoots = !sourceType.equals(SRC_TYPE_HIERARCHICAL);
 
                 // For string-sourced facets it doesn't make sense to check
                 // their roots since they have none in the
