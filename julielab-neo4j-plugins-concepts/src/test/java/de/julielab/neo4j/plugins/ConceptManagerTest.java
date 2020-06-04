@@ -1940,5 +1940,6 @@ public class ConceptManagerTest {
     public void testInsertSimpleSemanticRelation() {
         ConceptManager cm = new ConceptManager(graphDBMS);
 
+
     }
 }
