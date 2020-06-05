@@ -29,7 +29,6 @@ import java.util.stream.Stream;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
-import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.PROP_COUNT_SUFFIX;
 import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.PROP_TOTAL_COUNT;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
@@ -1960,8 +1959,6 @@ public class ConceptManagerTest {
             assertThat(rs).isNotNull();
             assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
             assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(3);
-            assertThat(rs.hasProperty(regulationType.name() + PROP_COUNT_SUFFIX));
-            assertThat(rs.getProperty(regulationType.name() + PROP_COUNT_SUFFIX)).isEqualTo(3);
         }
     }
 }

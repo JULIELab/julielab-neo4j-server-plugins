@@ -50,7 +50,7 @@ public class ConceptInsertion {
 
     static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
                                     CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
-        log.info("Creating relationship between inserted concepts.");
+        log.debug("Creating relationship between inserted concepts.");
         Node facet = FacetManager.getFacetNode(tx, facetId);
         RelationshipType relBroaderThanInFacet = null;
         if (null != facet)
@@ -229,7 +229,7 @@ public class ConceptInsertion {
                 }
             }
         }
-        log.info("Finished 100% of concepts for relationship creation.");
+        log.debug("Finished 100% of concepts for relationship creation.");
     }
 
     /**
@@ -587,9 +587,9 @@ public class ConceptInsertion {
                 while (importConcepts.hasNext()) {
                     while (importConcepts.hasNext() && buffer.size() < batchsize)
                         buffer.add(importConcepts.next());
+                    log.debug("Importing a batch of %s concepts", batchsize);
                     try (Transaction tx = graphDb.beginTx()) {
                         CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                        log.debug("Importing a batch of %s concepts", batchsize);
                         InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
                         // If the nodesBySrcId map is empty we either have no concepts or
                         // at least no concepts with a source ID. Then,
@@ -603,9 +603,9 @@ public class ConceptInsertion {
                         insertionReport.merge(bufferInsertionReport);
                         buffer.clear();
                         imported += bufferInsertionReport.numConcepts;
-                        log.debug("Imported %s concepts", imported);
                         tx.commit();
                     }
+                    log.debug("Imported %s concepts", imported);
                 }
                 response.put(RET_KEY_NUM_CREATED_CONCEPTS, insertionReport.numConcepts);
                 response.put(RET_KEY_NUM_CREATED_RELS, insertionReport.numRelationships);

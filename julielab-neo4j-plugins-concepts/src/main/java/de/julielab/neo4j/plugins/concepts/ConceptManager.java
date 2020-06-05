@@ -184,7 +184,7 @@ public class ConceptManager {
             Map<String, Object> response = new HashMap<>();
             insertionReport = ConceptInsertion.insertConcepts(log, graphDb, is, response);
             log.info("Concept insertion complete.");
-            log.info("%s is finished processing after %s ms. %s concepts and %s relationships have been created.", INSERT_CONCEPTS, insertionReport.numConcepts, insertionReport.numRelationships, response.get(KEY_TIME));
+            log.info("%s is finished processing after %s ms. %s concepts and %s relationships have been created.", INSERT_CONCEPTS, response.get(KEY_TIME), insertionReport.numConcepts, insertionReport.numRelationships, response.get(KEY_TIME));
             return Response.ok(response).build();
         } catch (Throwable throwable) {
             log.error("Concept insertion failed", throwable);
@@ -409,6 +409,7 @@ public class ConceptManager {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()){
             IERelationInsertion.insertRelations(is, tx, log);
+            tx.commit();
             return Response.ok().build();
         } catch (Throwable t) {
             log.error("Error in IE relation insertion.", t);

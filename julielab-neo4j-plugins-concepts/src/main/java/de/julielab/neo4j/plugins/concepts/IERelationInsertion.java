@@ -43,7 +43,7 @@ public class IERelationInsertion {
                 JsonToken currentToken = parser.currentToken();
                 if (currentToken == JsonToken.FIELD_NAME) {
                     lastName = parser.getCurrentName();
-                } else if (currentToken == JsonToken.START_OBJECT) {
+                } else if (currentToken == JsonToken.VALUE_STRING) {
                     if (lastName != null && lastName.equals(ImportIERelations.NAME_ID_PROPERTY))
                         idProperty = parser.readValueAs(String.class);
                     else if (lastName != null && lastName.equals(ImportIERelations.NAME_ID_SOURCE))
@@ -52,7 +52,9 @@ public class IERelationInsertion {
                     documents = parser.readValuesAs(ImportIERelationDocument.class);
                 }
             }
-            insertRelations(tx, idProperty, idSource, documents);
+            if (documents == null)
+                throw new IllegalArgumentException("No documents were given.");
+            insertRelations(tx, idProperty, idSource, documents, log);
         } catch (JsonParseException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -67,14 +69,15 @@ public class IERelationInsertion {
      * @param idProperty
      * @param idSource
      * @param documents
+     * @param log
      */
-    private static void insertRelations(Transaction tx, String idProperty, String idSource, Iterator<ImportIERelationDocument> documents) {
+    private static void insertRelations(Transaction tx, String idProperty, String idSource, Iterator<ImportIERelationDocument> documents, Log log) {
         while (documents.hasNext()) {
             ImportIERelationDocument document = documents.next();
             for (ImportIETypedRelations typedRelations : document.getRelations()) {
                 for (String relationType : typedRelations.keySet()) {
                     ImportIERelation relation = typedRelations.get(relationType);
-                    insertRelation(tx, idProperty, idSource, document.getDocId(), relationType, relation);
+                    insertRelation(tx, idProperty, idSource, document.getDocId(), relationType, relation, log);
                 }
             }
         }
@@ -89,24 +92,30 @@ public class IERelationInsertion {
      * @param docId
      * @param relationType
      * @param relation
+     * @param log
      */
-    private static void insertRelation(Transaction tx, String idProperty, String idSource, String docId, String relationType, ImportIERelation relation) {
+    private static void insertRelation(Transaction tx, String idProperty, String idSource, String docId, String relationType, ImportIERelation relation, Log log) {
         for (int i = 0; i < relation.getArgs().size(); i++) {
             for (int j = i + 1; j < relation.getArgs().size(); j++) {
                 ImportIERelationArgument argument1 = relation.getArgs().get(i);
                 ImportIERelationArgument argument2 = relation.getArgs().get(j);
-                Node arg1 = findConceptNode(tx, idProperty, idSource, argument1);
-                Node arg2 = findConceptNode(tx, idProperty, idSource, argument2);
-                createRelationship(arg1, arg2, docId, relationType, relation.getCount());
+                Node arg1 = findConceptNode(tx, idProperty, idSource, argument1, log);
+                Node arg2 = findConceptNode(tx, idProperty, idSource, argument2, log);
+                if (arg1 != null && arg2 != null)
+                    storeRelationTypeCount(tx, arg1, arg2, docId, relationType, relation.getCount());
             }
-
         }
     }
 
-    private static void createRelationship(Node arg1, Node arg2, String docId, String relationType, int count) {
+    private static void storeRelationTypeCount(Transaction tx, Node arg1, Node arg2, String docId, String relationType, int count) {
         RelationshipType relType = RelationshipType.withName(relationType);
+        Lock arg1Lock = tx.acquireWriteLock(arg1);
+        Lock arg2Lock = tx.acquireWriteLock(arg2);
         Optional<Relationship> relOpt = StreamSupport.stream(arg1.getRelationships(Direction.BOTH, relType).spliterator(), false).filter(r -> r.getOtherNode(arg1).equals(arg2)).findAny();
         Relationship rel = relOpt.isPresent() ? relOpt.get() : arg1.createRelationshipTo(arg2, relType);
+        Lock relLock = tx.acquireWriteLock(rel);
+        arg1Lock.release();
+        arg2Lock.release();
         String[] docIds = rel.hasProperty(PROP_DOC_IDS) ? (String[]) rel.getProperty(PROP_DOC_IDS) : new String[0];
         int index = Arrays.binarySearch(docIds, docId);
         int oldCount = 0;
@@ -115,7 +124,7 @@ public class IERelationInsertion {
             oldCount = counts[index];
             counts[index] = count;
         } else {
-            int insertionPoint = -1 * index + 1;
+            int insertionPoint = -1 * (index + 1);
             // insert docId
             String[] newDocIds = new String[docIds.length + 1];
             newDocIds[insertionPoint] = docId;
@@ -123,7 +132,7 @@ public class IERelationInsertion {
             System.arraycopy(docIds, insertionPoint, newDocIds, insertionPoint + 1, docIds.length - insertionPoint);
 
             // insert count
-            int[] counts = (int[]) rel.getProperty(PROP_COUNTS);
+            int[] counts = rel.hasProperty(PROP_COUNTS) ? (int[]) rel.getProperty(PROP_COUNTS) : new int[0];
             int[] newCounts = new int[counts.length + 1];
             newCounts[insertionPoint] = count;
             System.arraycopy(docIds, 0, newDocIds, 0, insertionPoint);
@@ -133,9 +142,10 @@ public class IERelationInsertion {
         int totalCount = relOpt.isPresent() ? (int) rel.getProperty(PROP_TOTAL_COUNT) : 0;
         totalCount = totalCount - oldCount + count;
         rel.setProperty(PROP_TOTAL_COUNT, totalCount);
+        relLock.release();
     }
 
-    private static Node findConceptNode(Transaction tx, String defaultIdProperty, String defaultIdSource, ImportIERelationArgument argument) {
+    private static Node findConceptNode(Transaction tx, String defaultIdProperty, String defaultIdSource, ImportIERelationArgument argument, Log log) {
         Node concept = null;
         String idProperty = argument.hasIdProperty() ? argument.getIdProperty() : defaultIdProperty;
         // Check if the potentially specified idProperty of the argument is valid. Otherwise, fall back to the default ID property.
@@ -143,14 +153,19 @@ public class IERelationInsertion {
         boolean isOrgId = PROP_ORG_ID.equals(idProperty);
         boolean isSrcId = PROP_SRC_IDS.equals(idProperty);
         if (!isId && !isOrgId && !isSrcId) {
+            if (defaultIdProperty == null)
+                throw new IllegalArgumentException("The argument " + argument + " does not specify an idProperty and there is no default property set.");
             idProperty = defaultIdProperty;
             isId = PROP_ID.equals(idProperty);
             isOrgId = PROP_ORG_ID.equals(idProperty);
         }
         if (isId)
             concept = tx.findNode(CONCEPT, PROP_ID, argument.getId());
+        String source = argument.hasSource() ? argument.getSource() : defaultIdSource;
         if (concept == null)
-            concept = ConceptLookup.lookupConcept(tx, new ConceptCoordinates(argument.getId(), argument.hasSource() ? argument.getSource() : defaultIdSource, isOrgId ? CoordinateType.OSRC : CoordinateType.SRC));
+            concept = ConceptLookup.lookupConcept(tx, new ConceptCoordinates(argument.getId(), source, isOrgId ? CoordinateType.OSRC : CoordinateType.SRC));
+        if (concept == null)
+            log.debug("Could not find a concept with ID '%s' for idProperty '%s' and source '%s'.", argument.getId(), idProperty, source);
         return concept;
     }
 }

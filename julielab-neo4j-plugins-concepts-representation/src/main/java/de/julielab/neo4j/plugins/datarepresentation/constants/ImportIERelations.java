@@ -16,7 +16,8 @@ public class ImportIERelations {
     private String idProperty;
     @JsonProperty(NAME_ID_SOURCE)
     private String idSource;
-    private List<ImportIERelationDocument> relations = new ArrayList<>();
+    @JsonPropertyOrder(NAME_DOCUMENTS)
+    private List<ImportIERelationDocument> documents = new ArrayList<>();
     public ImportIERelations(String idProperty, String idSource) {
         this.idProperty = idProperty;
         this.idSource = idSource;
@@ -28,7 +29,7 @@ public class ImportIERelations {
 
 
     public void addRelationDocument(ImportIERelationDocument document) {
-        relations.add(document);
+        documents.add(document);
     }
 
     public String getIdProperty() {
@@ -39,7 +40,7 @@ public class ImportIERelations {
         return idSource;
     }
 
-    public List<ImportIERelationDocument> getRelations() {
-        return relations;
+    public List<ImportIERelationDocument> getDocuments() {
+        return documents;
     }
 }
