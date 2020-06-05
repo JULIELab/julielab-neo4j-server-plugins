@@ -1944,7 +1944,7 @@ public class ConceptManagerTest {
         ImportIERelations relations = new ImportIERelations(PROP_ID);
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId", ImportIERelationMap.of(
+                "docId", ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), 3))));
 

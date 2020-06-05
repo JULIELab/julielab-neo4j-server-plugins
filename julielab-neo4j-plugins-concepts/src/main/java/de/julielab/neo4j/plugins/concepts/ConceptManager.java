@@ -359,35 +359,44 @@ public class ConceptManager {
      * {
      *     "id_property": &lt;one of "id", "sourceIds", "originalId"&gt;,
      *     "id_source":   &lt;optional; will be used as a default when not given per concept Id&gt;
-     *      "relations": {
-     *          "&lt;docId1&gt;": {
-     *              "&lt;relationshipType1&gt;": [
-     *                  {
-     *                      "count": &lt;count1&gt;,
-     *                      "args": [
-     *                          ["&lt;concept id 1&gt;", "&lt;id 1 source if id_property not 'id' and not from 'id_source'&gt;],
-     *                          ["&lt;concept id 2&gt;"]
-     *                      ]
-     *                  },
-     *                  {
-     *                      "count": &lt;count2&gt;,
-     *                      "args": [
-     *                          [...]
-     *                      ]
-     *                  },
-     *                  ...
-     *              ]
+     *     "documents": [{
+     *              "docId": "&lt;docId1&gt;",
+     *              "relations": [{
+     *                  "&lt;relationshipType1&gt;": [
+     *                      {
+     *                          "count": &lt;count1&gt;,
+     *                          "args": [
+     *                              ["&lt;concept id 1&gt;", "&lt;id 1 source if id_property not 'id' and not from 'id_source'&gt;],
+     *                              ["&lt;concept id 2&gt;"],
+     *                              ["&lt;otherIdProperty&gt;:&lt;concept id 3&gt;", "&lt;id 3 source if otherIdProperty is not 'id'&gt;"]
+     *                          ]
+     *                      },
+     *                      {
+     *                          "count": &lt;count2&gt;,
+     *                          "args": [
+     *                              [...]
+     *                          ]
+     *                      },
+     *                      ...
+     *                  ],
+     *                  "&lt;relationshipType2&gt;": [
+     *                      ...
+     *                  ]
+     *              }]
      *          },
-     *          "&lt;docId2&gt;": {
-     *              "&lt;relationshipType2&gt;": [
-     *                  {
-     *                      ...
-     *                  },
-     *                  {
-     *                      ...
-     *                  },
-     *              ]
-     *          }
+     *          {
+     *              "docId": "&lt;docId2&gt;",
+     *              "relations:" [{
+     *                  "&lt;relationshipType2&gt;": [
+     *                      {
+     *                          ...
+     *                      },
+     *                      {
+     *                          ...
+     *                      },
+     *                  ]
+     *              }]
+     *          ]
      *      }
      *  }
      *</pre>
@@ -396,8 +405,15 @@ public class ConceptManager {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Path(INSERT_IE_RELATIONS)
-    public void insertIERelations(InputStream is, @Context Log log) {
-
+    public Response insertIERelations(InputStream is, @Context Log log) {
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        try (Transaction tx = graphDb.beginTx()){
+            IERelationInsertion.insertRelations(is, tx, log);
+            return Response.ok().build();
+        } catch (Throwable t) {
+            log.error("Error in IE relation insertion.", t);
+            return getErrorResponse(t);
+        }
     }
 
     /**
@@ -405,7 +421,7 @@ public class ConceptManager {
      * @param is
      */
     public void insertIERelations(InputStream is) {
-
+        insertIERelations(is, new Slf4jLog(log));
     }
 
     public void insertIERelations(ImportIERelations relations) {
