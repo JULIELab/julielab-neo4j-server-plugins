@@ -32,7 +32,6 @@ public class ConceptLookup {
      * @return The node corresponding to the given coordinates or null, if none is found.
      */
     public static Node lookupConcept(Transaction tx, ConceptCoordinates coordinates) {
-        long time = System.currentTimeMillis();
         String orgId = coordinates.originalId;
         String orgSource = coordinates.originalSource;
         String srcId = coordinates.sourceId;

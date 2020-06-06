@@ -20,6 +20,7 @@ import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
+import org.neo4j.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +94,7 @@ public class ConceptAggregateManager {
      * @throws AggregateConceptInsertionException If the aggregate could not be added.
      */
     static void insertAggregateConcept(Transaction tx, ImportConcept jsonConcept,
-                                       CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions)
+                                       CoordinatesMap nodesByCoordinates, InsertionReport insertionReport, ImportOptions importOptions, Log log)
             throws AggregateConceptInsertionException {
         try {
             ConceptCoordinates aggCoordinates = jsonConcept.coordinates != null ? jsonConcept.coordinates
@@ -104,14 +105,11 @@ public class ConceptAggregateManager {
             String aggSource = aggCoordinates.source;
             if (null == aggSource)
                 aggSource = UNKNOWN_CONCEPT_SOURCE;
-            log.trace("Looking up aggregate ({}, {}) / ({}, {}), original/source coordinates.", aggOrgId, aggOrgSource,
-                    aggSrcId, aggSource);
             Node aggregate = lookupConcept(tx, aggCoordinates);
             if (null != aggregate) {
                 String isHollowMessage = "";
                 if (aggregate.hasLabel(HOLLOW))
                     isHollowMessage = ", however it is hollow and its properties will be set now.";
-                log.trace("    aggregate does already exist {}", isHollowMessage);
                 if (!aggregate.hasLabel(HOLLOW))
                     return;
                 // remove the HOLLOW label, we have to aggregate information now and
@@ -120,7 +118,6 @@ public class ConceptAggregateManager {
                 aggregate.addLabel(AGGREGATE);
             }
             if (aggregate == null) {
-                log.trace("    aggregate is being created");
                 aggregate = tx.createNode(AGGREGATE);
             }
             boolean includeAggreationInHierarchy = jsonConcept.aggregateIncludeInHierarchy;
@@ -129,7 +126,6 @@ public class ConceptAggregateManager {
             if (includeAggreationInHierarchy)
                 aggregate.addLabel(CONCEPT);
             List<ConceptCoordinates> elementCoords = jsonConcept.elementCoordinates;
-            log.trace("    looking up aggregate elements");
             for (ConceptCoordinates elementCoordinates : elementCoords) {
                 String elementSource = elementCoordinates.source;
                 if (null == elementCoordinates.source)
@@ -150,16 +146,13 @@ public class ConceptAggregateManager {
                         else
                             break;
                     }
-                    if (null != element)
-                        log.trace("\tFound element with source ID and source ({}, {}) in in-memory map.", elementCoordinates.sourceId,
-                                elementSource);
                 }
+                log.debug("Looking up element by source ID %s and source %s", elementCoordinates.sourceId, elementSource);
                 if (null == element)
                     element = lookupConceptBySourceId(tx, elementCoordinates.sourceId, elementSource, false);
+                log.debug("Found element with source ID %s and source %s", elementCoordinates.sourceId, elementSource);
                 if (null == element && importOptions.createHollowAggregateElements) {
                     element = registerNewHollowConceptNode(tx, elementCoordinates);
-                    log.trace("    Creating HOLLOW element with source coordinates ({}, {})", elementCoordinates.sourceId,
-                            elementSource);
                 }
                 if (element != null) {
                     aggregate.createRelationshipTo(element, ConceptEdgeTypes.HAS_ELEMENT);

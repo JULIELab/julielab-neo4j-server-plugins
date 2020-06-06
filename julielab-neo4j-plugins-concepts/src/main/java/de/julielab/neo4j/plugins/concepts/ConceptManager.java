@@ -88,7 +88,7 @@ public class ConceptManager {
         // by schema indexes it seems
         Indexes.createSinglePropertyIndexIfAbsent(tx, "OriginalId", ConceptLabel.CONCEPT, false, Indexes.PROVIDER_NATIVE_1_0, ConceptConstants.PROP_ORG_ID);
         Indexes.createSinglePropertyIndexIfAbsent(tx, "FacetRoots", NodeConstants.Labels.ROOT, true, Indexes.PROVIDER_NATIVE_1_0, NodeConstants.PROP_NAME);
-        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT, ConceptLabel.HOLLOW}, new String[]{PROP_SRC_IDS});
+        FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT}, new String[]{PROP_SRC_IDS});
     }
 
     public static Response getErrorResponse(Throwable throwable) {

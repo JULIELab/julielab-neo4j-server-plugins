@@ -20,5 +20,10 @@ public enum ConceptLabel implements Label {
      * made un-HOLLOW as soon at a concept with this source ID occurs in imported
      * data.
      */
-    HOLLOW, CONCEPT
+    HOLLOW,
+    /**
+     * Label for nodes that were hollow but are now filled. Signal for those nodes that the HOLLOW label may be removed.
+     */
+    FILLED,
+    CONCEPT
 }

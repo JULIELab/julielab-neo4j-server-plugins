@@ -243,6 +243,7 @@ public class ConceptInsertion {
     static Node registerNewHollowConceptNode(Transaction tx, ConceptCoordinates coordinates,
                                              Label... additionalLabels) {
         Node node = tx.createNode(HOLLOW);
+        node.addLabel(CONCEPT);
         for (Label label : additionalLabels) {
             node.addLabel(label);
         }
@@ -590,7 +591,7 @@ public class ConceptInsertion {
                     log.debug("Importing a batch of %s concepts", batchsize);
                     try (Transaction tx = graphDb.beginTx()) {
                         CoordinatesMap nodesByCoordinates = new CoordinatesMap();
-                        InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions);
+                        InsertionReport bufferInsertionReport = ConceptInsertion.insertConcepts(tx, buffer, facetId, nodesByCoordinates, importOptions, log);
                         // If the nodesBySrcId map is empty we either have no concepts or
                         // at least no concepts with a source ID. Then,
                         // relationship creation is currently not supported.
@@ -658,7 +659,7 @@ public class ConceptInsertion {
      * @throws ConceptInsertionException          If concept insertion failed.
      */
     private static InsertionReport insertConcepts(Transaction tx, List<ImportConcept> concepts, String facetId,
-                                                  CoordinatesMap nodesByCoordinates, ImportOptions importOptions) throws ConceptInsertionException {
+                                                  CoordinatesMap nodesByCoordinates, ImportOptions importOptions, Log log) throws ConceptInsertionException {
         long time = System.currentTimeMillis();
         InsertionReport insertionReport = new InsertionReport();
         // Idea: First create all nodes and just store which Node has which
@@ -689,7 +690,6 @@ public class ConceptInsertion {
                 }
             }
         }
-        log.trace("Finished finding parents.");
         // Finished finding parents
 
         // When merging, we remove those import concepts that are not known in
@@ -701,7 +701,6 @@ public class ConceptInsertion {
         // HOLLOW nodes.
         // The following methods can then just access the nodes by their source
         // Id which ought to be unique for each import.
-        log.trace("Now importing the concepts.");
         for (int i = 0; i < concepts.size(); i++) {
             ImportConcept jsonConcept = concepts.get(i);
             ConceptCoordinates coordinates;
@@ -759,7 +758,7 @@ public class ConceptInsertion {
             boolean isAggregate = jsonConcept.aggregate;
             if (isAggregate) {
                 ConceptAggregateManager.insertAggregateConcept(tx, jsonConcept, nodesByCoordinates, insertionReport,
-                        importOptions);
+                        importOptions, log);
             } else {
                 insertConcept(tx, facetId, jsonConcept, nodesByCoordinates, insertionReport,
                         importOptions);

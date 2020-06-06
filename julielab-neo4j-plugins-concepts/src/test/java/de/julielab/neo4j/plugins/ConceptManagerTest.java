@@ -24,12 +24,15 @@ import org.neo4j.graphdb.*;
 
 import java.io.ByteArrayInputStream;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.HOLLOW;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
-import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.PROP_TOTAL_COUNT;
+import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.NAME_NO_FACET_GROUPS;
@@ -743,19 +746,19 @@ public class ConceptManagerTest {
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(firstTerms).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
-            final Iterator<Node> nodesIt = Stream.concat(tx.findNodes(CONCEPT).stream(), tx.findNodes(ConceptLabel.HOLLOW).stream()).iterator();
+            final Iterator<Node> nodesIt = Stream.concat(tx.findNodes(CONCEPT).stream(), tx.findNodes(HOLLOW).stream()).iterator();
 
-            int nodeCount = 0;
+            Set<Node> foundNodes = new HashSet<>();
             while (nodesIt.hasNext()) {
                 Node node = nodesIt.next();
                 // Only the real terms have gotten an ID.
                 if (node.hasProperty(PROP_ID))
-                    assertFalse("Not hollow", node.hasLabel(ConceptLabel.HOLLOW));
+                    assertFalse("Not hollow", node.hasLabel(HOLLOW));
                 else
-                    assertTrue("Node is hollow", node.hasLabel(ConceptLabel.HOLLOW));
-                nodeCount++;
+                    assertTrue("Node is hollow", node.hasLabel(HOLLOW));
+                foundNodes.add(node);
             }
-            assertEquals("Number of terms", 4, nodeCount);
+            assertEquals("Number of concepts that are not hollow", 4, foundNodes.size());
             tx.commit();
         }
 
@@ -775,7 +778,7 @@ public class ConceptManagerTest {
                 Node node = nodesIt.next();
                 // Only the real terms have gotten an ID.
                 assertFalse("Term " + NodeUtilities.getNodePropertiesAsString(node) + " is hollow but it shouldn't be",
-                        node.hasLabel(ConceptLabel.HOLLOW));
+                        node.hasLabel(HOLLOW));
                 assertTrue("Has an ID", node.hasProperty(PROP_ID));
                 assertTrue("Has a facet", node.hasProperty(PROP_FACETS));
                 assertTrue("Has a description", node.hasProperty(PROP_DESCRIPTIONS));
@@ -1085,7 +1088,7 @@ public class ConceptManagerTest {
                         numBroaderRels++;
                     }
                 }
-                if (n.hasLabel(ConceptLabel.HOLLOW)) {
+                if (n.hasLabel(HOLLOW)) {
                     numHollow++;
                     assertEquals("Hollow parent is the root term", 1, numRootTermRels);
                     assertEquals("Hollow parent has one child", 1, numBroaderRels);
@@ -1134,7 +1137,7 @@ public class ConceptManagerTest {
                         numBroaderRels++;
                     }
                 }
-                if (n.hasLabel(ConceptLabel.HOLLOW))
+                if (n.hasLabel(HOLLOW))
                     numHollow++;
                 if (n.getProperty(PROP_PREF_NAME).equals("prefname1")) {
                     assertEquals("Number of facet root relations", 0, numRootTermRels);
@@ -1171,7 +1174,7 @@ public class ConceptManagerTest {
             // Would throw an exception if there were multiple terms found.
             Node hollowParent = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "parentid42");
             assertNotNull(hollowParent);
-            assertTrue(hollowParent.hasLabel(ConceptLabel.HOLLOW));
+            assertTrue(hollowParent.hasLabel(HOLLOW));
         }
     }
 
@@ -1600,78 +1603,79 @@ public class ConceptManagerTest {
     public void testMergeConcepts() {
         System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "true");
         try {
-        // Here, we will insert some terms as normal. Then, we will insert some
-        // terms anew, with new property values
-        // that should then be merged. We won't define a new facet, we just want
-        // to add new information to existing
-        // terms.
-        ImportConcepts testTerms = getTestConcepts(4);
-        // add a fifth term that has the first term as a parent
-        testTerms.getConceptsAsList()
-                .add(new ImportConcept("someterm", new ConceptCoordinates("somesrcid", "somesource", SRC),
-                        new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC)));
-        testTerms.getConceptsAsList().get(testTerms.getConceptsAsList().size() - 1).coordinates.source = "somesource";
-        ConceptManager tm = new ConceptManager(graphDBMS);
-        // first insert.
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
+            // Here, we will insert some terms as normal. Then, we will insert some
+            // terms anew, with new property values
+            // that should then be merged. We won't define a new facet, we just want
+            // to add new information to existing
+            // terms.
+            ImportConcepts testTerms = getTestConcepts(4);
+            // add a fifth term that has the first term as a parent
+            testTerms.getConceptsAsList()
+                    .add(new ImportConcept("someterm", new ConceptCoordinates("somesrcid", "somesource", SRC),
+                            new ConceptCoordinates("CONCEPT0", "TEST_DATA", SRC)));
+            testTerms.getConceptsAsList().get(testTerms.getConceptsAsList().size() - 1).coordinates.source = "somesource";
+            ConceptManager tm = new ConceptManager(graphDBMS);
+            // first insert.
+            tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
 
-        // now again get two test terms. Those will be identical to the first
-        // two test terms above.
-        testTerms = getTestConcepts(2);
-        // IMPORTANT: this is the key in this test: We do NOT insert a facet
-        // which should be not necessary because we
-        // only insert terms that are already in the database.
-        testTerms.setFacet(null);
-        // Give new property values to the first term, leave the second
-        // unchanged.
-        testTerms.getConceptsAsList().get(0).generalLabels = Lists.newArrayList("newlabel1");
-        testTerms.getConceptsAsList().get(0).descriptions = Lists.newArrayList("newdescription1");
-        testTerms.getConceptsAsList().get(0).prefName = "newprefname1";
-        // re-insert the additional term from above but with a description and a
-        // synonym, without a parent; we should
-        // not need it since the term is already known.
-        ImportConcept term = new ImportConcept("somesrcid", List.of("newsynonym2"), "newdesc2",
-                new ConceptCoordinates("somesrcid", "somesource", SRC));
-        testTerms.getConceptsAsList().add(term);
-        // second insert, duplicate terms should now be merged.
-        tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
+            // now again get two test terms. Those will be identical to the first
+            // two test terms above.
+            testTerms = getTestConcepts(2);
+            // IMPORTANT: this is the key in this test: We do NOT insert a facet
+            // which should be not necessary because we
+            // only insert terms that are already in the database.
+            testTerms.setFacet(null);
+            // Give new property values to the first term, leave the second
+            // unchanged.
+            testTerms.getConceptsAsList().get(0).generalLabels = Lists.newArrayList("newlabel1");
+            testTerms.getConceptsAsList().get(0).descriptions = Lists.newArrayList("newdescription1");
+            testTerms.getConceptsAsList().get(0).prefName = "newprefname1";
+            // re-insert the additional term from above but with a description and a
+            // synonym, without a parent; we should
+            // not need it since the term is already known.
+            ImportConcept term = new ImportConcept("somesrcid", List.of("newsynonym2"), "newdesc2",
+                    new ConceptCoordinates("somesrcid", "somesource", SRC));
+            testTerms.getConceptsAsList().add(term);
+            // second insert, duplicate terms should now be merged.
+            tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
 
-        // Test the success of the merging.
-        try (Transaction tx = graphDb.beginTx()) {
-            // See that we really only have a single facet, we havn't added a
-            // second one.
-            ResourceIterator<Node> facets = tx.findNodes(FacetManager.FacetLabel.FACET);
-            int facetCounter = 0;
-            for (@SuppressWarnings("unused")
-                    Node facet : (Iterable<Node>) () -> facets) {
-                facetCounter++;
+            // Test the success of the merging.
+            try (Transaction tx = graphDb.beginTx()) {
+                // See that we really only have a single facet, we havn't added a
+                // second one.
+                ResourceIterator<Node> facets = tx.findNodes(FacetManager.FacetLabel.FACET);
+                int facetCounter = 0;
+                for (@SuppressWarnings("unused")
+                        Node facet : (Iterable<Node>) () -> facets) {
+                    facetCounter++;
+                }
+                assertEquals(1, facetCounter);
+
+                // Now test that the merged-in properties - and labels - are
+                // actually there.
+                Node mergedTerm = tx.findNode(Label.label("newlabel1"), PROP_ID,
+                        "tid0");
+                // have we found the term? Then it got its new label.
+                assertNotNull(mergedTerm);
+                List<String> descriptions = Lists.newArrayList((String[]) mergedTerm.getProperty(PROP_DESCRIPTIONS));
+                assertTrue(descriptions.contains("desc of term0"));
+                assertTrue(descriptions.contains("newdescription1"));
+
+                Node facet = tx.findNode(FacetManager.FacetLabel.FACET,
+                        FacetConstants.PROP_ID, "fid0");
+                Iterable<Relationship> rootTermRelations = facet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT);
+                int rootTermCounter = 0;
+                for (@SuppressWarnings("unused")
+                        Relationship rel : rootTermRelations) {
+                    rootTermCounter++;
+                }
+                // There should be no more facet roots, even though in the second
+                // run we re-inserted a term and not give him
+                // a parent; this normally causes the term to be a root term, but
+                // not if it did exist before.
+                assertEquals(4, rootTermCounter);
             }
-            assertEquals(1, facetCounter);
-
-            // Now test that the merged-in properties - and labels - are
-            // actually there.
-            Node mergedTerm = tx.findNode(Label.label("newlabel1"), PROP_ID,
-                    "tid0");
-            // have we found the term? Then it got its new label.
-            assertNotNull(mergedTerm);
-            List<String> descriptions = Lists.newArrayList((String[]) mergedTerm.getProperty(PROP_DESCRIPTIONS));
-            assertTrue(descriptions.contains("desc of term0"));
-            assertTrue(descriptions.contains("newdescription1"));
-
-            Node facet = tx.findNode(FacetManager.FacetLabel.FACET,
-                    FacetConstants.PROP_ID, "fid0");
-            Iterable<Relationship> rootTermRelations = facet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT);
-            int rootTermCounter = 0;
-            for (@SuppressWarnings("unused")
-                    Relationship rel : rootTermRelations) {
-                rootTermCounter++;
-            }
-            // There should be no more facet roots, even though in the second
-            // run we re-inserted a term and not give him
-            // a parent; this normally causes the term to be a root term, but
-            // not if it did exist before.
-            assertEquals(4, rootTermCounter);
-        }}finally {
+        } finally {
             System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "false");
         }
     }
@@ -1945,7 +1949,7 @@ public class ConceptManagerTest {
         relations.addRelationDocument(ImportIERelationDocument.of(
                 "docId", ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
-                                ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), 3))));
+                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
         ConceptManager cm = new ConceptManager(graphDBMS);
         cm.insertConcepts(importConcepts);
@@ -1960,5 +1964,217 @@ public class ConceptManagerTest {
             assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
             assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(3);
         }
+    }
+
+    @Test
+    public void testInsertMultipleIERelations() {
+        ImportConcepts importConcepts = getTestConcepts(2);
+
+        ImportIERelations relations = new ImportIERelations(PROP_ID);
+        RelationshipType regulationType = RelationshipType.withName("regulation");
+        // Note that we first insert concepts for docId2, then docId1. In the result, this should be sorted.
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId2", ImportIETypedRelations.of(
+                        regulationType.name(), ImportIERelation.of(
+                                4, ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid0")))));
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId1", ImportIETypedRelations.of(
+                        regulationType.name(), ImportIERelation.of(
+                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
+
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(importConcepts);
+        cm.insertIERelations(relations);
+
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            assertThat(n).isNotNull();
+            assertThat(n.getDegree(regulationType)).isEqualTo(1);
+            Relationship rs = n.getSingleRelationship(regulationType, Direction.BOTH);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(7);
+            assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1", "docId2");
+            assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(3, 4);
+        }
+    }
+
+    @Test
+    public void testInsertDifferentReltypes() {
+        ImportConcepts importConcepts = getTestConcepts(2);
+
+        ImportIERelations relations = new ImportIERelations(PROP_ID);
+        RelationshipType regulationType1 = RelationshipType.withName("regulation");
+        RelationshipType regulationType2 = RelationshipType.withName("phosphorylation");
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId1", ImportIETypedRelations.of(
+                        regulationType1.name(), ImportIERelation.of(
+                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"))),
+                ImportIETypedRelations.of(
+                        regulationType2.name(), ImportIERelation.of(
+                                7, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
+
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(importConcepts);
+        cm.insertIERelations(relations);
+
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            assertThat(n).isNotNull();
+            assertThat(n.getDegree(regulationType1)).isEqualTo(1);
+            Relationship rs = n.getSingleRelationship(regulationType1, Direction.BOTH);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(3);
+            assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1");
+            assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(3);
+
+            rs = n.getSingleRelationship(regulationType2, Direction.BOTH);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(7);
+            assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1");
+            assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(7);
+        }
+    }
+
+    @Test
+    public void testInsertDifferentReltypes2() {
+        ImportConcepts importConcepts = getTestConcepts(2);
+
+        ImportIERelations relations = new ImportIERelations(PROP_ID);
+        RelationshipType regulationType1 = RelationshipType.withName("regulation");
+        RelationshipType phosphorylationType = RelationshipType.withName("phosphorylation");
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId1", ImportIETypedRelations.of(
+                        regulationType1.name(), ImportIERelation.of(
+                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"))),
+                ImportIETypedRelations.of(
+                        phosphorylationType.name(), ImportIERelation.of(
+                                7, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId2", ImportIETypedRelations.of(
+                        phosphorylationType.name(), ImportIERelation.of(
+                                4, ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid0")))));
+
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(importConcepts);
+        cm.insertIERelations(relations);
+
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            assertThat(n).isNotNull();
+            assertThat(n.getDegree(regulationType1)).isEqualTo(1);
+            Relationship rs = n.getSingleRelationship(regulationType1, Direction.BOTH);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(3);
+            assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1");
+            assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(3);
+
+            rs = n.getSingleRelationship(phosphorylationType, Direction.BOTH);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(11);
+            assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1", "docId2");
+            assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(7, 4);
+        }
+    }
+
+    @Test
+    public void testInsertIERelThreeArgs() {
+        ImportConcepts importConcepts = getTestConcepts(3);
+
+        ImportIERelations relations = new ImportIERelations(PROP_ID);
+        RelationshipType regulationType = RelationshipType.withName("regulation");
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "docId1", ImportIETypedRelations.of(
+                        regulationType.name(), ImportIERelation.of(
+                                2, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid2"))),
+                ImportIETypedRelations.of(
+                        regulationType.name(), ImportIERelation.of(
+                                1, ImportIERelationArgument.of("tid2"), ImportIERelationArgument.of("tid1")))));
+
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(importConcepts);
+        cm.insertIERelations(relations);
+
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            assertThat(n).isNotNull();
+            assertThat(n.getDegree(regulationType)).isEqualTo(2);
+            List<Relationship> relationships = StreamSupport.stream(n.getRelationships(regulationType).spliterator(), false).collect(Collectors.toList());
+            assertThat(relationships).hasSize(2);
+            for (Relationship rs : relationships) {
+                assertThat(rs).isNotNull();
+                assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+                assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(2);
+                assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1");
+                assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(2);
+            }
+            assertThat(relationships).extracting(r -> r.getOtherNode(n).getProperty(PROP_ID)).containsExactlyInAnyOrder("tid1", "tid2");
+
+
+            Node n2 = tx.findNode(CONCEPT, PROP_ID, "tid2");
+            assertThat(n2).isNotNull();
+            assertThat(n2.getDegree(regulationType)).isEqualTo(2);
+            Relationship rs = StreamSupport.stream(n2.getRelationships(regulationType).spliterator(), false).filter(r -> r.getOtherNode(n2).getProperty(PROP_ID).equals("tid1")).collect(Collectors.toList()).get(0);
+            assertThat(rs).isNotNull();
+            assertThat(rs.hasProperty(PROP_TOTAL_COUNT));
+            assertThat(rs.getProperty(PROP_TOTAL_COUNT)).isEqualTo(3);
+            assertThat((String[]) rs.getProperty(PROP_DOC_IDS)).containsExactly("docId1");
+            assertThat((int[]) rs.getProperty(PROP_COUNTS)).containsExactly(3);
+
+        }
+    }
+
+    @Test
+    public void indexTest() {
+        Label testlabel = Label.label("testlabel");
+        String prop = "testprop";
+        // Create the fulltext index
+        try (Transaction tx = graphDb.beginTx()) {
+            tx.execute("CALL db.index.fulltext.createNodeIndex($indexName, $labels, $properties)", Map.of("indexName", "testindex", "labels", List.of(testlabel.name()), "properties", List.of(prop)));
+            tx.commit();
+        }
+        // Index two nodes with the indexed label
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.createNode(testlabel);
+            n.setProperty(prop, "val1");
+            System.out.println("Val1 on node with ID: " + n.getId());
+            n = tx.createNode(testlabel);
+            n.setProperty(prop, "val2");
+            System.out.println("Val2 on node with ID: " + n.getId());
+            tx.commit();
+        }
+        // Remove the indexed label from one node.
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = getNode(tx, "testindex", prop, "val2");
+            n.removeLabel(testlabel);
+            n = getNode(tx, "testindex", prop, "val2");
+            assertNull(n);
+            // Find via debugger that we will now visit org.neo4j.kernel.api.impl.fulltext.FulltextIndexReader:143:
+            // call to transactionState.maybeUpdate( context );
+            // This is necessary due to the label removal above.
+            n = getNode(tx, "testindex", prop, "val1");
+            assertNotNull(n);
+            getNode(tx, "testindex", prop, "val1");
+        }
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = getNode(tx, "testindex", prop, "val1");
+            assertNotNull(n);
+            getNode(tx, "testindex", prop, "val1");
+        }
+    }
+
+    private Node getNode(Transaction tx, String indexName, String property, String propertyValue) {
+        Node n = null;
+        try (ResourceIterator<Node> it = tx.execute("CALL db.index.fulltext.queryNodes($indexName, $query)", Map.of("indexName", indexName, "query", property + ":\"" + propertyValue + "\"")).columnAs("node")) {
+            if (it.hasNext())
+                n = it.next();
+            if (it.hasNext())
+                throw new IllegalStateException("There are multiple nodes that have the property value " + property + ":" + propertyValue);
+        }
+        return n;
     }
 }

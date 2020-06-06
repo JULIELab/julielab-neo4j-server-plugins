@@ -103,6 +103,7 @@ public class IERelationInsertion {
                 Node arg2 = findConceptNode(tx, idProperty, idSource, argument2, log);
                 if (arg1 != null && arg2 != null)
                     storeRelationTypeCount(tx, arg1, arg2, docId, relationType, relation.getCount());
+                System.out.println(i + " " + j + " " + (arg1 != null) + " " + (arg2 != null));
             }
         }
     }
@@ -130,13 +131,15 @@ public class IERelationInsertion {
             newDocIds[insertionPoint] = docId;
             System.arraycopy(docIds, 0, newDocIds, 0, insertionPoint);
             System.arraycopy(docIds, insertionPoint, newDocIds, insertionPoint + 1, docIds.length - insertionPoint);
+            rel.setProperty(PROP_DOC_IDS, newDocIds);
 
             // insert count
             int[] counts = rel.hasProperty(PROP_COUNTS) ? (int[]) rel.getProperty(PROP_COUNTS) : new int[0];
             int[] newCounts = new int[counts.length + 1];
             newCounts[insertionPoint] = count;
-            System.arraycopy(docIds, 0, newDocIds, 0, insertionPoint);
-            System.arraycopy(docIds, insertionPoint, newDocIds, insertionPoint + 1, docIds.length - insertionPoint);
+            System.arraycopy(counts, 0, newCounts, 0, insertionPoint);
+            System.arraycopy(counts, insertionPoint, newCounts, insertionPoint + 1, docIds.length - insertionPoint);
+            rel.setProperty(PROP_COUNTS, newCounts);
         }
         // Update total relation count
         int totalCount = relOpt.isPresent() ? (int) rel.getProperty(PROP_TOTAL_COUNT) : 0;
