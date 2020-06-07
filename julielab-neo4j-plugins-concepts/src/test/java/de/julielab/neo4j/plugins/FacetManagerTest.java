@@ -4,7 +4,10 @@ import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.*;
-import de.julielab.neo4j.plugins.datarepresentation.constants.*;
+import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
+import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
 import org.junit.AfterClass;
@@ -112,7 +115,7 @@ public class FacetManagerTest {
         try (Transaction tx = graphDb.beginTx()) {
             assertNull("In the beginning, there was no facet groups node",
                     tx.findNode(
-                            NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS));
+                            FacetManager.FacetLabel.FACET_GROUPS, PROP_NAME, FacetConstants.NAME_FACET_GROUPS));
             Node facetGroupsNode = FacetManager.getFacetGroupsNode(tx);
             assertNotNull("One facet groups node should be there.", facetGroupsNode);
             // Get the node multiple times to make sure it isn't created twice.
@@ -120,8 +123,8 @@ public class FacetManagerTest {
             FacetManager.getFacetGroupsNode(tx);
             FacetManager.getFacetGroupsNode(tx);
             facetGroupsNode = tx.findNode(
-                    NodeConstants.Labels.ROOT, PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
-            assertNotNull("There is one facet groups node", facetGroupsNode);
+                    FacetManager.FacetLabel.FACET_GROUPS, PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
+            assertNotNull("There no facet groups node", facetGroupsNode);
         }
     }
 

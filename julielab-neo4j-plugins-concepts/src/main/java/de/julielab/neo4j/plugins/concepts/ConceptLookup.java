@@ -1,8 +1,8 @@
 package de.julielab.neo4j.plugins.concepts;
 
-import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
+import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.QueryExecutionException;
@@ -12,14 +12,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 
-import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
+import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 
 public class ConceptLookup {
     public static final String SYSPROP_ID_CACHE_ENABLED = "de.julielab.neo4j.plugins.conceptlookup.nodeidcache.enabled";
+    public static final String NAME_SOURCE_IDS_SEQUENCE = "num_sourceids_sequence";
     private final static Logger log = LoggerFactory.getLogger(ConceptLookup.class);
 
     /**
@@ -49,7 +50,7 @@ public class ConceptLookup {
         // Do we know the original ID?
         ResourceIterator<Node> concepts = null;
         if (orgId != null) {
-            concepts = tx.findNodes(ConceptLabel.CONCEPT, PROP_ORG_ID, orgId);
+            concepts = tx.findNodes(CONCEPT, PROP_ORG_ID, orgId);
         }
         if (concepts != null && concepts.hasNext()) {
             log.trace("Found concept by original ID {}", orgId);
@@ -111,62 +112,63 @@ public class ConceptLookup {
         long time = System.currentTimeMillis();
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
         List<Node> foundNodes = new ArrayList<>();
-        ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, srcId);
-        try {
-            if (!indexHits.hasNext()) {
-                log.trace("    Did not find any concept with source ID {}", srcId);
-                return null;
-            }
-        } catch (QueryExecutionException e) {
-            log.error("Could not find index hits for sourceId {} due to error", srcId, e);
-            throw e;
-        }
-        while (indexHits.hasNext()) {
-            Node conceptNode = (Node) indexHits.next();
-            foundNodes.add(conceptNode);
-        }
-
-
+        int maxNumSourceIds = SequenceManager.getCurrentSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);
         Node soughtConcept = null;
-        boolean uniqueSourceIdNodeFound = false;
+        for (int i = 0; i < maxNumSourceIds && soughtConcept == null; i++) {
+            ResourceIterator<Node> indexHits = tx.findNodes(CONCEPT, PROP_SRC_IDS + i, srcId);
+            try {
+                if (!indexHits.hasNext()) {
+                    log.trace("    Did not find any concept with source ID {}", srcId);
+                    return null;
+                }
+            } catch (QueryExecutionException e) {
+                log.error("Could not find index hits for sourceId {} due to error", srcId, e);
+                throw e;
+            }
+            while (indexHits.hasNext()) {
+                Node conceptNode = (Node) indexHits.next();
+                foundNodes.add(conceptNode);
+            }
 
-        for (Node conceptNode : foundNodes) {
-            if (null != conceptNode) {
+            boolean uniqueSourceIdNodeFound = false;
+            for (Node conceptNode : foundNodes) {
+                if (null != conceptNode) {
 
-                // The rule goes as follows: Two concepts that share a source ID
-                // which is marked as being unique on both concepts are equal. If
-                // on at least one concept the source ID is not marked as
-                // unique, the concepts are different.
-                if (uniqueSourceId) {
-                    boolean uniqueOnConceptNode = NodeUtilities.isSourceUnique(conceptNode, srcId);
-                    if (uniqueOnConceptNode) {
-                        if (soughtConcept == null)
-                            soughtConcept = conceptNode;
-                        else if (uniqueSourceIdNodeFound)
-                            throw new IllegalStateException("There are multiple concept nodes with unique source ID "
-                                    + srcId
-                                    + ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
-                        log.trace(
-                                "    Found existing concept with unique source ID {} which matches given unique source ID",
-                                srcId);
-                        uniqueSourceIdNodeFound = true;
+                    // The rule goes as follows: Two concepts that share a source ID
+                    // which is marked as being unique on both concepts are equal. If
+                    // on at least one concept the source ID is not marked as
+                    // unique, the concepts are different.
+                    if (uniqueSourceId) {
+                        boolean uniqueOnConceptNode = NodeUtilities.isSourceUnique(conceptNode, srcId);
+                        if (uniqueOnConceptNode) {
+                            if (soughtConcept == null)
+                                soughtConcept = conceptNode;
+                            else if (uniqueSourceIdNodeFound)
+                                throw new IllegalStateException("There are multiple concept nodes with unique source ID "
+                                        + srcId
+                                        + ". This means that some sources define the ID as unique and others not. This can lead to an inconsistent database as happened in this case.");
+                            log.trace(
+                                    "    Found existing concept with unique source ID {} which matches given unique source ID",
+                                    srcId);
+                            uniqueSourceIdNodeFound = true;
+                        }
                     }
-                }
 
-                Set<String> sources = NodeUtilities.getSourcesForSourceId(conceptNode, srcId);
-                if (!sources.contains(source)) {
-                    log.debug("    Did not find a match for source ID " + srcId + " and source " + source);
-                    conceptNode = null;
-                } else {
-                    log.debug("    Found existing concept for source ID " + srcId + " and source " + source);
+                    String[] sources = NodeUtilities.getSourcesForSourceId(conceptNode, srcId);
+                    if (Arrays.binarySearch(sources, source) < 0) {
+                        log.debug("    Did not find a match for source ID " + srcId + " and source " + source);
+                        conceptNode = null;
+                    } else {
+                        log.debug("    Found existing concept for source ID " + srcId + " and source " + source);
+                    }
+                    if (soughtConcept == null)
+                        soughtConcept = conceptNode;
+                        // if soughtConcept is not null, we already found a matching
+                        // concept in the last iteration
+                    else if (!uniqueSourceIdNodeFound)
+                        throw new IllegalStateException(
+                                "There are multiple concept nodes with source ID " + srcId + " and source " + source);
                 }
-                if (soughtConcept == null)
-                    soughtConcept = conceptNode;
-                    // if soughtConcept is not null, we already found a matching
-                    // concept in the last iteration
-                else if (!uniqueSourceIdNodeFound)
-                    throw new IllegalStateException(
-                            "There are multiple concept nodes with source ID " + srcId + " and source " + source);
             }
         }
         time = System.currentTimeMillis() - time;

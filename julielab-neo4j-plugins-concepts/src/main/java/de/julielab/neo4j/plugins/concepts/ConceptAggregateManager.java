@@ -32,7 +32,6 @@ import javax.ws.rs.core.Response;
 import java.util.*;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
-import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds;
 import static de.julielab.neo4j.plugins.concepts.ConceptInsertion.registerNewHollowConceptNode;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.AGGREGATE;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.*;
@@ -107,9 +106,6 @@ public class ConceptAggregateManager {
                 aggSource = UNKNOWN_CONCEPT_SOURCE;
             Node aggregate = lookupConcept(tx, aggCoordinates);
             if (null != aggregate) {
-                String isHollowMessage = "";
-                if (aggregate.hasLabel(HOLLOW))
-                    isHollowMessage = ", however it is hollow and its properties will be set now.";
                 if (!aggregate.hasLabel(HOLLOW))
                     return;
                 // remove the HOLLOW label, we have to aggregate information now and

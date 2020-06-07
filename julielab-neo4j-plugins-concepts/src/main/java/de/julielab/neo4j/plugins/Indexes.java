@@ -6,6 +6,7 @@ import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.schema.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,11 +46,16 @@ public class Indexes {
      * @param unique   Whether or not to impose a unique constraint for this label/property combination.
      */
     public static void createSinglePropertyIndexIfAbsent(Transaction tx, String indexName, Label label, boolean unique, String indexProvider, String property) {
-        String indexCreationProcedure = unique ? "createUniquePropertyConstraint" : "createIndex";
-        if (indexProvider == null)
-            tx.execute("CALL db." + indexCreationProcedure + "($indexName, $label, $property)", Map.of("indexName", indexName, "label", List.of(label.name()), "property", List.of(property)));
-        else
-            tx.execute("CALL db." + indexCreationProcedure + "($indexName, $label, $property, $indexProvider)", Map.of("indexName", indexName, "label", List.of(label.name()), "property", List.of(property), "indexProvider", indexProvider));
+        Schema schema = tx.schema();
+        try {
+            schema.getIndexByName(indexName);
+        } catch (IllegalArgumentException e) {
+            String indexCreationProcedure = unique ? "createUniquePropertyConstraint" : "createIndex";
+            if (indexProvider == null)
+                tx.execute("CALL db." + indexCreationProcedure + "($indexName, $label, $property)", Map.of("indexName", indexName, "label", List.of(label.name()), "property", List.of(property)));
+            else
+                tx.execute("CALL db." + indexCreationProcedure + "($indexName, $label, $property, $indexProvider)", Map.of("indexName", indexName, "label", List.of(label.name()), "property", List.of(property), "indexProvider", indexProvider));
+        }
     }
 
     /**

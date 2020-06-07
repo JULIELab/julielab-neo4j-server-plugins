@@ -12,7 +12,6 @@ import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
@@ -198,27 +197,34 @@ public class FacetManager {
     }
 
     public static Node getFacetGroupsNode(Transaction tx) {
-        Node facetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
-                PROP_NAME, NAME_FACET_GROUPS);
-        if (null == facetGroupsNode) {
-            facetGroupsNode = tx.createNode(NodeConstants.Labels.ROOT);
-            facetGroupsNode.setProperty(PROP_NAME, NAME_FACET_GROUPS);
-        }
-        return facetGroupsNode;
+        return getGroupsNode(tx, FacetLabel.FACET_GROUPS, NAME_FACET_GROUPS);
     }
 
     public static Node getNoFacetGroupsNode(Transaction tx) {
-        Node facetGroupsNode;
-        facetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
-                PROP_NAME, NAME_NO_FACET_GROUPS);
+        return getGroupsNode(tx, FacetLabel.NO_FACET_GROUPS, NAME_NO_FACET_GROUPS);
+    }
+
+    public static Node getGroupsNode(Transaction tx, Label label, String name) {
+        Node facetGroupsNode = tx.findNode(label,
+                PROP_NAME, name);
         if (null == facetGroupsNode) {
-            facetGroupsNode = tx.createNode(NodeConstants.Labels.ROOT);
-            facetGroupsNode.setProperty(PROP_NAME, NAME_NO_FACET_GROUPS);
+            try {
+                facetGroupsNode = tx.createNode(label);
+                facetGroupsNode.setProperty(PROP_NAME, name);
+            } catch (ConstraintViolationException e) {
+                // In case another thread already created the node
+                facetGroupsNode.delete();
+                facetGroupsNode = tx.findNode(label,
+                        PROP_NAME, name);
+            }
         }
         return facetGroupsNode;
     }
 
+
     public static void createIndexes(Transaction tx) {
+        createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.FACET_GROUPS, true, Indexes.PROVIDER_NATIVE_1_0, PROP_NAME);
+        createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.NO_FACET_GROUPS, true, Indexes.PROVIDER_NATIVE_1_0, PROP_NAME);
         createSinglePropertyIndexIfAbsent(tx, "FacetIds", FacetLabel.FACET, true, Indexes.PROVIDER_NATIVE_1_0, PROP_ID);
         createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.NO_FACET, true, Indexes.PROVIDER_NATIVE_1_0, PROP_ID);
     }
@@ -398,6 +404,6 @@ public class FacetManager {
     }
 
     public enum FacetLabel implements Label {
-        FACET, NO_FACET
+        FACET_GROUPS, NO_FACET_GROUPS, FACET, NO_FACET
     }
 }
