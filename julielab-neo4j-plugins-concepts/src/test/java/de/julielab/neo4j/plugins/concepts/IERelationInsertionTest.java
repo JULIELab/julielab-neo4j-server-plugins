@@ -231,8 +231,7 @@ public class IERelationInsertionTest {
         relations.addRelationDocument(ImportIERelationDocument.of(
                 "docId1", false, ImportIETypedRelations.of(
                         regulationType1.name(), ImportIERelation.of(
-                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"))),
-                ImportIETypedRelations.of(
+                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")),
                         regulationType2.name(), ImportIERelation.of(
                                 7, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
@@ -270,8 +269,7 @@ public class IERelationInsertionTest {
         relations.addRelationDocument(ImportIERelationDocument.of(
                 "docId1", false, ImportIETypedRelations.of(
                         regulationType1.name(), ImportIERelation.of(
-                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"))),
-                ImportIETypedRelations.of(
+                                3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")),
                         phosphorylationType.name(), ImportIERelation.of(
                                 7, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
         relations.addRelationDocument(ImportIERelationDocument.of(
@@ -311,11 +309,15 @@ public class IERelationInsertionTest {
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
                 "docId1", false, ImportIETypedRelations.of(
-                        regulationType.name(), ImportIERelation.of(
-                                2, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid2"))),
-                ImportIETypedRelations.of(
-                        regulationType.name(), ImportIERelation.of(
-                                1, ImportIERelationArgument.of("tid2"), ImportIERelationArgument.of("tid1")))));
+                        regulationType.name(), List.of(
+                                ImportIERelation.of(
+                                        2, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid2")),
+                                ImportIERelation.of(
+                                        1, ImportIERelationArgument.of("tid2"), ImportIERelationArgument.of("tid1")
+                                )
+                        )
+                ))
+        );
 
         ConceptManager cm = new ConceptManager(graphDBMS);
         cm.insertConcepts(importConcepts);

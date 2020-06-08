@@ -62,22 +62,21 @@ public class IERelationInsertion {
     /**
      * <p>Inserts all the relations in <tt>documents</tt>.</p>
      *
-     * @param tx The current transaction.
+     * @param tx         The current transaction.
      * @param idProperty The concept ID property.
-     * @param idSource The optional concept source.
-     * @param documents The documents or database entries containing relations.
-     * @param log A logger.
+     * @param idSource   The optional concept source.
+     * @param documents  The documents or database entries containing relations.
+     * @param log        A logger.
      */
     private static void insertRelations(Transaction tx, String idProperty, String idSource, Iterator<ImportIERelationDocument> documents, Log log) {
         Set<IERelationKey> seenDocLevelKeys = new HashSet<>();
         while (documents.hasNext()) {
             ImportIERelationDocument document = documents.next();
             seenDocLevelKeys.clear();
-            for (ImportIETypedRelations typedRelations : document.getRelations()) {
-                for (String relationType : typedRelations.keySet()) {
-                    ImportIERelation relation = typedRelations.get(relationType);
+            ImportIETypedRelations typedRelations = document.getRelations();
+            for (String relationType : typedRelations.keySet()) {
+                for (ImportIERelation relation : typedRelations.get(relationType))
                     insertIERelation(tx, idProperty, idSource, document.getName(), relationType, relation, seenDocLevelKeys, document.isDb(), log);
-                }
             }
         }
     }
@@ -85,15 +84,15 @@ public class IERelationInsertion {
     /**
      * <p>Creates the relationships of type <tt>relationType</tt> between all arguments of <tt>relation</tt>.</p>
      *
-     * @param tx The current transaction.
-     * @param idProperty The ID node property.
-     * @param idSource The optional concept ID source.
-     * @param documentName The document ID or database name to insert relations for.
-     * @param relationType The name of the relation type to create.
-     * @param relation The relation to insert.
+     * @param tx               The current transaction.
+     * @param idProperty       The ID node property.
+     * @param idSource         The optional concept ID source.
+     * @param documentName     The document ID or database name to insert relations for.
+     * @param relationType     The name of the relation type to create.
+     * @param relation         The relation to insert.
      * @param seenDocLevelKeys Information about relations already seen during the current relation insertion process.
-     * @param dbEntry Whether or not this is a database entry.
-     * @param log A Logger.
+     * @param dbEntry          Whether or not this is a database entry.
+     * @param log              A Logger.
      */
     private static void insertIERelation(Transaction tx, String idProperty, String idSource, String documentName, String relationType, ImportIERelation relation, Set<IERelationKey> seenDocLevelKeys, boolean dbEntry, Log log) {
         for (int i = 0; i < relation.getArgs().size(); i++) {

@@ -31,6 +31,14 @@ public class ImportIERelation {
             r.addArgument(arg);
         return r;
     }
+    public static ImportIERelation of(String method, Iterable<ImportIERelationArgument> args) {
+        ImportIERelation r = new ImportIERelation();
+        r.setMethod(method);
+        for (ImportIERelationArgument arg : args)
+            r.addArgument(arg);
+        return r;
+    }
+
 
     public String getMethod() {
         return method;

@@ -376,7 +376,7 @@ public class ConceptManager {
      *     "documents": [{
      *              "name": "&lt;docId or DB name&gt;",
      *              "isDb": &lt;true/false&gt;,
-     *              "relations": [{
+     *              "relations": {
      *                  "&lt;relationshipType1&gt;": [
      *                      {
      *                          "count": &lt;optional, not used when document is a DB; count1&gt;,
@@ -398,11 +398,11 @@ public class ConceptManager {
      *                  "&lt;relationshipType2&gt;": [
      *                      ...
      *                  ]
-     *              }]
+     *              }
      *          },
      *          {
      *              "name": "&lt;docId2&gt;",
-     *              "relations:" [{
+     *              "relations:" {
      *                  "&lt;relationshipType2&gt;": [
      *                      {
      *                          ...
@@ -411,7 +411,7 @@ public class ConceptManager {
      *                          ...
      *                      },
      *                  ]
-     *              }]
+     *              }
      *          ]
      *      }
      *  }
