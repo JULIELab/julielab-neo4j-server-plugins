@@ -183,7 +183,7 @@ public class ConceptAggregateManagerTest {
                 Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
-                    String[] srcIds = NodeUtilities.getSourceIds(element);
+                    String[] srcIds = NodeUtilities.getSourceIdArray(element);
                     assertNotNull(srcIds);
                     elementIds.add(srcIds[0]);
                 }
@@ -208,7 +208,7 @@ public class ConceptAggregateManagerTest {
             Set<Node> children = (Set<Node>) map.get(ConceptManager.RET_KEY_CHILDREN);
             Set<String> childrenIds = new HashSet<>();
             for (Node term : children)
-                childrenIds.add(Objects.requireNonNull(NodeUtilities.getSourceIds(term))[0]);
+                childrenIds.add(Objects.requireNonNull(NodeUtilities.getSourceIdArray(term))[0]);
             assertTrue(childrenIds.contains(t12.coordinates.sourceId));
             assertTrue(childrenIds.contains(t21.coordinates.sourceId));
         }
@@ -270,7 +270,7 @@ public class ConceptAggregateManagerTest {
                 Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
-                    String[] srcIds = NodeUtilities.getSourceIds(element);
+                    String[] srcIds = NodeUtilities.getSourceIdArray(element);
                     assertNotNull(srcIds);
                     assertNotNull(srcIds[0]);
                     elementIds.add(srcIds[0]);
@@ -335,7 +335,7 @@ public class ConceptAggregateManagerTest {
                 Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 for (Relationship rel : elementRels) {
                     Node element = rel.getOtherNode(aggregate);
-                    String[] srcIds = NodeUtilities.getSourceIds(element);
+                    String[] srcIds = NodeUtilities.getSourceIdArray(element);
                     assertNotNull(srcIds);
                     assertNotNull(srcIds[0]);
                     elementIds.add(srcIds[0]);
@@ -366,7 +366,7 @@ public class ConceptAggregateManagerTest {
                         .getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
                 Iterator<Relationship> elementIt = elementRels.iterator();
                 if (!elementIt.hasNext()) {
-                    String[] srcIds = NodeUtilities.getSourceIds(aggregatedTerm);
+                    String[] srcIds = NodeUtilities.getSourceIdArray(aggregatedTerm);
                     assertNotNull(srcIds);
                     assertNotNull(srcIds[0]);
                     assertEquals(t6.coordinates.sourceId, srcIds[0]);

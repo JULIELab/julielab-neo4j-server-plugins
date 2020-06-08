@@ -17,7 +17,6 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptRelationConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
-import org.apache.commons.lang.StringUtils;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
@@ -128,20 +127,11 @@ public class ConceptAggregateManager {
                     elementSource = UNKNOWN_CONCEPT_SOURCE;
                 Node element = nodesByCoordinates.get(elementCoordinates);
                 if (null != element) {
-                    String[] srcIds = getSourceIds(element);
-                    String[] sources = element.hasProperty(PROP_SOURCES) ? (String[]) element.getProperty(PROP_SOURCES)
-                            : new String[0];
-                    for (int j = 0; j < srcIds.length; j++) {
-                        String srcId = srcIds[j];
-                        String source = sources.length > j ? sources[j] : null;
                         // If the source ID matches but not the sources then this is
                         // the wrong node.
-                        if (srcId.equals(elementCoordinates.sourceId)
-                                && !((elementSource == null && source == null) || (elementSource.equals(source))))
-                            element = null;
-                        else
-                            break;
-                    }
+                    String[] sourcesForSourceId = NodeUtilities.getSourcesForSourceId(element, elementCoordinates.sourceId);
+                    if (Arrays.binarySearch(sourcesForSourceId, elementSource) < 0)
+                        element = null;
                 }
                 log.debug("Looking up element by source ID %s and source %s", elementCoordinates.sourceId, elementSource);
                 if (null == element)
@@ -157,14 +147,7 @@ public class ConceptAggregateManager {
 
             // Set the aggregate's properties
             if (null != aggSrcId) {
-                int idIndex = aggregate.hasProperty(PROP_SRC_IDS) ? Arrays.asList(Objects.requireNonNull(getSourceIds(aggregate))).indexOf(aggSrcId) : -1;
-                int sourceIndex = findFirstValueInArrayProperty(aggregate, PROP_SOURCES, aggSource);
-                if (!StringUtils.isBlank(aggSrcId)
-                        && ((idIndex == -1 && sourceIndex == -1) || (idIndex != sourceIndex))) {
-                    String newSourceIdString = aggregate.hasProperty(PROP_SRC_IDS) ? aggregate.getProperty(PROP_SRC_IDS) + " " + aggSrcId : aggSrcId;
-                    aggregate.setProperty(PROP_SRC_IDS, newSourceIdString);
-                    addToArrayProperty(aggregate, PROP_SOURCES, aggSource, true);
-                }
+                NodeUtilities.mergeSourceId(tx, aggregate, aggSrcId, aggSource, false);
                 // if the aggregate has a source ID, add it to the respective
                 // map for later access during the relationship insertion phase
                 nodesByCoordinates.put(new ConceptCoordinates(aggCoordinates), aggregate);
@@ -376,7 +359,6 @@ public class ConceptAggregateManager {
             return;
         visited.add(term);
         Iterable<Relationship> mappings = term.getRelationships(ConceptEdgeTypes.IS_MAPPED_TO);
-        // Set<String> aggregateMappingTypes = new HashSet<>();
         for (Relationship mapping : mappings) {
             if (!mapping.hasProperty(ConceptRelationConstants.PROP_MAPPING_TYPE))
                 throw new IllegalStateException("The mapping relationship " + mapping + " does not specify its type.");

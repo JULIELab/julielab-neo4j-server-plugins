@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.google.common.collect.Sets;
 import de.julielab.neo4j.plugins.FacetManager;
-import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesMap;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.CoordinatesSet;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
@@ -251,9 +250,10 @@ public class ConceptInsertion {
             node.setProperty(PROP_ORG_ID, coordinates.originalId);
             node.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
-        node.setProperty(PROP_SRC_IDS, coordinates.sourceId);
-        node.setProperty(PROP_SOURCES, new String[]{coordinates.source});
-        node.setProperty(PROP_UNIQUE_SRC_ID, new boolean[]{coordinates.uniqueSourceId});
+        NodeUtilities.mergeSourceId(tx, node, coordinates.sourceId, coordinates.source, coordinates.uniqueSourceId);
+//        node.setProperty(PROP_SRC_IDS, coordinates.sourceId);
+//        node.setProperty(PROP_SOURCES, new String[]{coordinates.source});
+//        node.setProperty(PROP_UNIQUE_SRC_ID, new boolean[]{coordinates.uniqueSourceId});
 
         return node;
     }
@@ -734,8 +734,8 @@ public class ConceptInsertion {
         return insertionReport;
     }
 
-    private static boolean checkUniqueIdMarkerClash(Node conceptNode, String srcId, boolean uniqueSourceId) {
-        boolean uniqueOnConcept = NodeUtilities.isSourceUnique(conceptNode, srcId);
+    private static boolean checkUniqueIdMarkerClash(Node conceptNode, String srcId, String source, boolean uniqueSourceId) {
+        boolean uniqueOnConcept = NodeUtilities.isSourceUnique(conceptNode, srcId, source);
         // case: the source ID was already set on this concept node and
         // uniqueSourceId was
         // false; then, other concepts might have been inserted with
@@ -770,8 +770,7 @@ public class ConceptInsertion {
 
             Node n1 = nodesBySrcId.get(id1);
             if (null == n1) {
-
-                ResourceIterator<Object> indexHits = FullTextIndexUtils.getNodes(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, id1);
+                Iterator<Node> indexHits = ConceptLookup.lookupConceptsBySourceId(tx, id1).iterator();
                 if (indexHits.hasNext())
                     n1 = (Node) indexHits.next();
                 if (indexHits.hasNext()) {
@@ -789,7 +788,7 @@ public class ConceptInsertion {
             }
             Node n2 = nodesBySrcId.get(id2);
             if (null == n2) {
-                n2 = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, id2);
+                n2 = ConceptLookup.lookupSingleConceptBySourceId(tx, id2);
                 if (null == n2) {
                     log.warn("There is no concept with source ID \"" + id2 + "\" as required by the mapping \""
                             + mapping + "\" Mapping is skipped.");

@@ -69,6 +69,15 @@ public class ConceptManager {
 
     public static final String FULLTEXT_INDEX_CONCEPTS = "concepts";
 
+    /**
+     * This is a rather arbitrary number. It should just set high enough that all source IDs given to concepts
+     * lie below this number. The reason is that we store the source IDs in properties named 'sourceIDsX' where X
+     * is the Xth source ID occurring for a particular concept (meaning that multiple source defined the concept
+     * as identified via its original source (ID)). We need an index on each sourceIDsX property. This is where this
+     * numnber comes into play: We create indexes for all 'sourceIDsX' property with X < MAX_SRC_IDS in {@link #createIndexes(Transaction)}.
+     */
+    public static final int MAX_SRC_IDS = 10;
+
     public static final String UPDATE_CHILD_INFORMATION = "update_children_information";
     public static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
     private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
@@ -87,9 +96,9 @@ public class ConceptManager {
         // by schema indexes it seems
         Indexes.createSinglePropertyIndexIfAbsent(tx, "OriginalId", ConceptLabel.CONCEPT, false, Indexes.PROVIDER_NATIVE_1_0, ConceptConstants.PROP_ORG_ID);
         Indexes.createSinglePropertyIndexIfAbsent(tx, "FacetRoots", NodeConstants.Labels.ROOT, true, Indexes.PROVIDER_NATIVE_1_0, NodeConstants.PROP_NAME);
-        // TODO this index is just a test and cannot be used in general due to the possibility of multiple source IDs. This is what the fulltext index was meant for
-        Indexes.createSinglePropertyIndexIfAbsent(tx, "ConceptSrcId", ConceptLabel.CONCEPT, false, Indexes.PROVIDER_NATIVE_1_0, PROP_SRC_IDS);
-        //FullTextIndexUtils.createTextIndex(tx, FULLTEXT_INDEX_CONCEPTS, Map.of("analyzer", "whitespace"), new Label[]{ConceptLabel.CONCEPT}, new String[]{PROP_SRC_IDS});
+        // We need to create multiple indexes for multiple source IDs that single concepts may have. Also see the comment for the MAX_SRC_IDS constant.
+        for (int i = 0; i < MAX_SRC_IDS; ++i)
+            Indexes.createSinglePropertyIndexIfAbsent(tx, "ConceptSrcId" + i, ConceptLabel.CONCEPT, false, Indexes.PROVIDER_NATIVE_1_0, PROP_SRC_IDS + i);
     }
 
     public static Response getErrorResponse(Throwable throwable) {
@@ -357,8 +366,8 @@ public class ConceptManager {
     /**
      * <p>Adds semantic relations between concepts of the database as extracted from literature with information retrieval techniques.</p>
      * <p>
-     *     The format is as follows:
-     *<pre>
+     * The format is as follows:
+     * <pre>
      * {
      *     "id_property": &lt;one of "id", "sourceIds", "originalId"&gt;,
      *     "id_source":   &lt;optional; will be used as a default when not given per concept Id&gt;
@@ -402,7 +411,7 @@ public class ConceptManager {
      *          ]
      *      }
      *  }
-     *</pre>
+     * </pre>
      * </p>
      */
     @POST
@@ -410,7 +419,7 @@ public class ConceptManager {
     @Path(INSERT_IE_RELATIONS)
     public Response insertIERelations(InputStream is, @Context Log log) {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (Transaction tx = graphDb.beginTx()){
+        try (Transaction tx = graphDb.beginTx()) {
             IERelationInsertion.insertRelations(is, tx, log);
             tx.commit();
             return Response.ok().build();
@@ -422,6 +431,7 @@ public class ConceptManager {
 
     /**
      * Convenience access to {@link #insertIERelations(InputStream)}.
+     *
      * @param is
      */
     public void insertIERelations(InputStream is) {
@@ -434,6 +444,7 @@ public class ConceptManager {
 
     /**
      * Convenience access to {@link #insertConcepts(InputStream)} and, as a consequence, {@link #insertConcepts(InputStream, Log)}.
+     *
      * @param importConcepts
      */
     public void insertConcepts(ImportConcepts importConcepts) {

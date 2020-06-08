@@ -1,6 +1,5 @@
 package de.julielab.neo4j.plugins.concepts;
 
-import de.julielab.neo4j.plugins.FullTextIndexUtils;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import org.apache.commons.lang.StringUtils;
 import org.neo4j.graphdb.*;
@@ -43,7 +42,7 @@ public class ConceptRetrieval {
         Node[] startNodes = new Node[conceptIds.size()];
         for (int i = 0; i < conceptIds.size(); i++) {
             String conceptId = conceptIds.get(i);
-            Node node = idProperty.equals(PROP_SRC_IDS) ? FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, idProperty, conceptId) : tx.findNode(ConceptLabel.CONCEPT, idProperty, conceptId);
+            Node node = idProperty.equals(PROP_SRC_IDS) ? ConceptLookup.lookupSingleConceptBySourceId(tx, conceptId) : tx.findNode(ConceptLabel.CONCEPT, idProperty, conceptId);
             if (node == null)
                 throw new IllegalArgumentException("Could not find a node with ID " + conceptId + " for property " + idProperty);
             startNodes[i] = node;
@@ -65,7 +64,8 @@ public class ConceptRetrieval {
                     n = nodesIt.next();
                 else
                     throw new IllegalStateException("Length of path wrong, more nodes expected.");
-                if (!n.hasProperty(idProperty)) {
+                // The latter for sourceIds
+                if (!n.hasProperty(idProperty) && !n.hasProperty(idProperty+0)) {
                     log.warn("Came across the concept " + n + " (" + NodeUtilities.getNodePropertiesAsString(n)
                             + ") when computing root paths. But this concept does not have an ID.");
                     error = true;

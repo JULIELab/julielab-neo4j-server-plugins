@@ -28,9 +28,10 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceArray;
+import static de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIdArray;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.HOLLOW;
-import static de.julielab.neo4j.plugins.concepts.ConceptManager.FULLTEXT_INDEX_CONCEPTS;
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERMS;
 import static de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants.*;
 import static de.julielab.neo4j.plugins.datarepresentation.CoordinateType.SRC;
@@ -126,10 +127,10 @@ public class ConceptManagerTest {
                     PROP_ID, NodeIDPrefixConstants.TERM + 0);
             assertNotNull(term);
             assertEquals("orgId", term.getProperty(PROP_ORG_ID));
-            String[] sourceIds = de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities.getSourceIds(term);
-            String[] sources = (String[]) term.getProperty(ConceptConstants.PROP_SOURCES);
+            String[] sourceIds = getSourceIdArray(term);
+            String[] sources =  getSourceArray(term);
+            assertArrayEquals(new String[]{"CONCEPT0", "CONCEPT42"}, sourceIds);
             assertArrayEquals(new String[]{"src1", "src2", "<unknown>"}, sources);
-            assertArrayEquals(new String[]{"CONCEPT0", "CONCEPT0", "CONCEPT42"}, sourceIds);
             tx.commit();
         }
 
@@ -176,7 +177,7 @@ public class ConceptManagerTest {
             assertNotNull(term);
             assertTrue(term.hasProperty(PROP_DESCRIPTIONS));
             assertArrayEquals(new String[]{"desc"}, (String[]) term.getProperty(PROP_DESCRIPTIONS));
-            assertArrayEquals(new String[]{"someSource"}, (String[]) term.getProperty(PROP_SOURCES));
+            assertArrayEquals(new String[]{"someSource"}, (String[]) term.getProperty(PROP_SOURCES+0));
             tx.commit();
         }
 
@@ -305,20 +306,20 @@ public class ConceptManagerTest {
             assertEquals("prefname1", term1.getProperty(PROP_PREF_NAME));
             assertEquals(Lists.newArrayList("desc of term1"),
                     Arrays.asList((String[]) term1.getProperty(PROP_DESCRIPTIONS)));
-            assertEquals("CONCEPT1", term1.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT1", term1.getProperty(PROP_SRC_IDS+"0"));
 
             Node term2 = tx.findNode(CONCEPT, PROP_ID, "tid1");
             assertEquals("prefname2", term2.getProperty(PROP_PREF_NAME));
             assertEquals("orgId2", term2.getProperty(PROP_ORG_ID));
-            assertEquals("CONCEPT2", term2.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT2", term2.getProperty(PROP_SRC_IDS+"0"));
 
             Node term3 = tx.findNode(CONCEPT, PROP_ID, "tid2");
             assertEquals("prefname3", term3.getProperty(PROP_PREF_NAME));
-            assertEquals("CONCEPT3", term3.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT3", term3.getProperty(PROP_SRC_IDS+"0"));
 
             Node term4 = tx.findNode(CONCEPT, PROP_ID, "tid3");
             assertEquals("prefname4", term4.getProperty(PROP_PREF_NAME));
-            assertEquals("CONCEPT4", term4.getProperty(PROP_SRC_IDS));
+            assertEquals("CONCEPT4", term4.getProperty(PROP_SRC_IDS+"0"));
 
             // Are the relationships correct? Reminder, they should be:
             // Structure:
@@ -424,10 +425,10 @@ public class ConceptManagerTest {
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node facetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
+            Node facetGroupsNode = tx.findNode(FacetLabel.FACET_GROUPS,
                     NodeConstants.PROP_NAME, FacetConstants.NAME_FACET_GROUPS);
             assertNull("The facet groups node exists although it should not.", facetGroupsNode);
-            Node noFacetGroupsNode = tx.findNode(NodeConstants.Labels.ROOT,
+            Node noFacetGroupsNode = tx.findNode(FacetLabel.NO_FACET_GROUPS,
                     NodeConstants.PROP_NAME, FacetConstants.NAME_NO_FACET_GROUPS);
             assertNotNull("The no facet groups node does not exists although it should.", noFacetGroupsNode);
 
@@ -511,7 +512,7 @@ public class ConceptManagerTest {
                 List<String> synList = Lists.newArrayList((String[]) concept1.getProperty(PROP_SYNONYMS));
                 assertTrue(synList.contains("syn1"));
                 assertTrue(synList.contains("syn2"));
-                List<String> srcIdList = Arrays.asList(Objects.requireNonNull(NodeUtilities.getSourceIds(concept1)));
+                List<String> srcIdList = Objects.requireNonNull(NodeUtilities.getSourceIds(concept1));
                 assertTrue(srcIdList.contains("CONCEPT1"));
                 assertTrue(srcIdList.contains("CONCEPT2"));
                 assertTrue(srcIdList.contains("CONCEPT3"));
@@ -589,8 +590,8 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             // Would throw an exception if there were multiple terms found.
-            FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "source0");
-            FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "source1");
+            assertThat(ConceptLookup.lookupSingleConceptBySourceId(tx, "source0")).isNotNull();
+            assertThat(ConceptLookup.lookupSingleConceptBySourceId(tx, "source1")).isNotNull();
         }
     }
 
@@ -691,11 +692,11 @@ public class ConceptManagerTest {
         cm.insertConcepts(new ByteArrayInputStream(termsJson.getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node concept = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "CONCEPT");
+            Node concept = ConceptLookup.lookupSingleConceptBySourceId(tx, "CONCEPT");
             assertEquals("Preferred name", "prefname", concept.getProperty(PROP_PREF_NAME));
             assertEquals("Description", List.of("desc of term"),
                     List.of((String[]) concept.getProperty(PROP_DESCRIPTIONS)));
-            assertEquals("Source ID doesn't match", "CONCEPT", concept.getProperty(PROP_SRC_IDS));
+            assertEquals("Source ID doesn't match", "CONCEPT", concept.getProperty(PROP_SRC_IDS+0));
             String[] synonyms = (String[]) concept.getProperty(PROP_SYNONYMS);
             assertEquals("Number of synonyms", 1, synonyms.length);
             assertEquals("Synonym", "othersynonym", synonyms[0]);
@@ -892,7 +893,7 @@ public class ConceptManagerTest {
             Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
             int numElementRels = 0;
             for (Relationship elementRel : elementRels) {
-                String[] termSrcIds = NodeUtilities.getSourceIds(elementRel.getEndNode());
+                String[] termSrcIds = getSourceIdArray(elementRel.getEndNode());
                 assert termSrcIds != null;
                 assertTrue("Term is one of the defined aggregate elements",
                         aggregateElementSrcIds.contains(termSrcIds[0]));
@@ -900,7 +901,7 @@ public class ConceptManagerTest {
             }
             assertEquals("There are 4 elements", 4, numElementRels);
 
-            Node term = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "CONCEPT4");
+            Node term = ConceptLookup.lookupSingleConceptBySourceId(tx, "CONCEPT4");
             assertNotNull("Term on position 4 was inserted and found", term);
             Iterable<Relationship> relationships = term.getRelationships();
             int numRels = 0;
@@ -1172,7 +1173,7 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             // Would throw an exception if there were multiple terms found.
-            Node hollowParent = FullTextIndexUtils.getNode(tx, FULLTEXT_INDEX_CONCEPTS, PROP_SRC_IDS, "parentid42");
+            Node hollowParent = ConceptLookup.lookupSingleConceptBySourceId(tx, "parentid42");
             assertNotNull(hollowParent);
             assertTrue(hollowParent.hasLabel(HOLLOW));
         }
@@ -1208,7 +1209,7 @@ public class ConceptManagerTest {
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
 
         try (Transaction tx = graphDb.beginTx()) {
-            Node noFacetGroups = tx.findNode(NodeConstants.Labels.ROOT,
+            Node noFacetGroups = tx.findNode(FacetLabel.NO_FACET_GROUPS,
                     PROP_NAME, NAME_NO_FACET_GROUPS);
             assertNotNull("No-Facet group not found.", noFacetGroups);
             Iterator<Relationship> it = noFacetGroups.getRelationships(FacetManager.EdgeTypes.HAS_FACET_GROUP)

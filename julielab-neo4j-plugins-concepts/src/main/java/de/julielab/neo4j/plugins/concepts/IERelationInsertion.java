@@ -74,6 +74,7 @@ public class IERelationInsertion {
     private static void insertRelations(Transaction tx, String idProperty, String idSource, Iterator<ImportIERelationDocument> documents, Log log) {
         while (documents.hasNext()) {
             ImportIERelationDocument document = documents.next();
+
             for (ImportIETypedRelations typedRelations : document.getRelations()) {
                 for (String relationType : typedRelations.keySet()) {
                     ImportIERelation relation = typedRelations.get(relationType);
@@ -171,4 +172,8 @@ public class IERelationInsertion {
             log.debug("Could not find a concept with ID '%s' for idProperty '%s' and source '%s'.", argument.getId(), idProperty, source);
         return concept;
     }
+
+//    private class IERelationKey {
+//        private TreeSet<String>
+//    }
 }

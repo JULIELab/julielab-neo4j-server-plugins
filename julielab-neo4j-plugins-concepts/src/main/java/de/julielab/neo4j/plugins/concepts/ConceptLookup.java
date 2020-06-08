@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
@@ -109,7 +111,6 @@ public class ConceptLookup {
      * @return The requested concept node or <tt>null</tt> if no such node is found.
      */
     public static Node lookupConceptBySourceId(Transaction tx, String srcId, String source, boolean uniqueSourceId) {
-        long time = System.currentTimeMillis();
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
         List<Node> foundNodes = new ArrayList<>();
         int maxNumSourceIds = SequenceManager.getCurrentSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);
@@ -139,7 +140,7 @@ public class ConceptLookup {
                     // on at least one concept the source ID is not marked as
                     // unique, the concepts are different.
                     if (uniqueSourceId) {
-                        boolean uniqueOnConceptNode = NodeUtilities.isSourceUnique(conceptNode, srcId);
+                        boolean uniqueOnConceptNode = NodeUtilities.isSourceUnique(conceptNode, srcId, source);
                         if (uniqueOnConceptNode) {
                             if (soughtConcept == null)
                                 soughtConcept = conceptNode;
@@ -171,7 +172,23 @@ public class ConceptLookup {
                 }
             }
         }
-        time = System.currentTimeMillis() - time;
         return soughtConcept;
+    }
+
+    public static Stream<Node> lookupConceptsBySourceId(Transaction tx, String srcId) {
+        int maxNumSourceIds = SequenceManager.getCurrentSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);
+        Stream<Node> s = Stream.empty();
+        for (int i = 0; i < maxNumSourceIds; i++) {
+            String srcIdProp = PROP_SRC_IDS + i;
+            s = Stream.concat(s, tx.findNodes(CONCEPT, srcIdProp, srcId).stream());
+        }
+        return s;
+    }
+
+    public static Node lookupSingleConceptBySourceId(Transaction tx, String srcId) {
+        List<Node> concepts = lookupConceptsBySourceId(tx, srcId).collect(Collectors.toList());
+        if (concepts.size() > 1)
+            throw new IllegalStateException("Found multiple (" + concepts.size() + ") concepts with source ID '" + srcId + "'.");
+        return concepts.isEmpty() ? null : concepts.get(0);
     }
 }

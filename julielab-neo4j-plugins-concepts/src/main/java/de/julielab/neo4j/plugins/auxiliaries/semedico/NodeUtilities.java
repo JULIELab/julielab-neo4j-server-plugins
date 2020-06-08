@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptLookup.NAME_SOURCE_IDS_SEQUENCE;
@@ -81,6 +82,21 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
         return getSourceIds(concept).toArray(String[]::new);
     }
 
+    public static String[] getSourceArray(Node concept) {
+        return getSources(concept).toArray(String[]::new);
+    }
+
+    public static List<String> getSources(Node concept) {
+        int i = 0;
+        String sourceProperty = PROP_SOURCES + i;
+        List<String> sourceIds = new ArrayList<>();
+        while (concept.hasProperty(sourceProperty)) {
+            Stream.of((String[]) concept.getProperty(sourceProperty)).forEach(sourceIds::add);
+            sourceProperty = PROP_SOURCES + ++i;
+        }
+        return sourceIds;
+    }
+
     public static List<String> getSourceIds(Node concept) {
         int i = 0;
         String sourceIdProperty = PROP_SRC_IDS + i;
@@ -100,19 +116,19 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
      * @param conceptNode The concept node on which <tt>srcId</tt> is unique or not.
      * @param srcId       The source ID for which to determine whether it is unique for
      *                    this concept.
+     * @param source
      * @return <tt>true</tt>, if at least one occurrence of <tt>srcId</tt> is
      * marked as unique.
      */
-    public static boolean isSourceUnique(Node conceptNode, String srcId) {
-        String[] conceptSrcIds = ((String) conceptNode.getProperty(ConceptConstants.PROP_SRC_IDS)).split("\\s+");
-        boolean[] conceptUniqueSrcIds = (boolean[]) conceptNode.getProperty(ConceptConstants.PROP_UNIQUE_SRC_ID);
-        if (conceptSrcIds.length > 0 && conceptSrcIds.length != conceptUniqueSrcIds.length) {
-            throw new IllegalStateException("Concept " + NodeUtilities.getNodePropertiesAsString(conceptNode)
-                    + " has a differing number of source IDs and unique source ID markers.");
-        }
-        for (int i = 0; i < conceptSrcIds.length; i++) {
-            if (conceptSrcIds[i].equals(srcId) && conceptUniqueSrcIds[i])
-                return true;
+    public static boolean isSourceUnique(Node conceptNode, String srcId, String source) {
+        int sourceIdIndex = getSourceIdIndex(conceptNode, srcId);
+        if (sourceIdIndex >= 0) {
+            String[] sources = (String[]) conceptNode.getProperty(PROP_SOURCES + sourceIdIndex);
+            int sourceIndex = Arrays.binarySearch(sources, source);
+            if (sourceIndex >= 0) {
+                boolean[] uniqueSources = (boolean[]) conceptNode.getProperty(PROP_UNIQUE_SRC_ID + sourceIdIndex);
+                return uniqueSources[sourceIndex];
+            }
         }
         return false;
     }
@@ -212,9 +228,20 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
         return StreamSupport.stream(aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getEndNode).collect(Collectors.toSet());
     }
 
+    /**
+     * <p>Manages source ID insertion. This method must be used to set source IDs to concept nodes because it also manages the counter for the maximum number of source IDs on any concept.</p>
+     *
+     * @param tx
+     * @param concept
+     * @param srcId
+     * @param source
+     * @param uniqueSourceId
+     */
     public static void mergeSourceId(Transaction tx, Node concept, String srcId, String source, boolean uniqueSourceId) {
+        if (srcId == null)
+            return;
         int sourceIdIndex = NodeUtilities.getSourceIdIndex(concept, srcId);
-        if (sourceIdIndex >= 0)  {
+        if (sourceIdIndex >= 0) {
             String sourceProp = PROP_SOURCES + sourceIdIndex;
             String uniqueSourceProp = PROP_UNIQUE_SRC_ID + sourceIdIndex;
             String[] presentSources = (String[]) concept.getProperty(sourceProp);
@@ -224,25 +251,37 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
                 String[] newSources = new String[presentSources.length + 1];
                 newSources[insertionPoint] = source;
                 System.arraycopy(presentSources, 0, newSources, 0, insertionPoint);
-                System.arraycopy(presentSources, insertionPoint, newSources, insertionPoint+1, presentSources.length-insertionPoint);
+                System.arraycopy(presentSources, insertionPoint, newSources, insertionPoint + 1, presentSources.length - insertionPoint);
                 concept.setProperty(sourceProp, newSources);
 
                 boolean[] presentUniqueSources = (boolean[]) concept.getProperty(uniqueSourceProp);
                 boolean[] newUniqueSources = new boolean[presentSources.length + 1];
                 newUniqueSources[insertionPoint] = uniqueSourceId;
                 System.arraycopy(presentUniqueSources, 0, newUniqueSources, 0, insertionPoint);
-                System.arraycopy(presentUniqueSources, insertionPoint, newUniqueSources, insertionPoint+1, presentUniqueSources.length-insertionPoint);
+                System.arraycopy(presentUniqueSources, insertionPoint, newUniqueSources, insertionPoint + 1, presentUniqueSources.length - insertionPoint);
                 concept.setProperty(uniqueSourceProp, newUniqueSources);
             }
         } else {
             // New source ID for this concept
-            int sourcePropNum = SequenceManager.getNextSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);
+            int sourcePropNum = getNumberSourceIds(tx, concept);
+            int currentSourceIdPropNum = SequenceManager.getCurrentSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);
+            if (currentSourceIdPropNum < sourcePropNum + 1)
+                SequenceManager.getNextSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);
             String sourceIdProperty = PROP_SRC_IDS + sourcePropNum;
             String sourceProperty = PROP_SOURCES + sourcePropNum;
             String uniqueSourceProperty = PROP_UNIQUE_SRC_ID + sourcePropNum;
             concept.setProperty(sourceIdProperty, srcId);
-            concept.setProperty(sourceProperty, new String[] {source});
+            concept.setProperty(sourceProperty, new String[]{source});
             concept.setProperty(uniqueSourceProperty, new boolean[]{uniqueSourceId});
         }
+    }
+
+    private static int getNumberSourceIds(Transaction tx, Node concept) {
+        int i = 0;
+        String sourceIdProperty = PROP_SRC_IDS + i;
+        while (concept.hasProperty(sourceIdProperty)) {
+            sourceIdProperty = PROP_SRC_IDS + ++i;
+        }
+        return i;
     }
 }
