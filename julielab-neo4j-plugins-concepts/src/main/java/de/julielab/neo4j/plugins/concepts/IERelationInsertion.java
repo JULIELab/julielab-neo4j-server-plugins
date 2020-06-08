@@ -2,13 +2,14 @@ package de.julielab.neo4j.plugins.concepts;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ImportIERelations;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
 
@@ -53,8 +54,6 @@ public class IERelationInsertion {
             if (documents == null)
                 throw new IllegalArgumentException("No documents were given.");
             insertRelations(tx, idProperty, idSource, documents, log);
-        } catch (JsonParseException e) {
-            e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -63,11 +62,11 @@ public class IERelationInsertion {
     /**
      * <p>Inserts all the relations in <tt>documents</tt>.</p>
      *
-     * @param tx
-     * @param idProperty
-     * @param idSource
-     * @param documents
-     * @param log
+     * @param tx The current transaction.
+     * @param idProperty The concept ID property.
+     * @param idSource The optional concept source.
+     * @param documents The documents or database entries containing relations.
+     * @param log A logger.
      */
     private static void insertRelations(Transaction tx, String idProperty, String idSource, Iterator<ImportIERelationDocument> documents, Log log) {
         Set<IERelationKey> seenDocLevelKeys = new HashSet<>();
@@ -77,7 +76,7 @@ public class IERelationInsertion {
             for (ImportIETypedRelations typedRelations : document.getRelations()) {
                 for (String relationType : typedRelations.keySet()) {
                     ImportIERelation relation = typedRelations.get(relationType);
-                    insertRelation(tx, idProperty, idSource, document.getDocId(), relationType, relation, seenDocLevelKeys, log);
+                    insertIERelation(tx, idProperty, idSource, document.getName(), relationType, relation, seenDocLevelKeys, document.isDb(), log);
                 }
             }
         }
@@ -86,16 +85,17 @@ public class IERelationInsertion {
     /**
      * <p>Creates the relationships of type <tt>relationType</tt> between all arguments of <tt>relation</tt>.</p>
      *
-     * @param tx
-     * @param idProperty
-     * @param idSource
-     * @param docId
-     * @param relationType
-     * @param relation
-     * @param seenDocLevelKeys
-     * @param log
+     * @param tx The current transaction.
+     * @param idProperty The ID node property.
+     * @param idSource The optional concept ID source.
+     * @param documentName The document ID or database name to insert relations for.
+     * @param relationType The name of the relation type to create.
+     * @param relation The relation to insert.
+     * @param seenDocLevelKeys Information about relations already seen during the current relation insertion process.
+     * @param dbEntry Whether or not this is a database entry.
+     * @param log A Logger.
      */
-    private static void insertRelation(Transaction tx, String idProperty, String idSource, String docId, String relationType, ImportIERelation relation, Set<IERelationKey> seenDocLevelKeys, Log log) {
+    private static void insertIERelation(Transaction tx, String idProperty, String idSource, String documentName, String relationType, ImportIERelation relation, Set<IERelationKey> seenDocLevelKeys, boolean dbEntry, Log log) {
         for (int i = 0; i < relation.getArgs().size(); i++) {
             for (int j = i + 1; j < relation.getArgs().size(); j++) {
                 ImportIERelationArgument argument1 = relation.getArgs().get(i);
@@ -104,21 +104,57 @@ public class IERelationInsertion {
                 Node arg2 = findConceptNode(tx, idProperty, idSource, argument2, log);
                 IERelationKey relationKey = new IERelationKey(relationType, new IEArgumentKey(argument1), new IEArgumentKey(argument2));
                 if (arg1 != null && arg2 != null)
-                    storeRelationTypeCount(tx, arg1, arg2, docId, relationType, relation.getCount(), seenDocLevelKeys.contains(relationKey));
+                    if (!dbEntry)
+                        storeRelationTypeCount(tx, arg1, arg2, documentName, relationType, relation.getCount(), seenDocLevelKeys.contains(relationKey));
+                    else
+                        storeDBRelation(tx, arg1, arg2, documentName, relationType, relation.getMethod());
                 seenDocLevelKeys.add(relationKey);
             }
         }
     }
 
-    private static void storeRelationTypeCount(Transaction tx, Node arg1, Node arg2, String docId, String relationType, int count, boolean relationAlreadySeen) {
+    private static void storeDBRelation(Transaction tx, Node arg1, Node arg2, String databaseName, String relationType, String method) {
+        Pair<Relationship, Boolean> relExistedPair = getRelationship(tx, arg1, arg2, relationType);
+        Relationship rel = relExistedPair.getLeft();
+        if (rel.hasProperty(PROP_DB_NAMES)) {
+            String[] dbNames = (String[]) rel.getProperty(PROP_DB_NAMES);
+            int index = Arrays.binarySearch(dbNames, databaseName);
+            if (index < 0) {
+                int insertionPoint = -1 * (index + 1);
+                String[] newDbNames = new String[dbNames.length + 1];
+                newDbNames[insertionPoint] = databaseName;
+                System.arraycopy(dbNames, 0, newDbNames, 0, insertionPoint);
+                System.arraycopy(dbNames, insertionPoint, newDbNames, insertionPoint + 1, dbNames.length - insertionPoint);
+                rel.setProperty(PROP_DB_NAMES, newDbNames);
+
+                String[] methods = (String[]) rel.getProperty(PROP_METHODS);
+                String[] newMethods = new String[methods.length + 1];
+                newMethods[insertionPoint] = method != null && !method.isBlank() ? method : "<unknown>";
+                System.arraycopy(methods, 0, newMethods, 0, insertionPoint);
+                System.arraycopy(methods, insertionPoint, newMethods, insertionPoint + 1, methods.length - insertionPoint);
+                rel.setProperty(PROP_METHODS, newMethods);
+            }
+        } else {
+            rel.setProperty(PROP_DB_NAMES, new String[]{databaseName});
+            rel.setProperty(PROP_METHODS, new String[]{method});
+        }
+    }
+
+    private static Pair<Relationship, Boolean> getRelationship(Transaction tx, Node arg1, Node arg2, String relationType) {
         RelationshipType relType = RelationshipType.withName(relationType);
         Lock arg1Lock = tx.acquireWriteLock(arg1);
         Lock arg2Lock = tx.acquireWriteLock(arg2);
         Optional<Relationship> relOpt = StreamSupport.stream(arg1.getRelationships(Direction.BOTH, relType).spliterator(), false).filter(r -> r.getOtherNode(arg1).equals(arg2)).findAny();
-        Relationship rel = relOpt.isPresent() ? relOpt.get() : arg1.createRelationshipTo(arg2, relType);
-        Lock relLock = tx.acquireWriteLock(rel);
+        Relationship rel = relOpt.orElseGet(() -> arg1.createRelationshipTo(arg2, relType));
         arg1Lock.release();
         arg2Lock.release();
+        return new ImmutablePair<>(rel, relOpt.isPresent());
+    }
+
+    private static void storeRelationTypeCount(Transaction tx, Node arg1, Node arg2, String docId, String relationType, int count, boolean relationAlreadySeen) {
+        Pair<Relationship, Boolean> relExistedPair = getRelationship(tx, arg1, arg2, relationType);
+        Relationship rel = relExistedPair.getLeft();
+        Lock relLock = tx.acquireWriteLock(rel);
         String[] docIds = rel.hasProperty(PROP_DOC_IDS) ? (String[]) rel.getProperty(PROP_DOC_IDS) : new String[0];
         int index = Arrays.binarySearch(docIds, docId);
         int oldCount = 0;
@@ -147,7 +183,7 @@ public class IERelationInsertion {
             rel.setProperty(PROP_COUNTS, newCounts);
         }
         // Update total relation count
-        int totalCount = relOpt.isPresent() ? (int) rel.getProperty(PROP_TOTAL_COUNT) : 0;
+        int totalCount = relExistedPair.getRight() ? (int) rel.getProperty(PROP_TOTAL_COUNT) : 0;
         // Again: When we already had this relation then we count forward and do not overwrite the old value
         totalCount = relationAlreadySeen ? totalCount + count : totalCount - oldCount + count;
         rel.setProperty(PROP_TOTAL_COUNT, totalCount);
@@ -180,8 +216,8 @@ public class IERelationInsertion {
     }
 
     private static class IERelationKey {
-        private Set<IEArgumentKey> argKeys;
-        private String relType;
+        private final Set<IEArgumentKey> argKeys;
+        private final String relType;
 
         public IERelationKey(String relationType, IEArgumentKey argkey1, IEArgumentKey argkey2) {
             this.relType = relationType;
@@ -203,10 +239,10 @@ public class IERelationInsertion {
         }
     }
 
-    private static class IEArgumentKey implements Comparable {
-        private String id;
-        private String idProperty;
-        private String source;
+    private static class IEArgumentKey implements Comparable<IEArgumentKey> {
+        private final String id;
+        private final String idProperty;
+        private final String source;
 
         public IEArgumentKey(ImportIERelationArgument arg) {
             this.id = arg.getId();
@@ -231,18 +267,16 @@ public class IERelationInsertion {
         }
 
         @Override
-        public int compareTo(Object o) {
+        public int compareTo(IEArgumentKey o) {
             if (!o.getClass().equals(IEArgumentKey.class))
                 throw new IllegalArgumentException("Wrong class to compare with " + IEArgumentKey.class + ": " + o.getClass());
-            IEArgumentKey other = (IEArgumentKey) o;
-            int cid = other.id.compareTo(id);
+            int cid = o.id.compareTo(id);
             if (cid != 0)
                 return cid;
-            int cprop = other.idProperty == null || idProperty == null ? getNullComparison(other.idProperty, idProperty) : other.idProperty.compareTo(idProperty);
+            int cprop = o.idProperty == null || idProperty == null ? getNullComparison(o.idProperty, idProperty) : o.idProperty.compareTo(idProperty);
             if (cprop != 0)
                 return cprop;
-            int cs = other.source == null || source == null ? getNullComparison(other.source, source) : other.source.compareTo(source);
-            return cs;
+            return o.source == null || source == null ? getNullComparison(o.source, source) : o.source.compareTo(source);
         }
 
         public int getNullComparison(Object o1, Object o2) {

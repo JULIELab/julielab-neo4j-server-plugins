@@ -5,6 +5,7 @@ import java.util.List;
 
 public class ImportIERelation {
     private int count;
+    private String method;
     private List<ImportIERelationArgument> args = new ArrayList<>(2);
 
     public static ImportIERelation of(int count, ImportIERelationArgument arg1, ImportIERelationArgument arg2) {
@@ -21,6 +22,22 @@ public class ImportIERelation {
         for (ImportIERelationArgument arg : args)
             r.addArgument(arg);
         return r;
+    }
+
+    public static ImportIERelation of(String method, ImportIERelationArgument... args) {
+        ImportIERelation r = new ImportIERelation();
+        r.setMethod(method);
+        for (ImportIERelationArgument arg : args)
+            r.addArgument(arg);
+        return r;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
     }
 
     public int getCount() {

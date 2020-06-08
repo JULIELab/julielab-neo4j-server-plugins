@@ -3,22 +3,32 @@ package de.julielab.neo4j.plugins.datarepresentation;
 import java.util.List;
 
 public class ImportIERelationDocument {
-    private String docId;
+    private String name;
+    private boolean isDb;
     private List<ImportIETypedRelations> relations;
 
-    public static ImportIERelationDocument of(String docId, ImportIETypedRelations... relations) {
+    public static ImportIERelationDocument of(String name, boolean isDb, ImportIETypedRelations... relations) {
         ImportIERelationDocument d = new ImportIERelationDocument();
-        d.setDocId(docId);
+        d.setName(name);
+        d.setDb(isDb);
         d.setRelations(List.of(relations));
         return d;
     }
 
-    public String getDocId() {
-        return docId;
+    public boolean isDb() {
+        return isDb;
     }
 
-    public void setDocId(String docId) {
-        this.docId = docId;
+    public void setDb(boolean db) {
+        isDb = db;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public List<ImportIETypedRelations> getRelations() {

@@ -365,18 +365,22 @@ public class ConceptManager {
 
     /**
      * <p>Adds semantic relations between concepts of the database as extracted from literature with information retrieval techniques.</p>
+     * <p>Alternatively, adds similar relations between concepts but taken from some database.</p>
      * <p>
-     * The format is as follows:
+     * To insert relations from Java, it is easiest to create objects of {@link ImportIERelations} and convert them
+     * to JSON with Jackson or another to-JSON serializer. The expected JSON format is as follows:
      * <pre>
      * {
      *     "id_property": &lt;one of "id", "sourceIds", "originalId"&gt;,
      *     "id_source":   &lt;optional; will be used as a default when not given per concept Id&gt;
      *     "documents": [{
-     *              "docId": "&lt;docId1&gt;",
+     *              "name": "&lt;docId or DB name&gt;",
+     *              "isDb": &lt;true/false&gt;,
      *              "relations": [{
      *                  "&lt;relationshipType1&gt;": [
      *                      {
-     *                          "count": &lt;count1&gt;,
+     *                          "count": &lt;optional, not used when document is a DB; count1&gt;,
+     *                          "method": &lt;optional;finding method for DB entries&gt;
      *                          "args": [
      *                              ["&lt;concept id 1&gt;", "&lt;id 1 source if id_property not 'id' and not from 'id_source'&gt;],
      *                              ["&lt;concept id 2&gt;"],
@@ -397,7 +401,7 @@ public class ConceptManager {
      *              }]
      *          },
      *          {
-     *              "docId": "&lt;docId2&gt;",
+     *              "name": "&lt;docId2&gt;",
      *              "relations:" [{
      *                  "&lt;relationshipType2&gt;": [
      *                      {

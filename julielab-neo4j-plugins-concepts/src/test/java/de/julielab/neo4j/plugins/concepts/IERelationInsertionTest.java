@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -40,15 +41,18 @@ public class IERelationInsertionTest {
         graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
         System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "false");
     }
+
+    @AfterClass
+    public static void shutdown() {
+        graphDBMS.shutdown();
+    }
+
     @Before
     public void cleanForTest() {
         TestUtilities.deleteEverythingInDB(graphDb);
         new Indexes(graphDBMS).createIndexes((String) null);
     }
-    @AfterClass
-    public static void shutdown() {
-        graphDBMS.shutdown();
-    }
+
     @Test
     public void testInsertSimpleSemanticRelation() {
         ImportConcepts importConcepts = getTestConcepts(2);
@@ -56,7 +60,7 @@ public class IERelationInsertionTest {
         ImportIERelations relations = new ImportIERelations(PROP_ID);
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId", ImportIETypedRelations.of(
+                "docId", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
@@ -76,13 +80,44 @@ public class IERelationInsertionTest {
     }
 
     @Test
+    public void testInsertSimpleDbRelation() {
+        ImportConcepts importConcepts = getTestConcepts(2);
+
+        ImportIERelations relations = new ImportIERelations(PROP_ID);
+        RelationshipType regulationType = RelationshipType.withName("regulation");
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "someDB", true, ImportIETypedRelations.of(
+                        regulationType.name(), ImportIERelation.of(
+                                "gtpase assay", ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
+        relations.addRelationDocument(ImportIERelationDocument.of(
+                "anotherDB", true, ImportIETypedRelations.of(
+                        regulationType.name(), ImportIERelation.of(
+                                "pull down", ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
+
+        ConceptManager cm = new ConceptManager(graphDBMS);
+        cm.insertConcepts(importConcepts);
+        cm.insertIERelations(relations);
+
+        try (Transaction tx = graphDb.beginTx()) {
+            Node n = tx.findNode(CONCEPT, PROP_ID, "tid0");
+            assertThat(n).isNotNull();
+            assertThat(n.getDegree(regulationType)).isEqualTo(1);
+            Relationship rs = n.getSingleRelationship(regulationType, Direction.OUTGOING);
+            assertThat(rs).isNotNull();
+            assertThat(new ArrayList<>(rs.getAllProperties().keySet())).containsExactlyInAnyOrder(PROP_DB_NAMES, PROP_METHODS);
+            assertThat((String[]) rs.getProperty(PROP_DB_NAMES)).containsExactly("anotherDB", "someDB");
+            assertThat((String[]) rs.getProperty(PROP_METHODS)).containsExactly("pull down", "gtpase assay");
+        }
+    }
+
+    @Test
     public void testInsertBySourceIdLocalSources() {
         ImportConcepts importConcepts = getTestConcepts(2);
 
         ImportIERelations relations = new ImportIERelations(PROP_ID);
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId", ImportIETypedRelations.of(
+                "docId", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("sourceIds:CONCEPT0", "TEST_DATA"), ImportIERelationArgument.of("sourceIds:CONCEPT1", "TEST_DATA")))));
 
@@ -108,7 +143,7 @@ public class IERelationInsertionTest {
         ImportIERelations relations = new ImportIERelations(PROP_SRC_IDS, "TEST_DATA");
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId", ImportIETypedRelations.of(
+                "docId", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("CONCEPT0"), ImportIERelationArgument.of("CONCEPT1")))));
 
@@ -134,7 +169,7 @@ public class IERelationInsertionTest {
         ImportIERelations relations = new ImportIERelations(PROP_SRC_IDS, "TEST_DATA");
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId", ImportIETypedRelations.of(
+                "docId", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("CONCEPT0"), ImportIERelationArgument.of("id:tid1")))));
 
@@ -161,11 +196,11 @@ public class IERelationInsertionTest {
         RelationshipType regulationType = RelationshipType.withName("regulation");
         // Note that we first insert concepts for docId2, then docId1. In the result, this should be sorted.
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId2", ImportIETypedRelations.of(
+                "docId2", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 4, ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid0")))));
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId1", ImportIETypedRelations.of(
+                "docId1", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
@@ -194,7 +229,7 @@ public class IERelationInsertionTest {
         RelationshipType regulationType1 = RelationshipType.withName("regulation");
         RelationshipType regulationType2 = RelationshipType.withName("phosphorylation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId1", ImportIETypedRelations.of(
+                "docId1", false, ImportIETypedRelations.of(
                         regulationType1.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"))),
                 ImportIETypedRelations.of(
@@ -233,14 +268,14 @@ public class IERelationInsertionTest {
         RelationshipType regulationType1 = RelationshipType.withName("regulation");
         RelationshipType phosphorylationType = RelationshipType.withName("phosphorylation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId1", ImportIETypedRelations.of(
+                "docId1", false, ImportIETypedRelations.of(
                         regulationType1.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"))),
                 ImportIETypedRelations.of(
                         phosphorylationType.name(), ImportIERelation.of(
                                 7, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId2", ImportIETypedRelations.of(
+                "docId2", false, ImportIETypedRelations.of(
                         phosphorylationType.name(), ImportIERelation.of(
                                 4, ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid0")))));
 
@@ -275,7 +310,7 @@ public class IERelationInsertionTest {
         ImportIERelations relations = new ImportIERelations(PROP_ID);
         RelationshipType regulationType = RelationshipType.withName("regulation");
         relations.addRelationDocument(ImportIERelationDocument.of(
-                "docId1", ImportIETypedRelations.of(
+                "docId1", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 2, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid2"))),
                 ImportIETypedRelations.of(
@@ -323,12 +358,12 @@ public class IERelationInsertionTest {
         RelationshipType regulationType = RelationshipType.withName("regulation");
         ImportIERelations relations1 = new ImportIERelations(PROP_ID);
         relations1.addRelationDocument(ImportIERelationDocument.of(
-                "docId1", ImportIETypedRelations.of(
+                "docId1", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 2, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
         ImportIERelations relations2 = new ImportIERelations(PROP_ID);
         relations2.addRelationDocument(ImportIERelationDocument.of(
-                "docId2", ImportIETypedRelations.of(
+                "docId2", false, ImportIETypedRelations.of(
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
@@ -361,7 +396,7 @@ public class IERelationInsertionTest {
         @Override
         public void run() {
             log.debug("START");
-            try(Transaction tx = graphDb.beginTx()) {
+            try (Transaction tx = graphDb.beginTx()) {
                 IERelationInsertion.insertRelations(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(relations).getBytes(UTF_8)), tx, new Slf4jLog(log));
                 // This is for the threads to get a race condition instead running effectively serially
                 Thread.sleep(500);

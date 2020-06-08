@@ -228,6 +228,8 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
         return StreamSupport.stream(aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT).spliterator(), false).map(Relationship::getEndNode).collect(Collectors.toSet());
     }
 
+
+
     /**
      * <p>Manages source ID insertion. This method must be used to set source IDs to concept nodes because it also manages the counter for the maximum number of source IDs on any concept.</p>
      *

@@ -398,5 +398,4 @@ public class PropertyUtilities {
         }
         return success;
     }
-
 }
