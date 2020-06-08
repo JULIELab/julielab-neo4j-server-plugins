@@ -92,7 +92,7 @@ public class Export {
                 Label label = Label.label(labelString);
                 for (ResourceIterator<Node> terms = tx.findNodes(label); terms.hasNext(); ) {
                     Node n = terms.next();
-                    Object sourceIdObject = sourceIdProperty.equals(PROP_SRC_IDS) ? NodeUtilities.getSourceIds(n) : PropertyUtilities.getNonNullNodeProperty(n, sourceIdProperty);
+                    Object sourceIdObject = sourceIdProperty.equals(PROP_SRC_IDS) ? NodeUtilities.getSourceIdArray(n) : PropertyUtilities.getNonNullNodeProperty(n, sourceIdProperty);
                     Object targetIdObject = n.getProperty(targetIdProperty);
                     if (null == sourceIdObject || null == targetIdObject)
                         continue;

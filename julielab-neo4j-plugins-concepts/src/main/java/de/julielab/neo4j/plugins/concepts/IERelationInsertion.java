@@ -152,6 +152,7 @@ public class IERelationInsertion {
         totalCount = relationAlreadySeen ? totalCount + count : totalCount - oldCount + count;
         rel.setProperty(PROP_TOTAL_COUNT, totalCount);
         relLock.release();
+
     }
 
     private static Node findConceptNode(Transaction tx, String defaultIdProperty, String defaultIdSource, ImportIERelationArgument argument, Log log) {
@@ -171,7 +172,7 @@ public class IERelationInsertion {
         if (isId)
             concept = tx.findNode(CONCEPT, PROP_ID, argument.getId());
         String source = argument.hasSource() ? argument.getSource() : defaultIdSource;
-        if (concept == null)
+        if (concept == null && !isId)
             concept = ConceptLookup.lookupConcept(tx, new ConceptCoordinates(argument.getId(), source, isOrgId ? CoordinateType.OSRC : CoordinateType.SRC));
         if (concept == null)
             log.debug("Could not find a concept with ID '%s' for idProperty '%s' and source '%s'.", argument.getId(), idProperty, source);
