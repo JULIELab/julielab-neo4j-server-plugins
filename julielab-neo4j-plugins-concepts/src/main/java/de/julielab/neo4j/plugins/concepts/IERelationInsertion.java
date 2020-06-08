@@ -14,9 +14,7 @@ import org.neo4j.logging.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
@@ -72,13 +70,14 @@ public class IERelationInsertion {
      * @param log
      */
     private static void insertRelations(Transaction tx, String idProperty, String idSource, Iterator<ImportIERelationDocument> documents, Log log) {
+        Set<IERelationKey> seenDocLevelKeys = new HashSet<>();
         while (documents.hasNext()) {
             ImportIERelationDocument document = documents.next();
-
+            seenDocLevelKeys.clear();
             for (ImportIETypedRelations typedRelations : document.getRelations()) {
                 for (String relationType : typedRelations.keySet()) {
                     ImportIERelation relation = typedRelations.get(relationType);
-                    insertRelation(tx, idProperty, idSource, document.getDocId(), relationType, relation, log);
+                    insertRelation(tx, idProperty, idSource, document.getDocId(), relationType, relation, seenDocLevelKeys, log);
                 }
             }
         }
@@ -93,23 +92,25 @@ public class IERelationInsertion {
      * @param docId
      * @param relationType
      * @param relation
+     * @param seenDocLevelKeys
      * @param log
      */
-    private static void insertRelation(Transaction tx, String idProperty, String idSource, String docId, String relationType, ImportIERelation relation, Log log) {
+    private static void insertRelation(Transaction tx, String idProperty, String idSource, String docId, String relationType, ImportIERelation relation, Set<IERelationKey> seenDocLevelKeys, Log log) {
         for (int i = 0; i < relation.getArgs().size(); i++) {
             for (int j = i + 1; j < relation.getArgs().size(); j++) {
                 ImportIERelationArgument argument1 = relation.getArgs().get(i);
                 ImportIERelationArgument argument2 = relation.getArgs().get(j);
                 Node arg1 = findConceptNode(tx, idProperty, idSource, argument1, log);
                 Node arg2 = findConceptNode(tx, idProperty, idSource, argument2, log);
+                IERelationKey relationKey = new IERelationKey(relationType, new IEArgumentKey(argument1), new IEArgumentKey(argument2));
                 if (arg1 != null && arg2 != null)
-                    storeRelationTypeCount(tx, arg1, arg2, docId, relationType, relation.getCount());
-                System.out.println(i + " " + j + " " + (arg1 != null) + " " + (arg2 != null));
+                    storeRelationTypeCount(tx, arg1, arg2, docId, relationType, relation.getCount(), seenDocLevelKeys.contains(relationKey));
+                seenDocLevelKeys.add(relationKey);
             }
         }
     }
 
-    private static void storeRelationTypeCount(Transaction tx, Node arg1, Node arg2, String docId, String relationType, int count) {
+    private static void storeRelationTypeCount(Transaction tx, Node arg1, Node arg2, String docId, String relationType, int count, boolean relationAlreadySeen) {
         RelationshipType relType = RelationshipType.withName(relationType);
         Lock arg1Lock = tx.acquireWriteLock(arg1);
         Lock arg2Lock = tx.acquireWriteLock(arg2);
@@ -124,7 +125,10 @@ public class IERelationInsertion {
         if (index >= 0) {
             int[] counts = (int[]) rel.getProperty(PROP_COUNTS);
             oldCount = counts[index];
-            counts[index] = count;
+            // We count up if this relation (i.e. same type, same arguments) has already been seen during this import
+            // for the current document. Otherwise this is an old number and we overwrite the old value.
+            counts[index] = relationAlreadySeen ? oldCount + count : count;
+            rel.setProperty(PROP_COUNTS, counts);
         } else {
             int insertionPoint = -1 * (index + 1);
             // insert docId
@@ -144,7 +148,8 @@ public class IERelationInsertion {
         }
         // Update total relation count
         int totalCount = relOpt.isPresent() ? (int) rel.getProperty(PROP_TOTAL_COUNT) : 0;
-        totalCount = totalCount - oldCount + count;
+        // Again: When we already had this relation then we count forward and do not overwrite the old value
+        totalCount = relationAlreadySeen ? totalCount + count : totalCount - oldCount + count;
         rel.setProperty(PROP_TOTAL_COUNT, totalCount);
         relLock.release();
     }
@@ -173,7 +178,78 @@ public class IERelationInsertion {
         return concept;
     }
 
-//    private class IERelationKey {
-//        private TreeSet<String>
-//    }
+    private static class IERelationKey {
+        private Set<IEArgumentKey> argKeys;
+        private String relType;
+
+        public IERelationKey(String relationType, IEArgumentKey argkey1, IEArgumentKey argkey2) {
+            this.relType = relationType;
+            this.argKeys = Set.of(argkey1, argkey2);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            IERelationKey that = (IERelationKey) o;
+            return argKeys.equals(that.argKeys) &&
+                    relType.equals(that.relType);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(argKeys, relType);
+        }
+    }
+
+    private static class IEArgumentKey implements Comparable {
+        private String id;
+        private String idProperty;
+        private String source;
+
+        public IEArgumentKey(ImportIERelationArgument arg) {
+            this.id = arg.getId();
+            this.idProperty = arg.getIdProperty();
+            this.source = arg.getSource();
+        }
+
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            IEArgumentKey that = (IEArgumentKey) o;
+            return id.equals(that.id) &&
+                    Objects.equals(idProperty, that.idProperty) &&
+                    Objects.equals(source, that.source);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, idProperty, source);
+        }
+
+        @Override
+        public int compareTo(Object o) {
+            if (!o.getClass().equals(IEArgumentKey.class))
+                throw new IllegalArgumentException("Wrong class to compare with " + IEArgumentKey.class + ": " + o.getClass());
+            IEArgumentKey other = (IEArgumentKey) o;
+            int cid = other.id.compareTo(id);
+            if (cid != 0)
+                return cid;
+            int cprop = other.idProperty == null || idProperty == null ? getNullComparison(other.idProperty, idProperty) : other.idProperty.compareTo(idProperty);
+            if (cprop != 0)
+                return cprop;
+            int cs = other.source == null || source == null ? getNullComparison(other.source, source) : other.source.compareTo(source);
+            return cs;
+        }
+
+        public int getNullComparison(Object o1, Object o2) {
+            if (o1 == null && o2 != null)
+                return -1;
+            if (o1 != null && o2 == null)
+                return 1;
+            return 0;
+        }
+    }
 }
