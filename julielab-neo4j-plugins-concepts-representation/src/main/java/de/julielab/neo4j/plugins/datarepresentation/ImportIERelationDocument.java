@@ -26,6 +26,8 @@ public class ImportIERelationDocument {
     }
 
     public void setName(String name) {
+        if (name == null)
+            throw new IllegalArgumentException("The DB name / document ID cannot be null.");
         this.name = name;
     }
 

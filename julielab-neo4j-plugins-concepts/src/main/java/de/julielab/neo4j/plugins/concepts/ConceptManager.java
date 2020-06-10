@@ -423,9 +423,8 @@ public class ConceptManager {
     @Path(INSERT_IE_RELATIONS)
     public Response insertIERelations(InputStream is, @Context Log log) {
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (Transaction tx = graphDb.beginTx()) {
-            IERelationInsertion.insertRelations(is, tx, log);
-            tx.commit();
+        try {
+            IERelationInsertion.insertRelations(is, graphDb, log);
             return Response.ok().build();
         } catch (Throwable t) {
             log.error("Error in IE relation insertion.", t);

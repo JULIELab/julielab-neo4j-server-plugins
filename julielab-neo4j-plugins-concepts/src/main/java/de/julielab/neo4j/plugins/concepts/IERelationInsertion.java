@@ -11,6 +11,7 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.ImportIERelations;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.neo4j.graphdb.*;
+import org.neo4j.kernel.DeadlockDetectedException;
 import org.neo4j.logging.Log;
 
 import java.io.IOException;
@@ -25,7 +26,9 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptCons
 import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
 
 public class IERelationInsertion {
-    public static void insertRelations(InputStream ieRelationsStream, Transaction tx, Log log) {
+    private static final int BATCH_SIZE = 500;
+
+    public static void insertRelations(InputStream ieRelationsStream, GraphDatabaseService graphDb, Log log) {
         ObjectMapper mapper = new ObjectMapper().registerModule(new Jdk8Module());
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
@@ -53,9 +56,38 @@ public class IERelationInsertion {
             }
             if (documents == null)
                 throw new IllegalArgumentException("No documents were given.");
-            insertRelations(tx, idProperty, idSource, documents, log);
+            List<ImportIERelationDocument> docBatch = new ArrayList<>(BATCH_SIZE);
+            int retries = 0;
+            while (documents.hasNext() || !docBatch.isEmpty()) {
+                // It is possible that the current batch has not been emptied due to a failed
+                // batch for deadlock reasons.
+                if (docBatch.isEmpty()) {
+                    while (documents.hasNext() && docBatch.size() < BATCH_SIZE)
+                        docBatch.add(documents.next());
+                }
+                try (Transaction tx = graphDb.beginTx()) {
+                    insertRelations(tx, idProperty, idSource, docBatch.iterator(), log);
+                    docBatch.clear();
+                    retries = 0;
+                } catch (Throwable t) {
+                    if (t instanceof DeadlockDetectedException) {
+                        if (retries < 5) {
+                            ++retries;
+                            log.debug("Deadlock was detected. Waiting 3000ms and trying again.");
+                            try {
+                                Thread.sleep(3000);
+                            } catch (InterruptedException e) {
+                                log.error("Interrupted while sleeping for a deadlock to solve itself.", e);
+                                throw t;
+                            }
+                        }
+                    } else {
+                        throw t;
+                    }
+                }
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IllegalStateException(e);
         }
     }
 
@@ -74,6 +106,8 @@ public class IERelationInsertion {
             ImportIERelationDocument document = documents.next();
             seenDocLevelKeys.clear();
             ImportIETypedRelations typedRelations = document.getRelations();
+            if (typedRelations == null)
+                throw new IllegalArgumentException("Passed a document that does not have any relations.");
             for (String relationType : typedRelations.keySet()) {
                 for (ImportIERelation relation : typedRelations.get(relationType))
                     insertIERelation(tx, idProperty, idSource, document.getName(), relationType, relation, seenDocLevelKeys, document.isDb(), log);

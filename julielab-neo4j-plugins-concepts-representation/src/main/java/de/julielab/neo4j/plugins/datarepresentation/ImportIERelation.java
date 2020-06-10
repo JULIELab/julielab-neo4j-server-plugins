@@ -24,6 +24,14 @@ public class ImportIERelation {
         return r;
     }
 
+    public static ImportIERelation of(int count, Iterable<ImportIERelationArgument> args) {
+        ImportIERelation r = new ImportIERelation();
+        r.setCount(count);
+        for (ImportIERelationArgument arg : args)
+            r.addArgument(arg);
+        return r;
+    }
+
     public static ImportIERelation of(String method, ImportIERelationArgument... args) {
         ImportIERelation r = new ImportIERelation();
         r.setMethod(method);
@@ -31,6 +39,7 @@ public class ImportIERelation {
             r.addArgument(arg);
         return r;
     }
+
     public static ImportIERelation of(String method, Iterable<ImportIERelationArgument> args) {
         ImportIERelation r = new ImportIERelation();
         r.setMethod(method);

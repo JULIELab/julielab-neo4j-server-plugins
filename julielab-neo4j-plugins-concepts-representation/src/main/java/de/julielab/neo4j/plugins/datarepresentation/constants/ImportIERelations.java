@@ -43,4 +43,9 @@ public class ImportIERelations {
     public List<ImportIERelationDocument> getDocuments() {
         return documents;
     }
+
+    public void clear() {
+        if (documents != null)
+            documents.clear();
+    }
 }
