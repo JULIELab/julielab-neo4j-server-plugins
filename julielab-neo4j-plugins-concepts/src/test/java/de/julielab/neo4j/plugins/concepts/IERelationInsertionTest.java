@@ -398,11 +398,10 @@ public class IERelationInsertionTest {
         @Override
         public void run() {
             log.debug("START");
-            try (Transaction tx = graphDb.beginTx()) {
-                IERelationInsertion.insertRelations(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(relations).getBytes(UTF_8)), tx, new Slf4jLog(log));
+            try  {
+                IERelationInsertion.insertRelations(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(relations).getBytes(UTF_8)), graphDb, new Slf4jLog(log));
                 // This is for the threads to get a race condition instead running effectively serially
                 Thread.sleep(500);
-                tx.commit();
                 log.debug("END");
             } catch (InterruptedException e) {
                 e.printStackTrace();

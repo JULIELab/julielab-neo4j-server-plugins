@@ -67,6 +67,7 @@ public class IERelationInsertion {
                 }
                 try (Transaction tx = graphDb.beginTx()) {
                     insertRelations(tx, idProperty, idSource, docBatch.iterator(), log);
+                    tx.commit();
                     docBatch.clear();
                     retries = 0;
                 } catch (Throwable t) {
@@ -175,12 +176,18 @@ public class IERelationInsertion {
 
     private static Pair<Relationship, Boolean> getRelationship(Transaction tx, Node arg1, Node arg2, String relationType) {
         RelationshipType relType = RelationshipType.withName(relationType);
-        Lock arg1Lock = tx.acquireWriteLock(arg1);
-        Lock arg2Lock = tx.acquireWriteLock(arg2);
         Optional<Relationship> relOpt = StreamSupport.stream(arg1.getRelationships(Direction.BOTH, relType).spliterator(), false).filter(r -> r.getOtherNode(arg1).equals(arg2)).findAny();
-        Relationship rel = relOpt.orElseGet(() -> arg1.createRelationshipTo(arg2, relType));
-        arg1Lock.release();
-        arg2Lock.release();
+        Relationship rel;
+        if (!relOpt.isPresent()) {
+            Lock arg1Lock = tx.acquireWriteLock(arg1);
+            Lock arg2Lock = tx.acquireWriteLock(arg2);
+            relOpt = StreamSupport.stream(arg1.getRelationships(Direction.BOTH, relType).spliterator(), false).filter(r -> r.getOtherNode(arg1).equals(arg2)).findAny();
+            rel = relOpt.orElseGet(() -> arg1.createRelationshipTo(arg2, relType));
+            arg1Lock.release();
+            arg2Lock.release();
+        } else {
+            rel = relOpt.get();
+        }
         return new ImmutablePair<>(rel, relOpt.isPresent());
     }
 
