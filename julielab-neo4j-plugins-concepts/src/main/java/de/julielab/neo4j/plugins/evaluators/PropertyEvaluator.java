@@ -17,10 +17,10 @@ import java.util.List;
  */
 public class PropertyEvaluator implements Evaluator {
 
-	private Object propertyValue;
-	private boolean allProperties;
-	private boolean allValues;
-	private List<String> propertyKeyList;
+	private final Object propertyValue;
+	private final boolean allProperties;
+	private final boolean allValues;
+	private final List<String> propertyKeyList;
 
 	public PropertyEvaluator(String propertyKey, Object propertyValue) {
 		this.propertyValue = propertyValue;
@@ -47,6 +47,7 @@ public class PropertyEvaluator implements Evaluator {
 					for (Object o : valueArray) {
 						if (o.equals(propertyValue)) {
 							eval = Evaluation.INCLUDE_AND_CONTINUE;
+							break;
 						}
 					}
 				} else if (value.equals(propertyValue)) {

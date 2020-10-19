@@ -1,6 +1,6 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
-import de.julielab.neo4j.plugins.ConceptManager;
+import de.julielab.neo4j.plugins.concepts.ConceptManager;
 
 /**
  * A convenience class to parse the HTTP response from the

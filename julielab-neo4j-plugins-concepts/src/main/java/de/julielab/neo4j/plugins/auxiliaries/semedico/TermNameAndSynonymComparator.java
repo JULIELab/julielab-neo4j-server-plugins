@@ -19,7 +19,7 @@ import java.util.List;
  * 
  */
 public class TermNameAndSynonymComparator implements Comparator<Node> {
-	private RuleBasedCollator collator = createComparisonCollator();
+	private final RuleBasedCollator collator = createComparisonCollator();
 
 	@Override
 	public int compare(Node o1, Node o2) {
@@ -39,8 +39,7 @@ public class TermNameAndSynonymComparator implements Comparator<Node> {
 			String[] synonyms = (String[]) n.getProperty(ConceptConstants.PROP_SYNONYMS);
 			List<String> synonymsList = Arrays.asList(synonyms);
 			Collections.sort(synonymsList);
-			String concatSynonyms = StringUtils.join(synonymsList, "");
-			return concatSynonyms;
+			return StringUtils.join(synonymsList, "");
 		}
 		return null;
 	}

@@ -1,5 +1,6 @@
 package de.julielab.neo4j.plugins.datarepresentation;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 
@@ -36,6 +37,13 @@ public class ImportConcept {
     public List<String> copyProperties = Collections.emptyList();
     @JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
     public boolean aggregateIncludeInHierarchy;
+
+    /**
+     * This map may contain specific properties required during concept creation. It is not meant to be imported
+     * into the database.
+     */
+    @JsonIgnore
+    public Map<String, Object> auxProperties;
 
     public ImportConcept(String preferredName, ConceptCoordinates coordinates) {
         prefName = preferredName;
@@ -131,6 +139,18 @@ public class ImportConcept {
     public ImportConcept() {
     }
 
+    public void putAuxProperty(String key, Object value) {
+        if (auxProperties == null)
+            auxProperties = new HashMap<>();
+        auxProperties.put(key, value);
+    }
+
+    public Object getAuxProperty(String key) {
+        if (auxProperties == null)
+            return null;
+        return auxProperties.get(key);
+    }
+
     public void addRelationship(ImportConceptRelationship relationship) {
         if (relationships.isEmpty())
             relationships = new ArrayList<>();
@@ -141,8 +161,7 @@ public class ImportConcept {
         if (generalLabels.isEmpty())
             generalLabels = new ArrayList<>();
         try {
-            for (int i = 0; i < labels.length; i++) {
-                String label = labels[i];
+            for (String label : labels) {
                 generalLabels.add(label);
             }
         } catch (java.lang.UnsupportedOperationException e) {
@@ -167,16 +186,10 @@ public class ImportConcept {
         if (generalLabels.isEmpty())
             return;
         Set<String> removeLabels = new HashSet<>(labels.length);
-        for (int i = 0; i < labels.length; i++) {
-            String label = labels[i];
+        for (String label : labels) {
             removeLabels.add(label);
         }
-        Iterator<String> existingLabels = generalLabels.iterator();
-        while (existingLabels.hasNext()) {
-            String existingLabel = existingLabels.next();
-            if (removeLabels.contains(existingLabel))
-                existingLabels.remove();
-        }
+        generalLabels.removeIf(removeLabels::contains);
 
     }
 

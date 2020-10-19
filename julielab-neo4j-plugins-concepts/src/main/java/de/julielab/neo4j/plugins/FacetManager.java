@@ -2,41 +2,43 @@ package de.julielab.neo4j.plugins;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import de.julielab.neo4j.plugins.ConceptManager.ConceptLabel;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.SequenceManager;
+import de.julielab.neo4j.plugins.concepts.ConceptEdgeTypes;
+import de.julielab.neo4j.plugins.concepts.ConceptLabel;
 import de.julielab.neo4j.plugins.constants.semedico.SequenceConstants;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacet;
 import de.julielab.neo4j.plugins.datarepresentation.ImportFacetGroup;
-import de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.FacetGroupConstants;
-import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
+import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.TraversalMetadata;
 import org.neo4j.graphdb.traversal.Traverser;
 import org.neo4j.graphdb.traversal.Uniqueness;
-import org.neo4j.server.plugins.*;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.MappingRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
+import javax.ws.rs.Path;
+import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import static de.julielab.neo4j.plugins.Indexes.createSinglePropertyIndexIfAbsent;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.FacetConstants.*;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_ID;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_LABELS;
-import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants.PROP_NAME;
+import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
 
-@Description("This plugin offers access to facets for Semedico.")
-public class FacetManager extends ServerPlugin {
+@Path("/facet_manager")
+public class FacetManager {
 
     /**
      * Key of the map to send to the {@link #INSERT_FACETS} endpoint.
@@ -48,8 +50,13 @@ public class FacetManager extends ServerPlugin {
     public static final String GET_FACET_SIZE = "get_facet_size";
     public static final String PARAM_RETURN_HOLLOW_FACETS = "returnHollowFacets";
     private static final Logger log = Logger.getLogger(FacetManager.class.getName());
+    private final DatabaseManagementService dbms;
 
-    public static Node createFacet(GraphDatabaseService graphDb, ImportFacet jsonFacet) {
+    public FacetManager(@Context DatabaseManagementService dbms) {
+        this.dbms = dbms;
+    }
+
+    public static Node createFacet(Transaction tx, ImportFacet jsonFacet) {
         log.info("Creating facet with the following data: " + jsonFacet);
 
         Collection<String> generalLabels = jsonFacet.getLabels();
@@ -57,41 +64,36 @@ public class FacetManager extends ServerPlugin {
 
         ImportFacetGroup jsonFacetGroup = jsonFacet.getFacetGroup();
 
-        try (Transaction tx = graphDb.beginTx()) {
-            Node facetGroupsNode;
-            if (isNoFacet)
-                facetGroupsNode = getNoFacetGroupsNode(graphDb);
-            else
-                facetGroupsNode = getFacetGroupsNode(graphDb);
-            Node facetGroup = createFacetGroup(graphDb, facetGroupsNode, jsonFacetGroup);
+        Node facetGroupsNode;
+        if (isNoFacet)
+            facetGroupsNode = getNoFacetGroupsNode(tx);
+        else
+            facetGroupsNode = getFacetGroupsNode(tx);
+        Node facetGroup = createFacetGroup(tx, facetGroupsNode, jsonFacetGroup);
 
-            // Create the actual facet node and populate it with data.
-            Node facet = graphDb.createNode(FacetLabel.FACET);
-            //PropertyUtilities.copyObjectToPropertyContainer(jsonFacet, facet, NO_FACET, PROP_LABELS,
-            //		FACET_GROUP);
+        // Create the actual facet node and populate it with data.
+        Node facet = tx.createNode(FacetLabel.FACET);
 
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_NAME, jsonFacet.getName());
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_SHORT_NAME, jsonFacet.getShortName());
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_CUSTOM_ID, jsonFacet.getCustomId());
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_LABELS, () -> jsonFacet.getLabels().toArray(new String[0]));
-            PropertyUtilities.setNonNullNodeProperty(facet, PROP_SOURCE_TYPE, jsonFacet.getSourceType());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_NAME, jsonFacet.getName());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_SHORT_NAME, jsonFacet.getShortName());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_CUSTOM_ID, jsonFacet.getCustomId());
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_LABELS, () -> jsonFacet.getLabels().toArray(new String[0]));
+        PropertyUtilities.setNonNullNodeProperty(facet, PROP_SOURCE_TYPE, jsonFacet.getSourceType());
 
 
-            // If everything is alright, get an ID for the facet.
-            String facetId = NodeIDPrefixConstants.FACET
-                    + SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_FACET);
-            facet.setProperty(PROP_ID, facetId);
-            facetGroup.createRelationshipTo(facet, EdgeTypes.HAS_FACET);
-            if (null != generalLabels) {
-                for (String labelString : generalLabels) {
-                    Label label = Label.label(labelString);
-                    facet.addLabel(label);
-                }
+        // If everything is alright, get an ID for the facet.
+        String facetId = NodeIDPrefixConstants.FACET
+                + SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_FACET);
+        facet.setProperty(PROP_ID, facetId);
+        facetGroup.createRelationshipTo(facet, EdgeTypes.HAS_FACET);
+        if (null != generalLabels) {
+            for (String labelString : generalLabels) {
+                Label label = Label.label(labelString);
+                facet.addLabel(label);
             }
-
-            tx.success();
-            return facet;
         }
+
+        return facet;
     }
 
     private static int countFacetChildren(GraphDatabaseService graphDb, String fid) {
@@ -103,10 +105,10 @@ public class FacetManager extends ServerPlugin {
             // they need to be created dynamically because it makes no sense to
             // store all of them beforehand
             RelationshipType dynRel = RelationshipType.withName("IS_BROADER_THAN_" + fid);
-            Node node = getFacetNode(graphDb, fid);
+            Node node = getFacetNode(tx, fid);
 
-            Traverser traverser = graphDb.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
-                    .relationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT, Direction.OUTGOING)
+            Traverser traverser = tx.traversalDescription().breadthFirst().uniqueness(Uniqueness.NODE_GLOBAL)
+                    .relationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT, Direction.OUTGOING)
                     .relationships(dynRel, Direction.OUTGOING).traverse(node);
             for (@SuppressWarnings("unused")
                     Node n : traverser.nodes()) {
@@ -121,16 +123,16 @@ public class FacetManager extends ServerPlugin {
      * facet group to <tt>facetGroupsNode</tt> or <tt>null</tt> if no such node
      * exists.
      *
-     * @param graphDb
-     * @param facetGroupsNode
-     * @param facetGroupName
-     * @return
+     * @param tx              The current transactino.
+     * @param facetGroupsNode The global facet groups node to get the facet group from.
+     * @param facetGroupName  The name of the facet group to retrieve.
+     * @return The facet group with the given facetGroupName.
      */
-    private static Node getFacetGroup(GraphDatabaseService graphDb, Node facetGroupsNode, String facetGroupName) {
+    private static Node getFacetGroup(Transaction tx, Node facetGroupsNode, String facetGroupName) {
         // Traversal to get the particular facet group node with id
         // 'facetGroupId' (and the facet groups node, in case we yet need to
         // create the facet group node).
-        TraversalDescription td = PredefinedTraversals.getFacetGroupTraversal(graphDb, facetGroupName);
+        TraversalDescription td = PredefinedTraversals.getFacetGroupTraversal(tx, facetGroupName);
         Traverser traverse = td.traverse(facetGroupsNode);
 
         TraversalMetadata metadata = traverse.metadata();
@@ -139,10 +141,10 @@ public class FacetManager extends ServerPlugin {
                     "There is more than one path from the reference node to the facet group node with name '"
                             + facetGroupName + "'.");
 
-        Iterator<Path> pathIterator = traverse.iterator();
+        Iterator<org.neo4j.graphdb.Path> pathIterator = traverse.iterator();
         Node facetGroupNode = null;
         while (pathIterator.hasNext()) {
-            Path path = pathIterator.next();
+            org.neo4j.graphdb.Path path = pathIterator.next();
             if (path.length() == 1)
                 facetGroupNode = path.endNode();
         }
@@ -156,32 +158,31 @@ public class FacetManager extends ServerPlugin {
      * the name found at the property <tt>FacetGroupConstants.PROP_NAME</tt> in
      * <tt>jsonFacetGroup</tt>.
      *
-     * @param graphDb
-     * @param jsonFacetGroup
+     * @param tx             The current transaction.
+     * @param jsonFacetGroup The JSON description of the facet group.
      * @return The facet group node with the name found at the property
      * <tt>FacetGroupConstants.PROP_NAME</tt> in <tt>jsonFacetGroup</tt>
      * .
      */
-    private static Node createFacetGroup(GraphDatabaseService graphDb, Node facetGroupsNode,
+    private static Node createFacetGroup(Transaction tx, Node facetGroupsNode,
                                          final ImportFacetGroup jsonFacetGroup) {
         String facetGroupName = jsonFacetGroup.name;
-        Node facetGroupNode = getFacetGroup(graphDb, facetGroupsNode, facetGroupName);
+        Node facetGroupNode = getFacetGroup(tx, facetGroupsNode, facetGroupName);
 
         if (null == facetGroupNode) {
             log.log(Level.FINE, "Facet group \"" + facetGroupName + "\" (ID: " + facetGroupName
                     + ") does not exist and is created.");
-            facetGroupNode = graphDb.createNode();
-            PropertyUtilities.copyObjectToPropertyContainer(jsonFacetGroup, facetGroupNode, PROP_LABELS);
+            facetGroupNode = tx.createNode();
+            PropertyUtilities.copyObjectToEntity(jsonFacetGroup, facetGroupNode, PROP_LABELS);
 
-            int nextSequenceValue = SequenceManager.getNextSequenceValue(graphDb, SequenceConstants.SEQ_FACET_GROUP);
+            int nextSequenceValue = SequenceManager.getNextSequenceValue(tx, SequenceConstants.SEQ_FACET_GROUP);
             facetGroupNode.setProperty(PROP_ID, NodeIDPrefixConstants.FACET_GROUP + nextSequenceValue);
             facetGroupsNode.createRelationshipTo(facetGroupNode, EdgeTypes.HAS_FACET_GROUP);
         }
         List<String> labels = jsonFacetGroup.labels;
 
         if (null != labels) {
-            for (int i = 0; i < labels.size(); i++) {
-                String labelString = labels.get(i);
+            for (String labelString : labels) {
                 Label label = Label.label(labelString);
                 facetGroupNode.addLabel(label);
             }
@@ -195,52 +196,57 @@ public class FacetManager extends ServerPlugin {
         return facetGroupNode;
     }
 
-    public static Node getFacetGroupsNode(GraphDatabaseService graphDb) {
-        Node facetGroupsNode = null;
-        try (Transaction tx = graphDb.beginTx()) {
-            facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, NodeConstants.Labels.ROOT,
-                    PROP_NAME, NAME_FACET_GROUPS);
-            if (null == facetGroupsNode) {
-                facetGroupsNode = graphDb.createNode(NodeConstants.Labels.ROOT);
-                facetGroupsNode.setProperty(PROP_NAME, NAME_FACET_GROUPS);
+    public static Node getFacetGroupsNode(Transaction tx) {
+        return getGroupsNode(tx, FacetLabel.FACET_GROUPS, NAME_FACET_GROUPS);
+    }
+
+    public static Node getNoFacetGroupsNode(Transaction tx) {
+        return getGroupsNode(tx, FacetLabel.NO_FACET_GROUPS, NAME_NO_FACET_GROUPS);
+    }
+
+    public static Node getGroupsNode(Transaction tx, Label label, String name) {
+        Node facetGroupsNode = tx.findNode(label,
+                PROP_NAME, name);
+        if (null == facetGroupsNode) {
+            try {
+                facetGroupsNode = tx.createNode(label);
+                facetGroupsNode.setProperty(PROP_NAME, name);
+            } catch (ConstraintViolationException e) {
+                // In case another thread already created the node
+                facetGroupsNode.delete();
+                facetGroupsNode = tx.findNode(label,
+                        PROP_NAME, name);
             }
-            tx.success();
         }
         return facetGroupsNode;
     }
 
-    public static Node getNoFacetGroupsNode(GraphDatabaseService graphDb) {
-        Node facetGroupsNode;
-        try (Transaction tx = graphDb.beginTx()) {
-            facetGroupsNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, NodeConstants.Labels.ROOT,
-                    PROP_NAME, NAME_NO_FACET_GROUPS);
-            if (null == facetGroupsNode) {
-                facetGroupsNode = graphDb.createNode(NodeConstants.Labels.ROOT);
-                facetGroupsNode.setProperty(PROP_NAME, NAME_NO_FACET_GROUPS);
-            }
-            tx.success();
-        }
-        return facetGroupsNode;
+
+    public static void createIndexes(Transaction tx) {
+        createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.FACET_GROUPS, true, Indexes.PROVIDER_NATIVE_1_0, PROP_NAME);
+        createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.NO_FACET_GROUPS, true, Indexes.PROVIDER_NATIVE_1_0, PROP_NAME);
+        createSinglePropertyIndexIfAbsent(tx, "FacetIds", FacetLabel.FACET, true, Indexes.PROVIDER_NATIVE_1_0, PROP_ID);
+        createSinglePropertyIndexIfAbsent(tx, "NoFacetIds", FacetLabel.NO_FACET, true, Indexes.PROVIDER_NATIVE_1_0, PROP_ID);
     }
 
-    public static Node getFacetNode(GraphDatabaseService graphDb, String facetId) {
-        return NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, FacetLabel.FACET, PROP_ID, facetId);
+    public static Node getFacetNode(Transaction tx, String facetId) {
+        return tx.findNode(FacetLabel.FACET, PROP_ID, facetId);
     }
 
-    public static Node getNoFacet(GraphDatabaseService graphDb, String facetId) {
-        Node noFacetNode = NodeUtilities.findSingleNodeByLabelAndProperty(graphDb, FacetLabel.NO_FACET, PROP_ID,
+    public static Node getNoFacet(Transaction tx, String facetId) {
+        Node noFacetNode = tx.findNode(FacetLabel.NO_FACET, PROP_ID,
                 facetId);
         if (null == noFacetNode) {
-            Node facetNode = getFacetNode(graphDb, facetId);
-            noFacetNode = NodeUtilities.copyNode(graphDb, facetNode);
+            Node facetNode = getFacetNode(tx, facetId);
+            noFacetNode = NodeUtilities.copyNode(tx, facetNode);
             noFacetNode.addLabel(FacetManager.FacetLabel.NO_FACET);
 
-            Node noFacetGroupsNode = getNoFacetGroupsNode(graphDb);
+            Node noFacetGroupsNode = getNoFacetGroupsNode(tx);
             Node facetGroupNode = NodeUtilities.getSingleOtherNode(facetNode, EdgeTypes.HAS_FACET);
-            Node noFacetGroupNode = getFacetGroup(graphDb, noFacetGroupsNode,
+            Node noFacetGroupNode = getFacetGroup(tx, noFacetGroupsNode,
                     (String) facetGroupNode.getProperty(PROP_NAME));
             if (null == noFacetGroupNode) {
-                noFacetGroupNode = NodeUtilities.copyNode(graphDb, facetGroupNode);
+                noFacetGroupNode = NodeUtilities.copyNode(tx, facetGroupNode);
                 noFacetGroupsNode.createRelationshipTo(noFacetGroupNode, EdgeTypes.HAS_FACET_GROUP);
             }
             noFacetGroupNode.createRelationshipTo(noFacetNode, EdgeTypes.HAS_FACET);
@@ -248,36 +254,34 @@ public class FacetManager extends ServerPlugin {
         return noFacetNode;
     }
 
-    @Name(GET_FACET_SIZE)
-    @Description("Returns the size of a facet by counting all the related children")
-    @PluginTarget(GraphDatabaseService.class)
-    public int getFacetSize(@Source GraphDatabaseService graphDb,
-                            @Description("TODO") @Parameter(name = KEY_ID) String fid) {
-        return countFacetChildren(graphDb, fid);
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    @Path("/{" + GET_FACET_SIZE + "}")
+    public int getFacetSize(@PathParam(KEY_ID) String fid) {
+        return countFacetChildren(dbms.database(DEFAULT_DATABASE_NAME), fid);
     }
 
-    @Name(INSERT_FACETS)
-    // TODO
-    @Description("TODO")
-    @PluginTarget(GraphDatabaseService.class)
-    public ListRepresentation insertFacets(@Source GraphDatabaseService graphDb,
-                                           @Description("TODO") @Parameter(name = KEY_FACETS) String facetList) throws IOException {
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{" + INSERT_FACETS + "}")
+    public ListRepresentation insertFacets(String facetList) throws IOException {
         final ObjectMapper om = new ObjectMapper();
         List<ImportFacet> input = om.readValue(facetList, new TypeReference<List<ImportFacet>>() {
         });
-        List<Node> facets = new ArrayList<Node>();
-        for (int i = 0; i < input.size(); i++) {
-            ImportFacet jsonFacet = input.get(i);
-            Node facet = createFacet(graphDb, jsonFacet);
-            facets.add(facet);
-        }
+        List<Node> facets = new ArrayList<>();
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
 
         try (Transaction tx = graphDb.beginTx()) {
+            for (ImportFacet jsonFacet : input) {
+                Node facet = createFacet(tx, jsonFacet);
+                facets.add(facet);
+            }
             // The response is a list - according to the input order - where for
             // each facet is shown its name and which ID it received.
-            List<Representation> facetRepList = new ArrayList<Representation>();
+            List<Representation> facetRepList = new ArrayList<>();
             for (Node facet : facets) {
-                Map<String, Object> map = new HashMap<String, Object>();
+                Map<String, Object> map = new HashMap<>();
                 map.put(PROP_NAME, facet.getProperty(PROP_NAME));
                 map.put(PROP_ID, facet.getProperty(PROP_ID));
                 RecursiveMappingRepresentation facetResponseRep = new RecursiveMappingRepresentation(Representation.MAP,
@@ -285,39 +289,36 @@ public class FacetManager extends ServerPlugin {
                 facetRepList.add(facetResponseRep);
             }
             ListRepresentation listRep = new ListRepresentation(Representation.MAP, facetRepList);
-            tx.success();
+            tx.commit();
             return listRep;
         }
 
     }
 
     @SuppressWarnings("unchecked")
-    @Name(GET_FACETS)
-    // TODO
-    @Description("TODO")
-    @PluginTarget(GraphDatabaseService.class)
-    public MappingRepresentation getFacets(@Source GraphDatabaseService graphDb,
-                                           @Description("TODO") @Parameter(name = PARAM_RETURN_HOLLOW_FACETS, optional = true) Boolean returnHollowfacets) {
-        // As of Neo4j 2.0, read operations are required to be inside a
-        // transaction.
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("/{" + GET_FACETS + "}")
+    public MappingRepresentation getFacets(@PathParam(PARAM_RETURN_HOLLOW_FACETS) Boolean returnHollowfacets) {
         RecursiveMappingRepresentation facetGroupsRep;
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            Node facetGroupsNode = getFacetGroupsNode(graphDb);
-            TraversalDescription td = PredefinedTraversals.getFacetTraversal(graphDb);
+            Node facetGroupsNode = getFacetGroupsNode(tx);
+            TraversalDescription td = PredefinedTraversals.getFacetTraversal(tx);
             Traverser traverse = td.traverse(facetGroupsNode);
 
-            Map<String, Object> facetsByFacetGroupName = new HashMap<String, Object>();
-            Map<String, Node> facetGroupsMap = new HashMap<String, Node>();
-            List<Map<String, Object>> facetGroupsWithFacetsList = new ArrayList<Map<String, Object>>();
+            Map<String, Object> facetsByFacetGroupName = new HashMap<>();
+            Map<String, Node> facetGroupsMap = new HashMap<>();
+            List<Map<String, Object>> facetGroupsWithFacetsList = new ArrayList<>();
 
             // First build intermediate maps where the facet group nodes and
             // facets
             // are
             // organized by facet group name.
-            for (Path facetPath : traverse) {
+            for (org.neo4j.graphdb.Path facetPath : traverse) {
                 Node facet = facetPath.endNode();
-                Object sourceType = facet.getProperty(FacetConstants.PROP_SOURCE_TYPE);
-                boolean isFacetWithoutPredefinedRoots = !sourceType.equals(FacetConstants.SRC_TYPE_HIERARCHICAL);
+                Object sourceType = facet.getProperty(PROP_SOURCE_TYPE);
+                boolean isFacetWithoutPredefinedRoots = !sourceType.equals(SRC_TYPE_HIERARCHICAL);
 
                 // For string-sourced facets it doesn't make sense to check
                 // their roots since they have none in the
@@ -326,7 +327,7 @@ public class FacetManager extends ServerPlugin {
                 if (!isFacetWithoutPredefinedRoots) {
                     // Leave out facets without any root terms (this may happen
                     // by some weird BioPortal ontologies).
-                    Iterator<Relationship> rootIt = facet.getRelationships(ConceptManager.EdgeTypes.HAS_ROOT_CONCEPT)
+                    Iterator<Relationship> rootIt = facet.getRelationships(ConceptEdgeTypes.HAS_ROOT_CONCEPT)
                             .iterator();
                     if (!rootIt.hasNext())
                         continue;
@@ -363,7 +364,7 @@ public class FacetManager extends ServerPlugin {
 
                     List<Object> facets = (List<Object>) facetsByFacetGroupName.get(facetGroupName);
                     if (facets == null) {
-                        facets = new ArrayList<Object>();
+                        facets = new ArrayList<>();
                         facetsByFacetGroupName.put(facetGroupName, facets);
                     }
                     facets.add(facet);
@@ -378,7 +379,7 @@ public class FacetManager extends ServerPlugin {
                 Node facetGroupNode = facetGroupsMap.get(facetGroupName);
                 Object facets = facetsByFacetGroupName.get(facetGroupName);
 
-                Map<String, Object> facetGroupMap = new HashMap<String, Object>();
+                Map<String, Object> facetGroupMap = new HashMap<>();
                 for (String propKey : facetGroupNode.getPropertyKeys())
                     facetGroupMap.put(propKey, facetGroupNode.getProperty(propKey));
                 List<String> facetGroupLabels = new ArrayList<>();
@@ -389,20 +390,20 @@ public class FacetManager extends ServerPlugin {
 
                 facetGroupsWithFacetsList.add(facetGroupMap);
             }
-            Map<String, Object> ret = new HashMap<String, Object>();
+            Map<String, Object> ret = new HashMap<>();
             ret.put("facetGroups", facetGroupsWithFacetsList);
             facetGroupsRep = new RecursiveMappingRepresentation(Representation.MAP, ret);
-            tx.success();
+            tx.commit();
         }
 
         return facetGroupsRep;
     }
 
-    public static enum EdgeTypes implements RelationshipType {
+    public enum EdgeTypes implements RelationshipType {
         HAS_FACET_GROUP, HAS_FACET
     }
 
-    public static enum FacetLabel implements Label {
-        FACET, NO_FACET
+    public enum FacetLabel implements Label {
+        FACET_GROUPS, NO_FACET_GROUPS, FACET, NO_FACET
     }
 }

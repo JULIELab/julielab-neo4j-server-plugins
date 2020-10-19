@@ -5,8 +5,8 @@ import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
 import java.util.*;
 
 public class CoordinatesSet implements Iterable<ConceptCoordinates> {
-	private Map<String, ConceptCoordinates> coordsByOriginalId = new HashMap<>();
-	private Map<String, ConceptCoordinates> coordsBySourceId = new HashMap<>();
+	private final Map<String, ConceptCoordinates> coordsByOriginalId = new HashMap<>();
+	private final Map<String, ConceptCoordinates> coordsBySourceId = new HashMap<>();
 
 	public boolean add(ConceptCoordinates coordinates) {
 		ConceptCoordinates c = coordinates.clone();

@@ -11,6 +11,8 @@ public class ConceptCoordinates implements Cloneable {
 	public ConceptCoordinates() {
 	}
 
+
+
 	public ConceptCoordinates(String sourceId, String source, String originalId, String originalSource,
 			boolean uniqueSourceId) {
 		super();

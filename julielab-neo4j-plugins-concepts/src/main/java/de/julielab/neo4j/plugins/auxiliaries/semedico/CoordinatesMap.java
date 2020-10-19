@@ -7,10 +7,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CoordinatesMap {
-	private CoordinatesSet keys = new CoordinatesSet();
-	private Map<ConceptCoordinates, Node> nodes = new HashMap<>();
+	private final CoordinatesSet keys = new CoordinatesSet();
+	private final Map<ConceptCoordinates, Node> nodes = new HashMap<>();
 
-	public boolean put(ConceptCoordinates key, Node node) {
+	public void put(ConceptCoordinates key, Node node) {
 		if (key == null || node == null)
 			throw new IllegalArgumentException("The coordinate key and the node value must both be non-null.");
 		boolean existed = keys.contains(key);
@@ -18,8 +18,7 @@ public class CoordinatesMap {
 			keys.add(key);
 			nodes.put(key, node);
 		}
-		return existed;
-	}
+    }
 
 	public Node get(ConceptCoordinates key) {
 		// Here is the trick: we use a CoordinatesSet to find the key. The key
