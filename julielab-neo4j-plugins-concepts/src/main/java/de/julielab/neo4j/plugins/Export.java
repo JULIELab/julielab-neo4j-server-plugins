@@ -18,6 +18,7 @@ import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
+import org.neo4j.logging.Log;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
@@ -62,23 +63,25 @@ public class Export {
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)
-    @javax.ws.rs.Path("/" + CONCEPT_ID_MAPPING)
-    public Object exportIdMapping(@QueryParam(PARAM_SOURCE_ID_PROPERTY) String sourceIdProperty, @QueryParam(PARAM_TARGET_ID_PROPERTY) String targetIdProperty, @QueryParam(PARAM_LABELS) String labelStrings) {
+    @javax.ws.rs.Path(CONCEPT_ID_MAPPING)
+    public Object exportIdMapping(@QueryParam(PARAM_SOURCE_ID_PROPERTY) String sourceIdProperty, @QueryParam(PARAM_TARGET_ID_PROPERTY) String targetIdProperty, @QueryParam(PARAM_LABELS) String labelStrings, @Context Log log) {
         try {
             final ObjectMapper om = new ObjectMapper();
             log.info("Exporting ID mapping data.");
             String[] labelsArray = null != labelStrings ? om.readValue(labelStrings, String[].class) : new String[]{ConceptLabel.CONCEPT.name()};
             String sProperty = sourceIdProperty != null ? sourceIdProperty : PROP_SRC_IDS;
             String tProperty = targetIdProperty != null ? targetIdProperty : PROP_ID;
-            log.info("Creating mapping file content for property \"" + sProperty + "\" and facets " + Arrays.toString(labelsArray));
+            log.info("Creating mapping file content with source property %s, target property %s and node labels %s", sourceIdProperty, targetIdProperty, labelStrings);
             return (StreamingOutput) output -> {
                 try {
-                    createIdMapping(output, sProperty, tProperty,labelsArray);
+                    createIdMapping(output, sProperty, tProperty, labelsArray);
                 } catch (Exception e) {
+                    log.error("Exception occurred during concept ID output streaming.", e);
                     e.printStackTrace();
                 }
             };
         } catch (Throwable t) {
+            log.error("Could not export concept ID mappings", t);
             return ConceptManager.getErrorResponse(t);
         }
     }
@@ -112,10 +115,10 @@ public class Export {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/" + HYPERNYMS)
-    public Representation exportHypernyms(
+    @javax.ws.rs.Path(HYPERNYMS)
+    public Object exportHypernyms(
             @QueryParam(PARAM_LABELS) String facetLabelStrings,
-            @QueryParam(PARAM_LABEL) String conceptLabel)
+            @QueryParam(PARAM_LABEL) String conceptLabel, @Context Log log)
             throws Exception {
         ObjectMapper om = new ObjectMapper();
         String[] labelsArray = null != facetLabelStrings ? om.readValue(facetLabelStrings, String[].class) : null;
@@ -123,16 +126,18 @@ public class Export {
             log.info("Exporting hypernyms dictionary data for all facets.");
         else
             log.info("Exporting hypernyms dictionary data for the facets with labels " + Arrays.toString(labelsArray) + ".");
-        ByteArrayOutputStream hypernymsGzipBytes = writeHypernymList(labelsArray, conceptLabel
-        );
-        byte[] bytes = hypernymsGzipBytes.toByteArray();
-        log.info("Sending all " + bytes.length + " bytes of GZIPed hypernym file data.");
-        log.info("Done exporting hypernym data.");
-        return RecursiveMappingRepresentation.getObjectRepresentation(bytes);
+        return (StreamingOutput) output -> {
+            try {
+                writeHypernymList(labelsArray, conceptLabel, output);
+            } catch (Exception e) {
+                log.error("Exception occurred during concept ID output streaming.", e);
+                e.printStackTrace();
+            }
+        };
     }
 
-    private ByteArrayOutputStream writeHypernymList(String[] labelsArray,
-                                                    String termLabelString) throws IOException {
+    private void writeHypernymList(String[] labelsArray,
+                                   String termLabelString, OutputStream output) throws IOException {
 
         String[] labels = labelsArray;
         if (null == labels) {
@@ -144,59 +149,55 @@ public class Export {
 
         Map<Node, Set<String>> cache = new HashMap<>(Export.HYPERNYMS_CACHE_SIZE);
 
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
 
-            try (Transaction tx = graphDb.beginTx()) {
-                // This list will hold the relationship types that are used to
-                // connect the terms that belong the facets
-                // for which hypernyms should be created. If for all facets
-                // hypernyms are to be created this will just
-                // include the general IS_BROADER_THAN relationship type that
-                // doesn't make a difference between facets.
-                List<RelationshipType> relationshipTypeList = new ArrayList<>();
-                // Only create the specific facet IDs set when we have not just
-                // all facets
-                if (labels.length > 1 || !labels[0].equals(FacetManager.FacetLabel.FACET.name())) {
-                    for (String labelString : labels) {
-                        Label label = Label.label(labelString);
-                        ResourceIterable<Node> facets = () -> tx.findNodes(label);
-                        for (Node facet : facets) {
-                            if (!facet.hasLabel(FacetManager.FacetLabel.FACET))
-                                throw new IllegalArgumentException("Label node " + facet + " with the label " + label
-                                        + " is no facet since it does not have the " + FacetManager.FacetLabel.FACET
-                                        + " label.");
-                            String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
-                            RelationshipType reltype = RelationshipType
-                                    .withName(ConceptEdgeTypes.IS_BROADER_THAN + "_" + facetId);
-                            relationshipTypeList.add(reltype);
-                        }
-                    }
-                } else {
-                    relationshipTypeList.add(ConceptEdgeTypes.IS_BROADER_THAN);
-                }
-
+        try (Transaction tx = graphDb.beginTx()) {
+            // This list will hold the relationship types that are used to
+            // connect the terms that belong the facets
+            // for which hypernyms should be created. If for all facets
+            // hypernyms are to be created this will just
+            // include the general IS_BROADER_THAN relationship type that
+            // doesn't make a difference between facets.
+            List<RelationshipType> relationshipTypeList = new ArrayList<>();
+            // Only create the specific facet IDs set when we have not just
+            // all facets
+            if (labels.length > 1 || !labels[0].equals(FacetManager.FacetLabel.FACET.name())) {
                 for (String labelString : labels) {
                     Label label = Label.label(labelString);
-                    log.info("Now creating hypernyms for facets with label " + label);
                     ResourceIterable<Node> facets = () -> tx.findNodes(label);
-                    Set<Node> visitedNodes = new HashSet<>();
                     for (Node facet : facets) {
-                        Iterable<Relationship> rels = facet.getRelationships(Direction.OUTGOING,
-                                ConceptEdgeTypes.HAS_ROOT_CONCEPT);
-                        for (Relationship rel : rels) {
-                            Node rootTerm = rel.getEndNode();
-                            if (null != termLabel && !rootTerm.hasLabel(termLabel))
-                                continue;
-                            writeHypernyms(rootTerm, visitedNodes, cache, os,
-                                    relationshipTypeList.toArray(new RelationshipType[0]));
-                        }
+                        if (!facet.hasLabel(FacetManager.FacetLabel.FACET))
+                            throw new IllegalArgumentException("Label node " + facet + " with the label " + label
+                                    + " is no facet since it does not have the " + FacetManager.FacetLabel.FACET
+                                    + " label.");
+                        String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
+                        RelationshipType reltype = RelationshipType
+                                .withName(ConceptEdgeTypes.IS_BROADER_THAN + "_" + facetId);
+                        relationshipTypeList.add(reltype);
+                    }
+                }
+            } else {
+                relationshipTypeList.add(ConceptEdgeTypes.IS_BROADER_THAN);
+            }
+
+            for (String labelString : labels) {
+                Label label = Label.label(labelString);
+                log.info("Now creating hypernyms for facets with label " + label);
+                ResourceIterable<Node> facets = () -> tx.findNodes(label);
+                Set<Node> visitedNodes = new HashSet<>();
+                for (Node facet : facets) {
+                    Iterable<Relationship> rels = facet.getRelationships(Direction.OUTGOING,
+                            ConceptEdgeTypes.HAS_ROOT_CONCEPT);
+                    for (Relationship rel : rels) {
+                        Node rootTerm = rel.getEndNode();
+                        if (null != termLabel && !rootTerm.hasLabel(termLabel))
+                            continue;
+                        writeHypernyms(rootTerm, visitedNodes, cache, output,
+                                relationshipTypeList.toArray(new RelationshipType[0]));
                     }
                 }
             }
         }
-        return baos;
     }
 
     public Set<String> load(Node n, Map<Node, Set<String>> cache, RelationshipType[] relationshipTypes) {
@@ -230,7 +231,7 @@ public class Export {
         return hypernyms;
     }
 
-    private void writeHypernyms(Node n, Set<Node> visitedNodes, Map<Node, Set<String>> cache, GZIPOutputStream os,
+    private void writeHypernyms(Node n, Set<Node> visitedNodes, Map<Node, Set<String>> cache, OutputStream os,
                                 RelationshipType[] relationshipTypes) throws IOException {
         if (visitedNodes.contains(n))
             return;
@@ -396,7 +397,7 @@ public class Export {
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    @javax.ws.rs.Path("/" + CONCEPT_TO_FACET)
+    @javax.ws.rs.Path(CONCEPT_TO_FACET)
     public Representation exportTermFacetMapping(
             @QueryParam(PARAM_LABEL) String labelString)
             throws IOException {

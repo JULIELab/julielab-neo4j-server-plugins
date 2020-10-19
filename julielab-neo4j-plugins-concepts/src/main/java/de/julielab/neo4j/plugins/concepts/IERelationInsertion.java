@@ -1,6 +1,5 @@
 package de.julielab.neo4j.plugins.concepts;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
@@ -30,8 +29,6 @@ public class IERelationInsertion {
 
     public static void insertRelations(InputStream ieRelationsStream, GraphDatabaseService graphDb, Log log) {
         ObjectMapper mapper = new ObjectMapper().registerModule(new Jdk8Module());
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         JsonParser parser;
         try {
             parser = new JsonFactory(mapper).createParser(ieRelationsStream);
@@ -54,6 +51,9 @@ public class IERelationInsertion {
                     documents = parser.readValuesAs(ImportIERelationDocument.class);
                 }
             }
+            // Check for an empty array.
+            if (parser.currentToken() == JsonToken.END_ARRAY)
+                return;
             if (documents == null)
                 throw new IllegalArgumentException("No documents were given.");
             List<ImportIERelationDocument> docBatch = new ArrayList<>(BATCH_SIZE);
