@@ -45,4 +45,15 @@ public class ImportOptions {
 		this();
 		this.doNotCreateHollowParents = doNotCreateHollowParents;
 	}
+
+	@Override
+	public String toString() {
+		return "ImportOptions{" +
+				"noFacetCmd=" + noFacetCmd +
+				", cutParents=" + cutParents +
+				", doNotCreateHollowParents=" + doNotCreateHollowParents +
+				", createHollowAggregateElements=" + createHollowAggregateElements +
+				", merge=" + merge +
+				'}';
+	}
 }

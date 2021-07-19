@@ -497,7 +497,7 @@ public class ConceptInsertion {
                 }
 
 
-                log.info("Got %s concepts to import.", numConcepts);
+                log.info("Got %s concepts to import into facet %s with options %s.", numConcepts, importFacet, importOptions);
                 String facetId = null;
                 try (Transaction tx = graphDb.beginTx()) {
                     Node facet = null;

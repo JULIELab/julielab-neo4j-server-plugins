@@ -4,8 +4,8 @@
     <parent>
         <groupId>de.julielab</groupId>
         <artifactId>julielab-neo4j-server-plugins</artifactId>
-        <version>3.0.0</version>
-        <relativePath>..</relativePath>
+        <version>3.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>julielab-neo4j-plugins-concepts</artifactId>
     <name>JULIE Lab Neo4j Concept Management Plugin</name>
@@ -60,7 +60,7 @@
         <dependency>
             <groupId>org.neo4j.test</groupId>
             <artifactId>neo4j-harness</artifactId>
-            <version>4.0.4</version>
+            <version>${neo4j-release-version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
