@@ -1,6 +1,6 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.List;
 

@@ -138,7 +138,7 @@ public class ConceptAggregateManager {
                     element = lookupConceptBySourceId(tx, elementCoordinates.sourceId, elementSource, false);
                 log.debug("Found element with source ID %s and source %s", elementCoordinates.sourceId, elementSource);
                 if (null == element && importOptions.createHollowAggregateElements) {
-                    element = registerNewHollowConceptNode(tx, elementCoordinates);
+                    element = registerNewHollowConceptNode(tx, log, elementCoordinates);
                 }
                 if (element != null) {
                     aggregate.createRelationshipTo(element, ConceptEdgeTypes.HAS_ELEMENT);

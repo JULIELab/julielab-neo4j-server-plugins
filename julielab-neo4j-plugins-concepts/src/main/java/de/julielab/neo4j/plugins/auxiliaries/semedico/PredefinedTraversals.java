@@ -9,7 +9,7 @@ import de.julielab.neo4j.plugins.evaluators.FacetGroupPathEvaluator;
 import de.julielab.neo4j.plugins.evaluators.HasRelationShipEvaluator;
 import de.julielab.neo4j.plugins.evaluators.NodeLabelEvaluator;
 import de.julielab.neo4j.plugins.evaluators.PropertyEvaluator;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.graphdb.Direction;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.Transaction;

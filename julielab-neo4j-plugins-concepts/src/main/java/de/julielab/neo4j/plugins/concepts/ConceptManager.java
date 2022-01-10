@@ -12,9 +12,6 @@ import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
-import org.neo4j.logging.slf4j.Slf4jLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.Path;
 import javax.ws.rs.*;
@@ -80,13 +77,14 @@ public class ConceptManager {
 
     public static final String UPDATE_CHILD_INFORMATION = "update_children_information";
     public static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
-    private static final Logger log = LoggerFactory.getLogger(ConceptManager.class);
+    private Log log;
 
 
     private final DatabaseManagementService dbms;
 
-    public ConceptManager(@Context DatabaseManagementService dbms) {
+    public ConceptManager(@Context DatabaseManagementService dbms, Log log) {
         this.dbms = dbms;
+        this.log = log;
     }
 
 
@@ -177,7 +175,7 @@ public class ConceptManager {
      * @return The JavaX RS response.
      */
     public Object insertConcepts(InputStream is) {
-        return insertConcepts(is, new Slf4jLog(log));
+        return insertConcepts(is, log);
     }
 
     @POST
@@ -270,7 +268,7 @@ public class ConceptManager {
         log.info("Starting to insert mappings.");
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
         try (Transaction tx = graphDb.beginTx()) {
-            return ConceptInsertion.insertMappings(tx, importMappingIterator);
+            return ConceptInsertion.insertMappings(tx, log, importMappingIterator);
         }
     }
 
@@ -281,7 +279,7 @@ public class ConceptManager {
      * @return
      */
     public Object getFacetRoots(@Context UriInfo uriInfo) {
-        return getFacetRoots(uriInfo, new Slf4jLog(log));
+        return getFacetRoots(uriInfo, log);
     }
 
     /**
@@ -438,7 +436,7 @@ public class ConceptManager {
      * @param is
      */
     public void insertIERelations(InputStream is) {
-        insertIERelations(is, new Slf4jLog(log));
+        insertIERelations(is, log);
     }
 
     public void insertIERelations(ImportIERelations relations) {

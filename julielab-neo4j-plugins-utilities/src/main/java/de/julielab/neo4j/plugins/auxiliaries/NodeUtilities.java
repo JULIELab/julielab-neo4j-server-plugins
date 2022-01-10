@@ -1,6 +1,6 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.graphdb.*;
 
 import java.util.ArrayList;

@@ -1,7 +1,7 @@
 package de.julielab.neo4j.plugins.concepts;
 
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.*;
 import org.slf4j.Logger;

@@ -7,6 +7,10 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Rule;
 import org.junit.Test;
 import org.neo4j.harness.junit.rule.Neo4jRule;
+import org.neo4j.logging.Level;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.logging.log4j.LogConfig;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,8 +19,17 @@ import java.net.URI;
 import java.util.HashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class ExportIntegrationTest {
+private static Log log;
+    static {
+        Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
+                .withFormat(PLAIN)
+                .withCategory(false)
+                .build());
+        log = log4jLogProvider.getLog(ConceptManagerTest.class);
+    }
 
     @Rule
     public Neo4jRule neo4j = new Neo4jRule()
@@ -24,7 +37,7 @@ public class ExportIntegrationTest {
                 new Indexes(null).createIndexes(graphDatabaseService);
                 try {
                     ImportConcepts testConcepts = ConceptManagerTest.getTestConcepts(10);
-                    ConceptInsertion.insertConcepts(graphDatabaseService, testConcepts, new HashMap<>());
+                    ConceptInsertion.insertConcepts(graphDatabaseService, log, testConcepts, new HashMap<>());
                 } catch (ConceptInsertionException e) {
                     throw new IllegalArgumentException(e);
                 }

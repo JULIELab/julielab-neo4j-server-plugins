@@ -20,12 +20,9 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConsta
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.util.AggregateConceptInsertionException;
 import de.julielab.neo4j.plugins.util.ConceptInsertionException;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
-import org.neo4j.logging.slf4j.Slf4jLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -44,7 +41,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
 
 public class ConceptInsertion {
-    private final static Logger log = LoggerFactory.getLogger(ConceptInsertion.class);
+    private Log log;
+
+    public ConceptInsertion(Log log) {
+        this.log = log;
+    }
 
     static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
                                     CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
@@ -205,7 +206,7 @@ public class ConceptInsertion {
                         Node target = lookupConcept(tx, targetCoordinates);
                         if (null == target) {
                             log.debug("Creating hollow relationship target with orig Id/orig source " + targetCoordinates);
-                            target = registerNewHollowConceptNode(tx, targetCoordinates);
+                            target = registerNewHollowConceptNode(tx, log, targetCoordinates);
                         }
                         ConceptEdgeTypes type = ConceptEdgeTypes.valueOf(rsTypeStr);
                         Object[] properties = null;
@@ -238,14 +239,14 @@ public class ConceptInsertion {
      * @param coordinates The concept coordinates to register the hollow node for.
      * @return The newly created hollow node.
      */
-    static Node registerNewHollowConceptNode(Transaction tx, ConceptCoordinates coordinates,
+    static Node registerNewHollowConceptNode(Transaction tx, Log log, ConceptCoordinates coordinates,
                                              Label... additionalLabels) {
         Node node = tx.createNode(HOLLOW);
         node.addLabel(CONCEPT);
         for (Label label : additionalLabels) {
             node.addLabel(label);
         }
-        log.trace("Created new HOLLOW concept node for coordinates {}", coordinates);
+        log.debug("Created new HOLLOW concept node for coordinates %s", coordinates);
         if (!StringUtils.isBlank(coordinates.originalId)) {
             node.setProperty(PROP_ORG_ID, coordinates.originalId);
             node.setProperty(PROP_ORG_SRC, coordinates.originalSource);
@@ -258,7 +259,7 @@ public class ConceptInsertion {
         return node;
     }
 
-    static void insertConcept(Transaction tx, String facetId,
+    static void insertConcept(Transaction tx, Log log, String facetId,
                               ImportConcept jsonConcept, CoordinatesMap nodesByCoordinates, InsertionReport insertionReport,
                               ImportOptions importOptions) {
         // Name is mandatory, thus we don't use the
@@ -321,7 +322,7 @@ public class ConceptInsertion {
             // nothing
             return;
         if (concept.hasLabel(HOLLOW)) {
-            log.trace("Got HOLLOW concept node with coordinates " + coordinates + " and will create full concept.");
+            log.debug("Got HOLLOW concept node with coordinates " + coordinates + " and will create full concept.");
             concept.removeLabel(HOLLOW);
             concept.addLabel(CONCEPT);
             Iterable<Relationship> relationships = concept.getRelationships(HAS_ROOT_CONCEPT);
@@ -457,8 +458,8 @@ public class ConceptInsertion {
         createRelationShipIfNotExists(source, target, type, insertionReport, Direction.OUTGOING);
     }
 
-    public static void insertConcepts(GraphDatabaseService graphDb, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
-        insertConcepts(new Slf4jLog(log), graphDb, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
+    public static void insertConcepts(GraphDatabaseService graphDb, Log log, ImportConcepts importConcepts, Map<String, Object> response) throws ConceptInsertionException {
+        insertConcepts(log, graphDb, new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)), response);
     }
 
     public static InsertionReport insertConcepts(Log log, GraphDatabaseService graphDb, InputStream importConceptsStream, Map<String, Object> response) throws ConceptInsertionException {
@@ -703,7 +704,7 @@ public class ConceptInsertion {
         }
         // Finished getting existing nodes and creating HOLLOW nodes
         for (ConceptCoordinates coordinates : toBeCreated) {
-            Node conceptNode = registerNewHollowConceptNode(tx, coordinates);
+            Node conceptNode = registerNewHollowConceptNode(tx, log, coordinates);
             ++insertionReport.numConcepts;
 
             nodesByCoordinates.put(coordinates, conceptNode);
@@ -722,7 +723,7 @@ public class ConceptInsertion {
                 ConceptAggregateManager.insertAggregateConcept(tx, jsonConcept, nodesByCoordinates, insertionReport,
                         importOptions, log);
             } else {
-                insertConcept(tx, facetId, jsonConcept, nodesByCoordinates, insertionReport,
+                insertConcept(tx, log, facetId, jsonConcept, nodesByCoordinates, insertionReport,
                         importOptions);
             }
         }
@@ -748,7 +749,7 @@ public class ConceptInsertion {
         return !uniqueOnConcept && uniqueOnConcept != uniqueSourceId;
     }
 
-    public static int insertMappings(Transaction tx, Iterator<ImportMapping> mappings) {
+    public static int insertMappings(Transaction tx, Log log, Iterator<ImportMapping> mappings) {
         Map<String, Node> nodesBySrcId = new HashMap<>();
         InsertionReport insertionReport = new InsertionReport();
 

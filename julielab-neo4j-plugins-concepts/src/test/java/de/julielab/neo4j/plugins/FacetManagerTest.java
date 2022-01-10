@@ -16,6 +16,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
+import org.neo4j.logging.Level;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.logging.log4j.LogConfig;
 import org.neo4j.server.rest.repr.ListRepresentation;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
@@ -30,17 +34,24 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstan
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class FacetManagerTest {
 
 
     private static GraphDatabaseService graphDb;
     private static DatabaseManagementService graphDBMS;
+    private static Log log;
 
     @BeforeClass
     public static void initialize() {
         graphDBMS = TestUtilities.getGraphDBMS();
         graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
+        Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
+                .withFormat(PLAIN)
+                .withCategory(false)
+                .build());
+        log = log4jLogProvider.getLog(ConceptManagerTest.class);
     }
 
     public static ImportFacet getImportFacet() {
@@ -260,7 +271,7 @@ public class FacetManagerTest {
                 Lists.newArrayList(new ImportConcept("prefname", new ConceptCoordinates("TERM3", "TEST_DATA", CoordinateType.SRC))), new ImportFacet(
                 NodeIDPrefixConstants.FACET + "3"));
 
-        ConceptManager ftm = new ConceptManager(graphDBMS);
+        ConceptManager ftm = new ConceptManager(graphDBMS, log);
         ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts0).getBytes(UTF_8)));
         ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts1).getBytes(UTF_8)));
         ftm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts2).getBytes(UTF_8)));
@@ -294,7 +305,7 @@ public class FacetManagerTest {
         String facet = "fid0";
 
         ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(amount);
-        ConceptManager termManager = new ConceptManager(graphDBMS);
+        ConceptManager termManager = new ConceptManager(graphDBMS, log);
         termManager.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         FacetManager facetManager = new FacetManager(graphDBMS);
 

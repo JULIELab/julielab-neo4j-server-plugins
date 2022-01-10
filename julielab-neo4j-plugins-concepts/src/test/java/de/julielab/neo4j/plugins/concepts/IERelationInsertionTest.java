@@ -1,5 +1,6 @@
 package de.julielab.neo4j.plugins.concepts;
 
+import de.julielab.neo4j.plugins.ConceptManagerTest;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.datarepresentation.*;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ImportIERelations;
@@ -11,9 +12,10 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
-import org.neo4j.logging.slf4j.Slf4jLog;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.neo4j.logging.Level;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.logging.log4j.LogConfig;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
@@ -29,17 +31,23 @@ import static de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstan
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class IERelationInsertionTest {
-    private final static Logger log = LoggerFactory.getLogger(IERelationInsertionTest.class);
     private static GraphDatabaseService graphDb;
     private static DatabaseManagementService graphDBMS;
+    private static Log log;
 
     @BeforeClass
     public static void initialize() {
         graphDBMS = TestUtilities.getGraphDBMS();
         graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
         System.setProperty(ConceptLookup.SYSPROP_ID_CACHE_ENABLED, "false");
+        Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
+                .withFormat(PLAIN)
+                .withCategory(false)
+                .build());
+        log = log4jLogProvider.getLog(ConceptManagerTest.class);
     }
 
     @AfterClass
@@ -64,7 +72,7 @@ public class IERelationInsertionTest {
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -94,7 +102,7 @@ public class IERelationInsertionTest {
                         regulationType.name(), ImportIERelation.of(
                                 "pull down", ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -121,7 +129,7 @@ public class IERelationInsertionTest {
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("sourceIds:CONCEPT0", "TEST_DATA"), ImportIERelationArgument.of("sourceIds:CONCEPT1", "TEST_DATA")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -147,7 +155,7 @@ public class IERelationInsertionTest {
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("CONCEPT0"), ImportIERelationArgument.of("CONCEPT1")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -173,7 +181,7 @@ public class IERelationInsertionTest {
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("CONCEPT0"), ImportIERelationArgument.of("id:tid1")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -204,7 +212,7 @@ public class IERelationInsertionTest {
                         regulationType.name(), ImportIERelation.of(
                                 3, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -235,7 +243,7 @@ public class IERelationInsertionTest {
                         regulationType2.name(), ImportIERelation.of(
                                 7, ImportIERelationArgument.of("tid0"), ImportIERelationArgument.of("tid1")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -277,7 +285,7 @@ public class IERelationInsertionTest {
                         phosphorylationType.name(), ImportIERelation.of(
                                 4, ImportIERelationArgument.of("tid1"), ImportIERelationArgument.of("tid0")))));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -319,7 +327,7 @@ public class IERelationInsertionTest {
                 ))
         );
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(importConcepts);
         cm.insertIERelations(relations);
 
@@ -354,7 +362,7 @@ public class IERelationInsertionTest {
 
     @Test
     public void testConcurrentIERelationInsertion() throws InterruptedException {
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         ImportConcepts importConcepts = getTestConcepts(3);
 
         RelationshipType regulationType = RelationshipType.withName("regulation");
@@ -397,12 +405,10 @@ public class IERelationInsertionTest {
 
         @Override
         public void run() {
-            log.debug("START");
-            try  {
-                IERelationInsertion.insertRelations(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(relations).getBytes(UTF_8)), graphDb, new Slf4jLog(log));
+            try {
+                IERelationInsertion.insertRelations(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(relations).getBytes(UTF_8)), graphDb, log);
                 // This is for the threads to get a race condition instead running effectively serially
                 Thread.sleep(500);
-                log.debug("END");
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

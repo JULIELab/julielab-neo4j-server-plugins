@@ -1,7 +1,7 @@
 package de.julielab.neo4j.plugins.auxiliaries;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.neo4j.graphdb.Entity;
 import org.neo4j.graphdb.Node;
 

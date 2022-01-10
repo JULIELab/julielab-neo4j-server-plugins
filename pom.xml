@@ -7,7 +7,7 @@
 		<version>2.4.1</version>
 	</parent>
 	<artifactId>julielab-neo4j-server-plugins</artifactId>
-	<version>3.0.1</version>
+	<version>3.1.0-SNAPSHOT</version>
 	<name>JULIE Lab Neo4j Server Plugins</name>
 	<build>
 		<pluginManagement>
@@ -56,8 +56,8 @@
 		</dependency>
 		<dependency>
 			<groupId>org.neo4j</groupId>
-			<artifactId>neo4j-slf4j</artifactId>
-			<version>${neo4j-release-version}</version>
+			<artifactId>log-test-utils</artifactId>
+			<version>4.4.2</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -101,7 +101,7 @@
 		</dependencies>
 	</dependencyManagement>
 	<properties>
-		<neo4j-release-version>4.0.10</neo4j-release-version>
+		<neo4j-release-version>4.4.2</neo4j-release-version>
 		<jackson-release-version>2.10.0.pr1</jackson-release-version>
 	</properties>
 </project>

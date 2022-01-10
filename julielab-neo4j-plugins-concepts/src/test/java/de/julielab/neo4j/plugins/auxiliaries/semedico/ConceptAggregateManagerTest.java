@@ -2,6 +2,7 @@ package de.julielab.neo4j.plugins.auxiliaries.semedico;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import de.julielab.neo4j.plugins.ConceptManagerTest;
 import de.julielab.neo4j.plugins.FacetManagerTest;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
@@ -12,13 +13,17 @@ import de.julielab.neo4j.plugins.datarepresentation.constants.AggregateConstants
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeIDPrefixConstants;
 import de.julielab.neo4j.plugins.datarepresentation.util.ConceptsJsonSerializer;
 import de.julielab.neo4j.plugins.test.TestUtilities;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.dbms.api.DatabaseManagementService;
 import org.neo4j.graphdb.*;
+import org.neo4j.logging.Level;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.logging.log4j.LogConfig;
 
 import java.io.ByteArrayInputStream;
 import java.util.*;
@@ -29,6 +34,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class ConceptAggregateManagerTest {
     private static GraphDatabaseService graphDb;
@@ -43,6 +49,7 @@ public class ConceptAggregateManagerTest {
      */
     private static BiFunction<String, String, ImportConcept> cs;
     private static DatabaseManagementService graphDBMS;
+    private static Log log;
 
     @BeforeClass
     public static void initialize() {
@@ -50,6 +57,11 @@ public class ConceptAggregateManagerTest {
         graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
         coords = srcId -> new ConceptCoordinates(srcId, "TEST_DATA", CoordinateType.SRC);
         cs = (name, srcId) -> new ImportConcept(name, coords.apply(srcId));
+        Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
+                .withFormat(PLAIN)
+                .withCategory(false)
+                .build());
+        log = log4jLogProvider.getLog(ConceptManagerTest.class);
     }
 
     @AfterClass
@@ -162,7 +174,7 @@ public class ConceptAggregateManagerTest {
 
         List<ImportMapping> mapping = List.of(new ImportMapping("t12", "t21", "EQUAL"));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
 
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts1, importFacet1)).getBytes(UTF_8)));
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts2, importFacet2)).getBytes(UTF_8)));
@@ -252,7 +264,7 @@ public class ConceptAggregateManagerTest {
         List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
                 new ImportMapping("t2", "t3", "OTHER_EQUAL"));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(terms1, importFacet1)).getBytes(UTF_8)));
         cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         Label aggLabel = Label.label("EQUAL_AGG");
@@ -309,7 +321,7 @@ public class ConceptAggregateManagerTest {
         List<ImportMapping> mapping = Lists.newArrayList(new ImportMapping("t1", "t2", "EQUAL"),
                 new ImportMapping("t2", "t3", "OTHER_EQUAL"), new ImportMapping("t4", "t5", "EQUAL"));
 
-        ConceptManager cm = new ConceptManager(graphDBMS);
+        ConceptManager cm = new ConceptManager(graphDBMS, log);
         cm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(new ImportConcepts(concepts, importFacet1)).getBytes(UTF_8)));
         cm.insertMappings(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(mapping).getBytes(UTF_8)));
         // The label by which we will identify all nodes representing an

@@ -21,6 +21,10 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.TraversalDescription;
 import org.neo4j.graphdb.traversal.Traverser;
+import org.neo4j.logging.Level;
+import org.neo4j.logging.Log;
+import org.neo4j.logging.log4j.Log4jLogProvider;
+import org.neo4j.logging.log4j.LogConfig;
 
 import java.io.ByteArrayInputStream;
 import java.util.*;
@@ -30,16 +34,23 @@ import static de.julielab.neo4j.plugins.concepts.ConceptManager.KEY_CONCEPT_TERM
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertTrue;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class TraversalTest {
 
 	private static GraphDatabaseService graphDb;
 	private static DatabaseManagementService graphDBMS;
+	private static Log log;
 
 	@BeforeClass
 	public static void initialize() {
 		graphDBMS = TestUtilities.getGraphDBMS();
 		graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
+		Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
+				.withFormat(PLAIN)
+				.withCategory(false)
+				.build());
+		log = log4jLogProvider.getLog(ConceptManagerTest.class);
 	}
 
 	@Before
@@ -56,7 +67,7 @@ public class TraversalTest {
 	@Test
 	public void testGetAcronymsTraversal() throws Exception {
 		ImportConcepts importConcepts = ConceptManagerTest.getTestConcepts(2);
-		ConceptManager tm = new ConceptManager(graphDBMS);
+		ConceptManager tm = new ConceptManager(graphDBMS, log);
 		tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         Map<String, Integer> acronymCounts = new HashMap<>();
@@ -97,7 +108,7 @@ public class TraversalTest {
 		// this is the same traversal as above, just for writing variants
 		// instead of acronyms
 		ImportConcepts testTerms = ConceptManagerTest.getTestConcepts(2);
-		ConceptManager tm = new ConceptManager(graphDBMS);
+		ConceptManager tm = new ConceptManager(graphDBMS, log);
 		tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(testTerms).getBytes(UTF_8)));
 
 		Map<String, Integer> variantCounts = new HashMap<>();
