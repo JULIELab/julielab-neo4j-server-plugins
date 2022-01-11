@@ -63,6 +63,8 @@ public class FacetManager {
         boolean isNoFacet = jsonFacet.isNoFacet();
 
         ImportFacetGroup jsonFacetGroup = jsonFacet.getFacetGroup();
+        if (jsonFacetGroup == null)
+            throw new RuntimeException("The import facet " + jsonFacet.getName() + " does not specify a facet group.");
 
         Node facetGroupsNode;
         if (isNoFacet)

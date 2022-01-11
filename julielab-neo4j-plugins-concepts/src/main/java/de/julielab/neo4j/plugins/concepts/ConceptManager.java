@@ -39,6 +39,7 @@ public class ConceptManager {
     public static final String GET_FACET_ROOTS = "get_facet_roots";
     public static final String ADD_CONCEPT_TERM = "add_concept_term";
     public static final String INSERT_IE_RELATIONS = "insert_ie_relations";
+    public static final String RETRIEVE_IE_RELATIONS = "retrieve_ie_relations";
     public static final String KEY_FACET = "facet";
     public static final String KEY_FACET_ID = "facetId";
     public static final String KEY_FACET_IDS = "facetIds";
@@ -428,6 +429,14 @@ public class ConceptManager {
             log.error("Error in IE relation insertion.", t);
             return getErrorResponse(t);
         }
+    }
+
+    @POST
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Path(RETRIEVE_IE_RELATIONS)
+    public Response retrieveIERelations(@Context UriInfo uriInfo) {
+        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
+        return Response.ok().build();
     }
 
     /**

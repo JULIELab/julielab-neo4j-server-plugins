@@ -9,6 +9,10 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	private final Map<String, ConceptCoordinates> coordsBySourceId = new HashMap<>();
 
 	public boolean add(ConceptCoordinates coordinates) {
+		if (coordinates.originalId != null && coordinates.originalSource == null)
+			throw new IllegalArgumentException("ConceptCoordinates \""+coordinates+"\" specify an originalId but no originalSource.");
+		if (coordinates.sourceId != null && coordinates.source == null)
+			throw new IllegalArgumentException("ConceptCoordinates \""+coordinates+"\" specify a sourceId but no source.");
 		ConceptCoordinates c = coordinates.clone();
 		ConceptCoordinates c2 = get(c);
 

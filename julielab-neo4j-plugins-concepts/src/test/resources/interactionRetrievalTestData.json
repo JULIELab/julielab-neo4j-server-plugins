@@ -1,0 +1,116 @@
+{
+  "facet": {
+    "name": "defaultfacet",
+    "facetGroup": "defaultfacetgroup"
+  },
+  "concepts": [
+    {
+      "preferredName": "MTOR",
+      "coordinates": {
+        "originalId": "2475",
+        "sourceId": "genegroup2475",
+        "originalSource": "GeneOrthology",
+        "source": "GeneOrthology"
+      },
+      "aggregate": true,
+      "elementCoordinates": [
+        {
+          "originalId": "2475",
+          "originalSource": "NCBI Gene",
+          "sourceId": "2475",
+          "source": "NCBI Gene"
+        },
+        {
+          "originalId": "100136723",
+          "originalSource": "NCBI Gene",
+          "sourceId": "100136723",
+          "source": "NCBI Gene"
+        },
+        {
+          "originalId": "102220301",
+          "originalSource": "NCBI Gene",
+          "sourceId": "102220301",
+          "source": "NCBI Gene"
+        }
+      ]
+    },
+    {
+      "preferredName": "MTOR",
+      "coordinates": {
+        "originalId": "2475",
+        "sourceId": "2475",
+        "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "MTOR",
+      "coordinates": {
+        "originalId": "100136723",
+        "sourceId": "100136723",
+        "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "MTOR",
+      "coordinates": {
+        "originalId": "102220301",
+        "sourceId": "102220301",
+        "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "SCYL3",
+      "coordinates": {
+        "originalId": "57147",
+        "sourceId": "genegroup57147",
+        "originalSource": "GeneOrthology",
+        "source": "GeneOrthology"
+      },
+      "aggregate": true,
+      "elementCoordinates": [
+        {
+          "originalId": "57147",
+          "originalSource": "NCBI Gene",
+          "sourceId": "57147",
+          "source": "NCBI Gene"
+        },
+        {
+          "originalId": "105927877",
+          "originalSource": "NCBI Gene",
+          "sourceId": "105927877",
+          "source": "NCBI Gene"
+        }
+      ]
+    },
+    {
+      "preferredName": "SCYL3",
+      "coordinates": {
+        "originalId": "57147",
+        "sourceId": "57147",
+        "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "MTOR",
+      "coordinates": {
+        "originalId": "105927877",
+        "sourceId": "105927877",
+        "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "LOC117183042",
+      "coordinates": {
+        "originalId": "117183042",
+        "sourceId": "117183042",
+        "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    }
+  ]
+}

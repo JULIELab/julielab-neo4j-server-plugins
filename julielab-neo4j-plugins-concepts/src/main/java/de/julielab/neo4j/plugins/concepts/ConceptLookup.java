@@ -111,6 +111,8 @@ public class ConceptLookup {
      * @return The requested concept node or <tt>null</tt> if no such node is found.
      */
     public static Node lookupConceptBySourceId(Transaction tx, String srcId, String source, boolean uniqueSourceId) {
+        if (srcId == null)
+            throw new IllegalArgumentException("An aggregate element source ID is null.");
         log.trace("Trying to look up existing concept by source ID and source ({}, {})", srcId, source);
         List<Node> foundNodes = new ArrayList<>();
         int maxNumSourceIds = SequenceManager.getCurrentSequenceValue(tx, NAME_SOURCE_IDS_SEQUENCE);

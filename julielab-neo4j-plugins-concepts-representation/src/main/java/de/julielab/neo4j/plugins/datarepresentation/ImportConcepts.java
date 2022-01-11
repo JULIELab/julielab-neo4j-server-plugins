@@ -3,6 +3,7 @@ package de.julielab.neo4j.plugins.datarepresentation;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonSetter;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -74,6 +75,7 @@ public class ImportConcepts {
         return concepts;
     }
 
+    @JsonSetter
     public void setConcepts(List<ImportConcept> concepts) {
         this.concepts = concepts.stream();
     }
