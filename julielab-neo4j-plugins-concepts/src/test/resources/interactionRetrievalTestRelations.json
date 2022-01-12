@@ -1,0 +1,55 @@
+{
+  "id_property": "originalId",
+  "id_source": "NCBI Gene",
+  "documents": [
+    {
+      "name": "doc1",
+      "db": false,
+      "relations": {
+        "regulation": [
+          {
+            "count": 2,
+            "args": [
+              [
+                "2475"
+              ],
+              [
+                "57147"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "doc2",
+      "db": false,
+      "relations": {
+        "regulation": [
+          {
+            "count": 1,
+            "args": [
+              [
+                "117183042"
+              ],
+              [
+                "105927877"
+              ]
+            ]
+          },
+          {
+            "count": 1,
+            "args": [
+              [
+                "117183042"
+              ],
+              [
+                "100136723"
+              ]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

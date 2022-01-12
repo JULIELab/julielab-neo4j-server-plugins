@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import de.julielab.neo4j.plugins.Indexes;
 import de.julielab.neo4j.plugins.datarepresentation.ImportConcepts;
 import de.julielab.neo4j.plugins.datarepresentation.ImportMapping;
+import de.julielab.neo4j.plugins.datarepresentation.RelationRetrievalRequest;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ImportIERelations;
 import de.julielab.neo4j.plugins.datarepresentation.constants.NodeConstants;
@@ -78,10 +79,8 @@ public class ConceptManager {
 
     public static final String UPDATE_CHILD_INFORMATION = "update_children_information";
     public static final String UNKNOWN_CONCEPT_SOURCE = "<unknown>";
-    private Log log;
-
-
     private final DatabaseManagementService dbms;
+    private Log log;
 
     public ConceptManager(@Context DatabaseManagementService dbms, Log log) {
         this.dbms = dbms;
@@ -434,9 +433,18 @@ public class ConceptManager {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     @Path(RETRIEVE_IE_RELATIONS)
-    public Response retrieveIERelations(@Context UriInfo uriInfo) {
-        MultivaluedMap<String, String> queryParameters = uriInfo.getQueryParameters();
-        return Response.ok().build();
+    public Response retrieveIERelations(InputStream is, @Context Log log) {
+        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        ObjectMapper om = new ObjectMapper();
+        try {
+            RelationRetrievalRequest relationRetrievalRequest = om.readValue(is, RelationRetrievalRequest.class);
+            List<String> retrievedRelations = IERelationRetrieval.retrieve(relationRetrievalRequest, graphDb, log);
+            return Response.ok(retrievedRelations, MediaType.APPLICATION_JSON).build();
+        } catch (Throwable t) {
+            System.err.println(t);
+            log.error("Error in IE relation retrieval.", t);
+            return getErrorResponse(t);
+        }
     }
 
     /**
