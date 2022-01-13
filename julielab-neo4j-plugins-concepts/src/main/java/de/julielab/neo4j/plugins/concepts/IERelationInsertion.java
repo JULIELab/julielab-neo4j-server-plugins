@@ -36,7 +36,7 @@ public class IERelationInsertion {
             String idProperty = null;
             String idSource = null;
             String lastName = null;
-            // We need to stop as soon as we we found the concepts which must be the last property of ImportConcepts
+            // We need to stop as soon as we found the concepts which must be the last property of ImportConcepts
             // object. Then, we use the iterator to continue.
             while (parser.nextToken() != null && documents == null) {
                 JsonToken currentToken = parser.currentToken();

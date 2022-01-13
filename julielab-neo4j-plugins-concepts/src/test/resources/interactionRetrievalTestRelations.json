@@ -25,7 +25,7 @@
       "name": "doc2",
       "db": false,
       "relations": {
-        "regulation": [
+        "phosphorylation": [
           {
             "count": 1,
             "args": [
@@ -36,7 +36,9 @@
                 "105927877"
               ]
             ]
-          },
+          }
+        ],
+        "binding": [
           {
             "count": 1,
             "args": [
@@ -45,6 +47,25 @@
               ],
               [
                 "100136723"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "doc3",
+      "db": false,
+      "relations": {
+        "phosphorylation": [
+          {
+            "count": 3,
+            "args": [
+              [
+                "102229680"
+              ],
+              [
+                "102220301"
               ]
             ]
           }

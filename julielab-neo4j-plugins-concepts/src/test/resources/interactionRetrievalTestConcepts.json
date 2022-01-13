@@ -13,6 +13,7 @@
         "source": "GeneOrthology"
       },
       "aggregate": true,
+      "labels": ["AGGREGATE_GENEGROUP"],
       "elementCoordinates": [
         {
           "originalId": "2475",
@@ -70,6 +71,7 @@
         "source": "GeneOrthology"
       },
       "aggregate": true,
+      "labels": ["AGGREGATE_GENEGROUP"],
       "elementCoordinates": [
         {
           "originalId": "57147",
@@ -109,6 +111,100 @@
         "originalId": "117183042",
         "sourceId": "117183042",
         "originalSource": "NCBI Gene",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "LRRC51",
+      "coordinates": {
+        "sourceId": "toporthology1",
+        "source": "Automatic Computation"
+      },
+      "aggregate": true,
+      "labels": ["AGGREGATE_TOP_ORTHOLOGY"],
+      "elementCoordinates": [
+        {
+          "originalId": "69358",
+          "originalSource": "GeneOrthology",
+          "sourceId": "genegroup69358",
+          "source": "GeneOrthology"
+        },
+        {
+          "originalId": "767801",
+          "originalSource": "GeneOrthology",
+          "sourceId": "genegroup767801",
+          "source": "GeneOrthology"
+        }
+      ]
+    },
+    {
+      "preferredName": "LRRC51",
+      "coordinates": {
+        "originalId": "69358",
+        "originalSource": "GeneOrthology",
+        "sourceId": "genegroup69358",
+        "source": "GeneOrthology"
+      },
+      "aggregate": true,
+      "labels": ["AGGREGATE_GENEGROUP"],
+      "elementCoordinates": [
+        {
+          "originalId": "120356739",
+          "originalSource": "NCBI Gene",
+          "sourceId": "120356739",
+          "source": "NCBI Gene"
+        },
+        {
+          "originalId": "101702382",
+          "originalSource": "NCBI Gene",
+          "sourceId": "101702382",
+          "source": "NCBI Gene"
+        }
+      ]
+    },
+    {
+      "preferredName": "LRRC51",
+      "coordinates": {
+        "originalId": "120356739",
+        "originalSource": "NCBI Gene",
+        "sourceId": "120356739",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "LRRC51",
+      "coordinates": {
+        "originalId": "101702382",
+        "originalSource": "NCBI Gene",
+        "sourceId": "101702382",
+        "source": "NCBI Gene"
+      }
+    },
+    {
+      "preferredName": "LRRC51",
+      "coordinates": {
+        "originalId": "767801",
+        "originalSource": "GeneOrthology",
+        "sourceId": "genegroup767801",
+        "source": "GeneOrthology"
+      },
+      "aggregate": true,
+      "labels": ["AGGREGATE_GENEGROUP"],
+      "elementCoordinates": [
+        {
+          "originalId": "102229680",
+          "originalSource": "NCBI Gene",
+          "sourceId": "102229680",
+          "source": "NCBI Gene"
+        }
+      ]
+    },
+    {
+      "preferredName": "LRRC51",
+      "coordinates": {
+        "originalId": "102229680",
+        "originalSource": "NCBI Gene",
+        "sourceId": "102229680",
         "source": "NCBI Gene"
       }
     }

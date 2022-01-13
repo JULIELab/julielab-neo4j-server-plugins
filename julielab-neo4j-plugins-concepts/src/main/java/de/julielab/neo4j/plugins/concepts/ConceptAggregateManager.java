@@ -667,6 +667,35 @@ public class ConceptAggregateManager {
         return alreadySeen.size();
     }
 
+    /**
+     * <p>
+     * Retrieves all nodes that are connected to <tt>aggregate</tt> directly or indirectly through
+     * {@link ConceptEdgeTypes#HAS_ELEMENT} edges. Thus, the "leaves" are collected.
+     * </p>
+     * <p>
+     *     Note that <tt>aggregate</tt> might already be a leaf in the above sense. In this case, the input node is returned itself.
+     * </p>
+     * @param aggregate The start node to resolve non-aggregate elements for. May be a non-aggregate itself.
+     * @return All element nodes (i.e. nodes that are connected to an aggregate node via {@link ConceptEdgeTypes#HAS_ELEMENT} and are not aggregates themselves) reachable from <tt>aggregate</tt>.
+     */
+    public static List<Node> getNonAggregateElements(Node aggregate) {
+        List<Node> elements = new ArrayList<>();
+        getNonAggregateElements(aggregate, elements);
+        return elements;
+    }
+
+    public static void getNonAggregateElements(Node aggregate, List<Node> elements) {
+        Iterable<Relationship> hasElements = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
+        for (Relationship hasElement : hasElements) {
+            Node endNode = hasElement.getEndNode();
+            if (endNode.hasLabel(AGGREGATE))
+                getNonAggregateElements(endNode, elements);
+            else
+                elements.add(endNode);
+        }
+    }
+
+
     public static class CopyAggregatePropertiesStatistics {
         public int numProperties = 0;
         public int numElements = 0;

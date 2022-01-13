@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -192,5 +193,33 @@ public class ConceptLookup {
         if (concepts.size() > 1)
             throw new IllegalStateException("Found multiple (" + concepts.size() + ") concepts with source ID '" + srcId + "'.");
         return concepts.isEmpty() ? null : concepts.get(0);
+    }
+
+
+    public static boolean isCorrectNode(Node n, String idProperty, String id, String idSource) {
+        return isCorrectNode(n, idProperty, Set.of(id), idSource);
+    }
+
+    public static boolean isCorrectNode(Node n, String idProperty, Set<String> ids, String idSource) {
+        if (idProperty.equals(PROP_ORG_ID)) {
+            String originalId = (String) n.getProperty(PROP_ORG_ID);
+            String originalSource = (String) n.getProperty(PROP_ORG_SRC);
+            return ids.contains(originalId) && originalSource.equals(idSource);
+        } else if (idProperty.equals(PROP_SRC_IDS)) {
+            int i = 0;
+            String sourceId = (String) n.getProperty(PROP_SRC_IDS + i);
+            String[] sources = (String[]) n.getProperty(PROP_SOURCES);
+            do {
+                if (ids.contains(sourceId) && sources[i].equals(idSource))
+                    return true;
+                ++i;
+                sourceId = (String) n.getProperty(PROP_SRC_IDS + i);
+            } while (sourceId != null);
+        } else if (idProperty.equals(PROP_ID)) {
+            String nodeId = (String) n.getProperty(PROP_ID);
+            return ids.contains(nodeId);
+        } else
+            throw new IllegalArgumentException("Unknown ID property \"" + idProperty + "\".");
+        return false;
     }
 }

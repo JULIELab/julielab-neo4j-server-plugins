@@ -2,6 +2,8 @@ package de.julielab.neo4j.plugins.datarepresentation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.List;
+
 public class RelationRetrievalRequest {
     public static final String A_LIST = "a_list";
     public static final String B_LIST = "b_list";
@@ -9,6 +11,16 @@ public class RelationRetrievalRequest {
     private RelationIdList alist;
     @JsonProperty(B_LIST)
     private RelationIdList blist;
+
+    public List<String> getRelationTypes() {
+        return relationTypes;
+    }
+
+    public void setRelationTypes(List<String> relationTypes) {
+        this.relationTypes = relationTypes;
+    }
+
+    private List<String> relationTypes;
 
     public RelationRetrievalRequest() {
     }

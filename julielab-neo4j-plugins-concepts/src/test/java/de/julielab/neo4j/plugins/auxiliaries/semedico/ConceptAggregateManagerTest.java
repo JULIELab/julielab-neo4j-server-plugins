@@ -387,4 +387,40 @@ public class ConceptAggregateManagerTest {
             assertEquals(3, aggregatedTermsCount);
         }
     }
+
+    @Test
+    public void testGetNonAggregateElements() {
+        // First, we create a tree of element nodes with three inner nodes (=aggregates) and three leaves (=elements).
+        try (Transaction tx = graphDb.beginTx()) {
+            Node topAggregate = tx.createNode(ConceptLabel.AGGREGATE);
+            Node childAggregate1 = tx.createNode(ConceptLabel.AGGREGATE);
+            Node childAggregate2 = tx.createNode(ConceptLabel.AGGREGATE);
+            Node concept11 = tx.createNode(ConceptLabel.CONCEPT);
+            Node concept12 = tx.createNode(ConceptLabel.CONCEPT);
+            Node concept21 = tx.createNode(ConceptLabel.CONCEPT);
+
+            topAggregate.createRelationshipTo(childAggregate1, ConceptEdgeTypes.HAS_ELEMENT);
+            topAggregate.createRelationshipTo(childAggregate2, ConceptEdgeTypes.HAS_ELEMENT);
+
+            childAggregate1.createRelationshipTo(concept11, ConceptEdgeTypes.HAS_ELEMENT);
+            childAggregate1.createRelationshipTo(concept12, ConceptEdgeTypes.HAS_ELEMENT);
+
+            childAggregate2.createRelationshipTo(concept21, ConceptEdgeTypes.HAS_ELEMENT);
+
+            // From the top aggregate we should retrieve all three leaves
+            List<Node> nonAggregateElements = ConceptAggregateManager.getNonAggregateElements(topAggregate);
+            assertTrue(nonAggregateElements.contains(concept11));
+            assertTrue(nonAggregateElements.contains(concept12));
+            assertTrue(nonAggregateElements.contains(concept21));
+
+            // Child aggregate 1 has two children
+            nonAggregateElements = ConceptAggregateManager.getNonAggregateElements(childAggregate1);
+            assertTrue(nonAggregateElements.contains(concept11));
+            assertTrue(nonAggregateElements.contains(concept12));
+
+            // and child aggregate 2 has one child
+            nonAggregateElements = ConceptAggregateManager.getNonAggregateElements(childAggregate2);
+            assertTrue(nonAggregateElements.contains(concept21));
+        }
+    }
 }
