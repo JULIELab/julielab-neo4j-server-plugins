@@ -581,8 +581,13 @@ public class ConceptAggregateManager {
         return elements;
     }
 
-    public static void getNonAggregateElements(Node aggregate, List<Node> elements) {
-        Iterable<Relationship> hasElements = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
+    public static void getNonAggregateElements(Node node, List<Node> elements) {
+        if (!node.hasLabel(AGGREGATE)) {
+            elements.add(node);
+            // This node is not an aggregate, there are no further elements below.
+            return;
+        }
+        Iterable<Relationship> hasElements = node.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
         for (Relationship hasElement : hasElements) {
             Node endNode = hasElement.getEndNode();
             if (endNode.hasLabel(AGGREGATE))

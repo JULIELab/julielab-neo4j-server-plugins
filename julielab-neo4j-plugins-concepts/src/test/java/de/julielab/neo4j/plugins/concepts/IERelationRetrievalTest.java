@@ -160,4 +160,20 @@ public class IERelationRetrievalTest {
         // Query: a: MTOR, b: LRRC51
         assertThat(result).contains(epxectedResults);
     }
+
+    @Test
+    public void absearch() throws JsonProcessingException {
+        // Two-sided retrievel scenario.
+        // Retrieve the relations between LRRC51/SCYL3 on the one side and LOC117183042 on the other.
+        // The result is small since LRR51 does not have any relations to LOC117183042.
+        ObjectMapper om = new ObjectMapper();
+        String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"120356739\",\"105927877\"]},\"b_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"117183042\"]},\"relationTypes\":[\"phosphorylation\"]}", RelationRetrievalRequest.class));
+        assertThat(response.status()).isEqualTo(200);
+        List<Map<String, Object>> result = response.content();
+        assertThat(result).hasSize(1);
+        Map[] epxectedResults = {
+                Map.of("arg1Name", "SCYL3", "arg2Name", "LOC117183042", "arg1Id", "genegroup57147", "arg2Id", "LOC117183042", "count", 1)};
+        assertThat(result).contains(epxectedResults);
+    }
 }
