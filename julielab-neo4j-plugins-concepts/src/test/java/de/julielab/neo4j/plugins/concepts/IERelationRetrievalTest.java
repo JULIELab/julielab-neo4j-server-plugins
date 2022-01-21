@@ -45,7 +45,7 @@ public class IERelationRetrievalTest {
         // Retrieve the regulation events of a single gene, MTOR.
         ObjectMapper om = new ObjectMapper();
         String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
-        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"id_source\":\"NCBI Gene\",\"ids\":[\"2475\"]},\"relationTypes\":[\"regulation\"]}", RelationRetrievalRequest.class));
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"2475\"]},\"relationTypes\":[\"regulation\"]}", RelationRetrievalRequest.class));
         assertThat(response.status()).isEqualTo(200);
         List<Map<String, Object>> result = response.content();
         assertThat(result.get(0)).containsAllEntriesOf(Map.of("arg1Name", "MTOR", "arg2Name", "SCYL3", "arg1Id", "genegroup2475", "arg2Id", "genegroup57147", "count", 2));
@@ -57,7 +57,7 @@ public class IERelationRetrievalTest {
         // and binding with LOC117183042
         ObjectMapper om = new ObjectMapper();
         String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
-        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"id_source\":\"NCBI Gene\",\"ids\":[\"2475\"]},\"relationTypes\":[\"regulation\",\"phosphorylation\",\"binding\"]}", RelationRetrievalRequest.class));
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"2475\"]},\"relationTypes\":[\"regulation\",\"phosphorylation\",\"binding\"]}", RelationRetrievalRequest.class));
         assertThat(response.status()).isEqualTo(200);
         List<Map<String, Object>> result = response.content();
         assertThat(result).hasSize(3);
@@ -66,7 +66,7 @@ public class IERelationRetrievalTest {
         // MTOR <- LRRC51: 3x phosphorylation
         Map[] epxectedResults = {Map.of("arg1Name", "MTOR", "arg2Name", "SCYL3", "arg1Id", "genegroup2475", "arg2Id", "genegroup57147", "count", 3),
                 Map.of("arg1Name", "MTOR", "arg2Name", "LOC117183042", "arg1Id", "genegroup2475", "arg2Id", "117183042", "count", 1),
-                Map.of("arg1Name", "MTOR", "arg2Name", "LRRC51", "arg1Id", "genegroup2475", "arg2Id", "toporthology1", "count", 3)};
+                Map.of("arg1Name", "MTOR", "arg2Name", "LRRC51", "arg1Id", "genegroup2475", "arg2Id", "toporthology1", "count", 4)};
         assertThat(result).contains(epxectedResults);
 
         // Do the same thing but directly start at the homology aggregate. The result should be the same.
@@ -85,10 +85,9 @@ public class IERelationRetrievalTest {
         // this just results in the whole graph.
         ObjectMapper om = new ObjectMapper();
         String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
-        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"id_source\":\"NCBI Gene\",\"ids\":[\"2475\",\"120356739\",\"57147\"]},\"relationTypes\":[\"regulation\",\"phosphorylation\",\"binding\"],\"enable_inter_input_relation_retrieval\":true}", RelationRetrievalRequest.class));
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"2475\",\"120356739\",\"57147\"]},\"relationTypes\":[\"regulation\",\"phosphorylation\",\"binding\"],\"enable_inter_input_relation_retrieval\":true}", RelationRetrievalRequest.class));
         assertThat(response.status()).isEqualTo(200);
         List<Map<String, Object>> result = response.content();
-        System.out.println(result);
         assertThat(result).hasSize(6);
         // Query: MTOR, LRRC51, SCYL3
         // Result: All relations (of the given relation types which is also all of them in the test data) where
@@ -96,8 +95,8 @@ public class IERelationRetrievalTest {
         // The result is, in this test case, all relations in the test database.
         Map[] epxectedResults = {Map.of("arg1Name", "MTOR", "arg2Name", "SCYL3", "arg1Id", "genegroup2475", "arg2Id", "genegroup57147", "count", 3),
                 Map.of("arg1Name", "MTOR", "arg2Name", "LOC117183042", "arg1Id", "genegroup2475", "arg2Id", "117183042", "count", 1),
-                Map.of("arg1Name", "MTOR", "arg2Name", "LRRC51", "arg1Id", "genegroup2475", "arg2Id", "toporthology1", "count", 3),
-        Map.of("arg1Name", "LRRC51", "arg2Name","MTOR", "arg1Id","toporthology1", "arg2Id","genegroup2475", "count",3),
+                Map.of("arg1Name", "MTOR", "arg2Name", "LRRC51", "arg1Id", "genegroup2475", "arg2Id", "toporthology1", "count", 4),
+        Map.of("arg1Name", "LRRC51", "arg2Name","MTOR", "arg1Id","toporthology1", "arg2Id","genegroup2475", "count",4),
         Map.of("arg1Name","SCYL3", "arg2Name","LOC117183042", "arg1Id","genegroup57147", "arg2Id","117183042", "count",1),
         Map.of("arg1Name","SCYL3", "arg2Name","MTOR", "arg1Id","genegroup57147", "arg2Id","genegroup2475", "count",3)};
         assertThat(result).contains(epxectedResults);
@@ -110,16 +109,55 @@ public class IERelationRetrievalTest {
         // the query nodes are excluded.
         ObjectMapper om = new ObjectMapper();
         String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
-        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"id_source\":\"NCBI Gene\",\"ids\":[\"2475\",\"120356739\",\"57147\"]},\"relationTypes\":[\"regulation\",\"phosphorylation\",\"binding\"]}", RelationRetrievalRequest.class));
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"2475\",\"120356739\",\"57147\"]},\"relationTypes\":[\"regulation\",\"phosphorylation\",\"binding\"]}", RelationRetrievalRequest.class));
         assertThat(response.status()).isEqualTo(200);
         List<Map<String, Object>> result = response.content();
-        System.out.println(result);
         assertThat(result).hasSize(2);
         // Query: MTOR, LRRC51, SCYL3
         // Result: The relations with LOC117183042 since all other relations are incident to two input nodes.
         Map[] epxectedResults = {
                 Map.of("arg1Name", "MTOR", "arg2Name", "LOC117183042", "arg1Id", "genegroup2475", "arg2Id", "117183042", "count", 1),
                 Map.of("arg1Name", "SCYL3", "arg2Name", "LOC117183042", "arg1Id", "genegroup57147", "arg2Id", "117183042", "count", 1)};
+        assertThat(result).contains(epxectedResults);
+    }
+
+    @Test
+    public void retrieveRelationsBetweenTwoNodes() throws JsonProcessingException {
+        // Two-sided retrievel scenario.
+        // Retrieve the relations between MTOR and SCYL3.
+        ObjectMapper om = new ObjectMapper();
+        String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"2475\"]},\"b_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"57147\"]},\"relationTypes\":[\"regulation\"]}", RelationRetrievalRequest.class));
+        assertThat(response.status()).isEqualTo(200);
+        List<Map<String, Object>> result = response.content();
+        assertThat(result).hasSize(1);
+        // Query: a: MTOR, b: LRRC51
+        Map[] epxectedResults = {
+                Map.of("arg1Name", "MTOR", "arg2Name", "SCYL3", "arg1Id", "genegroup2475", "arg2Id", "genegroup57147", "count", 2)};
+        assertThat(result).contains(epxectedResults);
+    }
+
+    @Test
+    public void retrieveRelationsBetweenTwoNodes2() throws JsonProcessingException {
+        // Two-sided retrievel scenario.
+        // Retrieve the relations between MTOR and LRRC51.
+        ObjectMapper om = new ObjectMapper();
+        String uriRelationRetrieval = neo4j.httpURI().resolve("concepts/concept_manager/" + ConceptManager.RETRIEVE_IE_RELATIONS).toString();
+        HTTP.Response response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"2475\"]},\"b_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"120356739\"]},\"relationTypes\":[\"phosphorylation\"]}", RelationRetrievalRequest.class));
+        assertThat(response.status()).isEqualTo(200);
+        List<Map<String, Object>> result = response.content();
+        assertThat(result).hasSize(1);
+        // Query: a: MTOR, b: LRRC51
+        Map[] epxectedResults = {
+                Map.of("arg1Name", "MTOR", "arg2Name", "LRRC51", "arg1Id", "genegroup2475", "arg2Id", "toporthology1", "count", 4)};
+        assertThat(result).contains(epxectedResults);
+
+        // The same but give directly the aggregate IDs
+        response = HTTP.POST(uriRelationRetrieval, om.readValue("{\"a_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"genegroup2475\"]},\"b_list\":{\"id_property\":\"sourceIds\",\"ids\":[\"toporthology1\"]},\"relationTypes\":[\"phosphorylation\"]}", RelationRetrievalRequest.class));
+        assertThat(response.status()).isEqualTo(200);
+         result = response.content();
+        assertThat(result).hasSize(1);
+        // Query: a: MTOR, b: LRRC51
         assertThat(result).contains(epxectedResults);
     }
 }

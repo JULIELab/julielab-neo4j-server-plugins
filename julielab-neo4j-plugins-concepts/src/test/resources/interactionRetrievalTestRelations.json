@@ -84,6 +84,25 @@
           }
         ]
       }
+    },
+    {
+      "name": "doc4",
+      "db": false,
+      "relations": {
+        "phosphorylation": [
+          {
+            "count": 1,
+            "args": [
+              [
+                "120356739"
+              ],
+              [
+                "100136723"
+              ]
+            ]
+          }
+        ]
+      }
     }
   ]
 }

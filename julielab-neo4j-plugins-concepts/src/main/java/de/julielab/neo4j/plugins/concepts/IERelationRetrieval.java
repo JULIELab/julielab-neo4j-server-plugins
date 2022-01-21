@@ -20,7 +20,6 @@ public class IERelationRetrieval {
 
     public static List<Map<String, Object>> retrieve(RelationRetrievalRequest retrievalRequest, GraphDatabaseService dbms, Log log) {
         try (Transaction tx = dbms.beginTx()) {
-            RelationIdList aListRequest = retrievalRequest.getAlist();
             RelationshipType[] relationTypes = retrievalRequest.getRelationTypes().stream().map(RelationshipType::withName).toArray(RelationshipType[]::new);
             if (retrievalRequest.getBlist() == null || retrievalRequest.getBlist().getIds().isEmpty())
                 return serveOneSidedRequest(tx, retrievalRequest.getAlist(), relationTypes, retrievalRequest.isInterInputRelationRetrievalEnabled());
@@ -33,10 +32,11 @@ public class IERelationRetrieval {
         boolean aIsLarger = aList.getIds().size() > bList.getIds().size();
         // We iterate over the smaller set of IDs and search their relationships for connections to nodes from the larger set.
         List<Node> smallerList = getNodes(tx, aIsLarger ? bList : aList);
-        Set<String> largeListIds = new HashSet<>(aIsLarger ? aList.getIds() : bList.getIds());
-        String largerListIdProperty = aIsLarger ? aList.getIdProperty() : bList.getIdProperty();
-        String largerListIdSource = aIsLarger ? aList.getIdSource() : bList.getIdSource();
+        String smallerListIdProperty = getIdEffectiveIdProperty(aIsLarger ? bList : aList);
+        String largerListIdProperty = getIdEffectiveIdProperty(aIsLarger ? aList : bList);
+        Set<Node> largerAggs = getNodes(tx, aIsLarger ? aList : bList).stream().map(IERelationRetrieval::findHighestOrthologyAggregate).collect(Collectors.toSet());
         List<Map<String, Object>> results = new ArrayList<>();
+        Map<Pair<String, String>, Map<String, Object>> accumulator = new HashMap<>();
         for (Node a : smallerList) {
             Node orthologyAggregate = findHighestOrthologyAggregate(a);
             List<Node> elementNodes = ConceptAggregateManager.getNonAggregateElements(orthologyAggregate);
@@ -44,24 +44,32 @@ public class IERelationRetrieval {
                 Iterable<Relationship> relationships = element.getRelationships(relationTypes);
                 for (Relationship r : relationships) {
                     Node otherNode = r.getOtherNode(element);
-                    // Check if this node is identified in the large ID list; then it is a sought relation partner
-                    // and this is a relation of interest.
-                    if (!ConceptLookup.isCorrectNode(otherNode, largerListIdProperty, largeListIds, largerListIdSource))
-                        continue;
-                    String arg1Name = (String) element.getProperty(ConceptConstants.PROP_PREF_NAME);
-                    String arg1Id = (String) element.getProperty(ConceptConstants.PROP_ORG_ID);
 
-                    String arg2Name = (String) otherNode.getProperty(ConceptConstants.PROP_PREF_NAME);
-                    String arg2Id = (String) otherNode.getProperty(ConceptConstants.PROP_ORG_ID);
+                    Node otherOrthologyAggregate = findHighestOrthologyAggregate(otherNode);
+                    // If the aggregate of the otherNode is not in the map, it is also not in the target list.
+                    if (!largerAggs.contains(otherOrthologyAggregate))
+                        continue;
+                    String smallListNodeName = (String) orthologyAggregate.getProperty(ConceptConstants.PROP_PREF_NAME);
+                    String smallListNodeId = (String) orthologyAggregate.getProperty(smallerListIdProperty);
+
+                    String largeListNodeName = (String) otherOrthologyAggregate.getProperty(ConceptConstants.PROP_PREF_NAME);
+                    String largeListNodeId = (String) otherOrthologyAggregate.getProperty(largerListIdProperty);
+
+                    String arg1Name = aIsLarger ? largeListNodeName : smallListNodeName;
+                    String arg1Id = aIsLarger ? largeListNodeId : smallListNodeId;
+                    String arg2Name = aIsLarger ? smallListNodeName : largeListNodeName;
+                    String arg2Id = aIsLarger ? smallListNodeId : largeListNodeId;
 
                     int count = (int) r.getProperty(SemanticRelationConstants.PROP_TOTAL_COUNT);
 
-                    Map<String, Object> resultLine = aIsLarger ? makeResultLine(arg2Name, arg2Id, arg1Name, arg1Id, count) : makeResultLine(arg1Name, arg1Id, arg2Name, arg2Id, count);
-                    results.add(resultLine);
+                    accumulator.merge(new ImmutablePair<>(arg1Id, arg2Id), makeResultLine(arg1Name, arg1Id, arg2Name, arg2Id, count), (m1, m2) -> {
+                        m1.put("count", (int) m1.get("count") + (int) m2.get("count"));
+                        return m1;
+                    });
                 }
             }
         }
-        return results;
+        return accumulator.values().stream().collect(Collectors.toList());
     }
 
     private static List<Map<String, Object>> serveOneSidedRequest(Transaction tx, RelationIdList aList, RelationshipType[] relationTypes, boolean interInputRelationRetrievalEnabled) {
@@ -74,7 +82,7 @@ public class IERelationRetrieval {
         Map<Pair<String, String>, Map<String, Object>> accumulator = new HashMap<>();
         String effectiveIdProperty = getIdEffectiveIdProperty(aList);
         for (Node a : aNodes) {
-            Node orthologyAggregate = findHighestOrthologyAggregate(a);
+            Node orthologyAggregate = el2agg.get(a);
             List<Node> elementNodes = ConceptAggregateManager.getNonAggregateElements(orthologyAggregate);
             for (Node element : elementNodes) {
                 Iterable<Relationship> relationships = element.getRelationships(relationTypes);
