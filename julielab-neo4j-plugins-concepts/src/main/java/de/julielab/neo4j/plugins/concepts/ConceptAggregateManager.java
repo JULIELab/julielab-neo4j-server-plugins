@@ -97,6 +97,7 @@ public class ConceptAggregateManager {
         try {
             ConceptCoordinates aggCoordinates = jsonConcept.coordinates != null ? jsonConcept.coordinates
                     : new ConceptCoordinates();
+            String aggPrefName = jsonConcept.prefName;
             String aggOrgId = aggCoordinates.originalId;
             String aggOrgSource = aggCoordinates.originalSource;
             String aggSrcId = aggCoordinates.sourceId;
@@ -127,8 +128,8 @@ public class ConceptAggregateManager {
                     elementSource = UNKNOWN_CONCEPT_SOURCE;
                 Node element = nodesByCoordinates.get(elementCoordinates);
                 if (null != element) {
-                        // If the source ID matches but not the sources then this is
-                        // the wrong node.
+                    // If the source ID matches but not the sources then this is
+                    // the wrong node.
                     String[] sourcesForSourceId = NodeUtilities.getSourcesForSourceId(element, elementCoordinates.sourceId);
                     if (Arrays.binarySearch(sourcesForSourceId, elementSource) < 0)
                         element = null;
@@ -146,6 +147,8 @@ public class ConceptAggregateManager {
             }
 
             // Set the aggregate's properties
+            if (null != aggPrefName)
+                aggregate.setProperty(PROP_PREF_NAME, aggPrefName);
             if (null != aggSrcId) {
                 NodeUtilities.mergeSourceId(tx, aggregate, aggSrcId, aggSource, false);
                 // if the aggregate has a source ID, add it to the respective
@@ -561,6 +564,35 @@ public class ConceptAggregateManager {
     }
 
     /**
+     * <p>
+     * Retrieves all nodes that are connected to <tt>aggregate</tt> directly or indirectly through
+     * {@link ConceptEdgeTypes#HAS_ELEMENT} edges. Thus, the "leaves" are collected.
+     * </p>
+     * <p>
+     * Note that <tt>aggregate</tt> might already be a leaf in the above sense. In this case, the input node is returned itself.
+     * </p>
+     *
+     * @param aggregate The start node to resolve non-aggregate elements for. May be a non-aggregate itself.
+     * @return All element nodes (i.e. nodes that are connected to an aggregate node via {@link ConceptEdgeTypes#HAS_ELEMENT} and are not aggregates themselves) reachable from <tt>aggregate</tt>.
+     */
+    public static List<Node> getNonAggregateElements(Node aggregate) {
+        List<Node> elements = new ArrayList<>();
+        getNonAggregateElements(aggregate, elements);
+        return elements;
+    }
+
+    public static void getNonAggregateElements(Node aggregate, List<Node> elements) {
+        Iterable<Relationship> hasElements = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
+        for (Relationship hasElement : hasElements) {
+            Node endNode = hasElement.getEndNode();
+            if (endNode.hasLabel(AGGREGATE))
+                getNonAggregateElements(endNode, elements);
+            else
+                elements.add(endNode);
+        }
+    }
+
+    /**
      * <ul>
      *  <li>{@link #KEY_ALLOWED_MAPPING_TYPES}: The allowed types for IS_MAPPED_TO relationships to be included in aggregation building.</li>
      *  <li>{@link #KEY_AGGREGATED_LABEL}: Label for concepts that have been processed by the aggregation algorithm. Such concepts
@@ -666,35 +698,6 @@ public class ConceptAggregateManager {
         alreadySeen.add(aggregate);
         return alreadySeen.size();
     }
-
-    /**
-     * <p>
-     * Retrieves all nodes that are connected to <tt>aggregate</tt> directly or indirectly through
-     * {@link ConceptEdgeTypes#HAS_ELEMENT} edges. Thus, the "leaves" are collected.
-     * </p>
-     * <p>
-     *     Note that <tt>aggregate</tt> might already be a leaf in the above sense. In this case, the input node is returned itself.
-     * </p>
-     * @param aggregate The start node to resolve non-aggregate elements for. May be a non-aggregate itself.
-     * @return All element nodes (i.e. nodes that are connected to an aggregate node via {@link ConceptEdgeTypes#HAS_ELEMENT} and are not aggregates themselves) reachable from <tt>aggregate</tt>.
-     */
-    public static List<Node> getNonAggregateElements(Node aggregate) {
-        List<Node> elements = new ArrayList<>();
-        getNonAggregateElements(aggregate, elements);
-        return elements;
-    }
-
-    public static void getNonAggregateElements(Node aggregate, List<Node> elements) {
-        Iterable<Relationship> hasElements = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
-        for (Relationship hasElement : hasElements) {
-            Node endNode = hasElement.getEndNode();
-            if (endNode.hasLabel(AGGREGATE))
-                getNonAggregateElements(endNode, elements);
-            else
-                elements.add(endNode);
-        }
-    }
-
 
     public static class CopyAggregatePropertiesStatistics {
         public int numProperties = 0;

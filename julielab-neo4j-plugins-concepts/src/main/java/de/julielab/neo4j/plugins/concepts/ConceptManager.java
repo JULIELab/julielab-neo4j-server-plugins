@@ -438,10 +438,10 @@ public class ConceptManager {
         ObjectMapper om = new ObjectMapper();
         try {
             RelationRetrievalRequest relationRetrievalRequest = om.readValue(is, RelationRetrievalRequest.class);
-            List<String> retrievedRelations = IERelationRetrieval.retrieve(relationRetrievalRequest, graphDb, log);
+            List<Map<String, Object>> retrievedRelations = IERelationRetrieval.retrieve(relationRetrievalRequest, graphDb, log);
             return Response.ok(retrievedRelations, MediaType.APPLICATION_JSON).build();
         } catch (Throwable t) {
-            System.err.println(t);
+            t.printStackTrace();
             log.error("Error in IE relation retrieval.", t);
             return getErrorResponse(t);
         }

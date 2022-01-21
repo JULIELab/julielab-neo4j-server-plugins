@@ -6,6 +6,10 @@ import java.util.List;
 
 public class RelationIdList {
     public static final String NAME_ID_PROPERTY = "id_property";
+    /**
+     * @deprecated Not used
+     */
+    @Deprecated
     public static final String NAME_ID_SOURCE = "id_source";
     @JsonProperty(NAME_ID_PROPERTY)
     private String idProperty;
@@ -26,6 +30,7 @@ public class RelationIdList {
         return idProperty;
     }
 
+    @Deprecated
     public String getIdSource() {
         return idSource;
     }
@@ -41,6 +46,7 @@ public class RelationIdList {
     public RelationIdList() {
     }
 
+    @Deprecated
     public void setIdSource(String idSource) {
         this.idSource = idSource;
     }

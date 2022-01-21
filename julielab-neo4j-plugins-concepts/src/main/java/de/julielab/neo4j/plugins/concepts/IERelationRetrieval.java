@@ -1,43 +1,42 @@
 package de.julielab.neo4j.plugins.concepts;
 
 import de.julielab.neo4j.plugins.constants.semedico.SemanticRelationConstants;
-import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
-import de.julielab.neo4j.plugins.datarepresentation.CoordinateType;
 import de.julielab.neo4j.plugins.datarepresentation.RelationIdList;
 import de.julielab.neo4j.plugins.datarepresentation.RelationRetrievalRequest;
 import de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants;
+import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 import org.neo4j.graphdb.*;
 import org.neo4j.logging.Log;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class IERelationRetrieval {
 
     private final static Label LABEL_GENEGROUP = Label.label("AGGREGATE_GENEGROUP");
     private final static Label LABEL_TOP_ORTHOLOGY = Label.label("AGGREGATE_TOP_ORTHOLOGY");
 
-    public static List<String> retrieve(RelationRetrievalRequest retrievalRequest, GraphDatabaseService dbms, Log log) {
+    public static List<Map<String, Object>> retrieve(RelationRetrievalRequest retrievalRequest, GraphDatabaseService dbms, Log log) {
         try (Transaction tx = dbms.beginTx()) {
             RelationIdList aListRequest = retrievalRequest.getAlist();
             RelationshipType[] relationTypes = retrievalRequest.getRelationTypes().stream().map(RelationshipType::withName).toArray(RelationshipType[]::new);
             if (retrievalRequest.getBlist() == null || retrievalRequest.getBlist().getIds().isEmpty())
-                return serveOneSidedRequest(tx, getNodes(tx, aListRequest), relationTypes);
+                return serveOneSidedRequest(tx, retrievalRequest.getAlist(), relationTypes, retrievalRequest.isInterInputRelationRetrievalEnabled());
             else
                 return serveTwoSidedRequest(tx, retrievalRequest.getAlist(), retrievalRequest.getBlist(), relationTypes);
         }
     }
 
-    private static List<String> serveTwoSidedRequest(Transaction tx, RelationIdList aList, RelationIdList bList, RelationshipType[] relationTypes) {
+    private static List<Map<String, Object>> serveTwoSidedRequest(Transaction tx, RelationIdList aList, RelationIdList bList, RelationshipType[] relationTypes) {
         boolean aIsLarger = aList.getIds().size() > bList.getIds().size();
         // We iterate over the smaller set of IDs and search their relationships for connections to nodes from the larger set.
         List<Node> smallerList = getNodes(tx, aIsLarger ? bList : aList);
         Set<String> largeListIds = new HashSet<>(aIsLarger ? aList.getIds() : bList.getIds());
         String largerListIdProperty = aIsLarger ? aList.getIdProperty() : bList.getIdProperty();
         String largerListIdSource = aIsLarger ? aList.getIdSource() : bList.getIdSource();
-        List<String> results = new ArrayList<>();
+        List<Map<String, Object>> results = new ArrayList<>();
         for (Node a : smallerList) {
             Node orthologyAggregate = findHighestOrthologyAggregate(a);
             List<Node> elementNodes = ConceptAggregateManager.getNonAggregateElements(orthologyAggregate);
@@ -57,7 +56,7 @@ public class IERelationRetrieval {
 
                     int count = (int) r.getProperty(SemanticRelationConstants.PROP_TOTAL_COUNT);
 
-                    String resultLine = aIsLarger ? makeResultLine(arg2Name, arg2Id, arg1Name, arg1Id, count) : makeResultLine(arg1Name, arg1Id, arg2Name, arg2Id, count);
+                    Map<String, Object> resultLine = aIsLarger ? makeResultLine(arg2Name, arg2Id, arg1Name, arg1Id, count) : makeResultLine(arg1Name, arg1Id, arg2Name, arg2Id, count);
                     results.add(resultLine);
                 }
             }
@@ -65,33 +64,52 @@ public class IERelationRetrieval {
         return results;
     }
 
-    private static List<String> serveOneSidedRequest(Transaction tx, List<Node> aList, RelationshipType[] relationTypes) {
-        List<String> results = new ArrayList<>();
-        for (Node a : aList) {
+    private static List<Map<String, Object>> serveOneSidedRequest(Transaction tx, RelationIdList aList, RelationshipType[] relationTypes, boolean interInputRelationRetrievalEnabled) {
+        // If the inter input relation retrieval is not enabled, we need the IDs as a set to quickly sort out
+        // undesired relations.
+        List<Node> aNodes = getNodes(tx, aList);
+        Map<Node, Node> el2agg = aNodes.stream().collect(Collectors.toMap(Function.identity(), IERelationRetrieval::findHighestOrthologyAggregate));
+        // We must map the input IDs to their highest aggregate because this is the level we eventually work on
+        Set<String> requestedAggregateIds = !interInputRelationRetrievalEnabled ? el2agg.values().stream().map(n -> n.getProperty(getIdEffectiveIdProperty(aList))).map(String.class::cast).collect(Collectors.toSet()) : null;
+        Map<Pair<String, String>, Map<String, Object>> accumulator = new HashMap<>();
+        String effectiveIdProperty = getIdEffectiveIdProperty(aList);
+        for (Node a : aNodes) {
             Node orthologyAggregate = findHighestOrthologyAggregate(a);
             List<Node> elementNodes = ConceptAggregateManager.getNonAggregateElements(orthologyAggregate);
             for (Node element : elementNodes) {
                 Iterable<Relationship> relationships = element.getRelationships(relationTypes);
                 for (Relationship r : relationships) {
                     Node otherNode = r.getOtherNode(element);
-                    String arg1Name = (String) element.getProperty(ConceptConstants.PROP_PREF_NAME);
-                    String arg1Id = (String) element.getProperty(ConceptConstants.PROP_ORG_ID);
+                    String arg1Name = (String) orthologyAggregate.getProperty(ConceptConstants.PROP_PREF_NAME);
+                    String arg1Id = (String) orthologyAggregate.getProperty(effectiveIdProperty);
 
-                    String arg2Name = (String) otherNode.getProperty(ConceptConstants.PROP_PREF_NAME);
-                    String arg2Id = (String) otherNode.getProperty(ConceptConstants.PROP_ORG_ID);
+                    Node otherOrthologyAggregate = findHighestOrthologyAggregate(otherNode);
+                    String arg2Name = (String) otherOrthologyAggregate.getProperty(ConceptConstants.PROP_PREF_NAME);
+                    String arg2Id = (String) otherOrthologyAggregate.getProperty(effectiveIdProperty);
+                    // skip this relation if the end node is also an input node
+                    if (!interInputRelationRetrievalEnabled && requestedAggregateIds.contains(arg2Id))
+                        continue;
 
                     int count = (int) r.getProperty(SemanticRelationConstants.PROP_TOTAL_COUNT);
 
-                    results.add(makeResultLine(arg1Name, arg1Id, arg2Name, arg2Id, count));
+                    accumulator.merge(new ImmutablePair<>(arg1Id, arg2Id), makeResultLine(arg1Name, arg1Id, arg2Name, arg2Id, count), (m1, m2) -> {
+                        m1.put("count", (int) m1.get("count") + (int) m2.get("count"));
+                        return m1;
+                    });
                 }
             }
         }
-        return results;
+        return accumulator.values().stream().collect(Collectors.toList());
     }
 
-    private static String makeResultLine(String arg1Name, String arg1Id, String arg2Name, String arg2Id, int count) {
-        // TODO make map
-        return String.format("{\"arg1Name\":\"%s\",\"arg2Name\":\"%s\",\"arg1Id\":\"%s\",\"arg2Id\":\"%s\",\"count\":%d}", arg1Name, arg2Name, arg1Id, arg2Id, count);
+    private static Map<String, Object> makeResultLine(String arg1Name, String arg1Id, String arg2Name, String arg2Id, int count) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("arg1Name", arg1Name);
+        map.put("arg2Name", arg2Name);
+        map.put("arg1Id", arg1Id);
+        map.put("arg2Id", arg2Id);
+        map.put("count", count);
+        return map;
     }
 
 
@@ -121,11 +139,14 @@ public class IERelationRetrieval {
     private static List<Node> getNodes(Transaction tx, RelationIdList idListRequest) {
         List<Node> nodeListRequest = new ArrayList<>();
         for (String id : idListRequest.getIds()) {
-            ConceptCoordinates coordinates = new ConceptCoordinates(id, idListRequest.getIdSource(), idListRequest.getIdSource().equals(ConceptConstants.PROP_ORG_ID) ? CoordinateType.OSRC : CoordinateType.SRC);
-            Node node = ConceptLookup.lookupConcept(tx, coordinates);
+            Node node = tx.findNode(ConceptLabel.CONCEPT, getIdEffectiveIdProperty(idListRequest), id);
             if (node != null)
                 nodeListRequest.add(node);
         }
         return nodeListRequest;
+    }
+
+    private static String getIdEffectiveIdProperty(RelationIdList idListRequest) {
+        return idListRequest.getIdProperty().equals(ConceptConstants.PROP_SRC_IDS) ? ConceptConstants.PROP_SRC_IDS+"0" : idListRequest.getIdProperty();
     }
 }

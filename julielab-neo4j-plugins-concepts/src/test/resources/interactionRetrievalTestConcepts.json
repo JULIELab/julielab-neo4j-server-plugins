@@ -13,6 +13,7 @@
         "source": "GeneOrthology"
       },
       "aggregate": true,
+      "aggregateIncludeInHierarchy": true,
       "labels": ["AGGREGATE_GENEGROUP"],
       "elementCoordinates": [
         {
@@ -71,6 +72,7 @@
         "source": "GeneOrthology"
       },
       "aggregate": true,
+      "aggregateIncludeInHierarchy": true,
       "labels": ["AGGREGATE_GENEGROUP"],
       "elementCoordinates": [
         {
@@ -121,6 +123,7 @@
         "source": "Automatic Computation"
       },
       "aggregate": true,
+      "aggregateIncludeInHierarchy": true,
       "labels": ["AGGREGATE_TOP_ORTHOLOGY"],
       "elementCoordinates": [
         {
@@ -146,6 +149,7 @@
         "source": "GeneOrthology"
       },
       "aggregate": true,
+      "aggregateIncludeInHierarchy": true,
       "labels": ["AGGREGATE_GENEGROUP"],
       "elementCoordinates": [
         {
@@ -189,6 +193,7 @@
         "source": "GeneOrthology"
       },
       "aggregate": true,
+      "aggregateIncludeInHierarchy": true,
       "labels": ["AGGREGATE_GENEGROUP"],
       "elementCoordinates": [
         {
