@@ -11,8 +11,6 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	public boolean add(ConceptCoordinates coordinates) {
 		if (coordinates.originalId != null && coordinates.originalSource == null)
 			throw new IllegalArgumentException("ConceptCoordinates \""+coordinates+"\" specify an originalId but no originalSource.");
-		if (coordinates.sourceId != null && coordinates.source == null)
-			throw new IllegalArgumentException("ConceptCoordinates \""+coordinates+"\" specify a sourceId but no source.");
 		ConceptCoordinates c = coordinates.clone();
 		ConceptCoordinates c2 = get(c);
 
@@ -31,9 +29,9 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 		} else {
 			// We didn't have compatible coordinates before. Add them.
 			if (c.originalId != null)
-				coordsByOriginalId.put(c.originalId, c);
+				coordsByOriginalId.put(c.originalSource+":"+c.originalId, c);
 			if (coordinates.sourceId != null)
-				coordsBySourceId.put(c.sourceId, c);
+				coordsBySourceId.put(c.source+":"+c.sourceId, c);
 			return false;
 		}
 
@@ -42,11 +40,11 @@ public class CoordinatesSet implements Iterable<ConceptCoordinates> {
 	public ConceptCoordinates get(ConceptCoordinates coordinates) {
 		if (coordinates == null)
 			throw new IllegalArgumentException("The passed concept coordinates were null.");
-		ConceptCoordinates c = coordinates.originalId != null ? coordsByOriginalId.get(coordinates.originalId) : null;
+		ConceptCoordinates c = coordinates.originalId != null ? coordsByOriginalId.get(coordinates.originalSource+":"+coordinates.originalId) : null;
 		if (c != null && c.originalSource.equals(coordinates.originalSource))
 			return c;
 		// still here, so the original ID wasn't a match
-		c = coordsBySourceId.get(coordinates.sourceId);
+		c = coordsBySourceId.get(coordinates.source+":"+coordinates.sourceId);
 		if (c != null && c.sourceId.equals(coordinates.sourceId)) {
 			if (c.source.equals(coordinates.source) || (c.uniqueSourceId && coordinates.uniqueSourceId))
 				return c;

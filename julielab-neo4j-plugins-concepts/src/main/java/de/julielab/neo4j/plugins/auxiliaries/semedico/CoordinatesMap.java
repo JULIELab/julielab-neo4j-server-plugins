@@ -35,4 +35,8 @@ public class CoordinatesMap {
 	public boolean isEmpty() {
 		return keys.isEmpty();
 	}
+
+    public int size() {
+		return nodes.size();
+    }
 }

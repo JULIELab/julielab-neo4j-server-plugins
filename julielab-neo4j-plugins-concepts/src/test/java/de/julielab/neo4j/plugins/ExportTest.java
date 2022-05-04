@@ -1,6 +1,7 @@
 package de.julielab.neo4j.plugins;
 
 import com.google.common.collect.Lists;
+import de.julielab.neo4j.plugins.auxiliaries.LogUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.NodeUtilities;
 import de.julielab.neo4j.plugins.concepts.ConceptManager;
 import de.julielab.neo4j.plugins.datarepresentation.ConceptCoordinates;
@@ -19,10 +20,6 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.logging.Level;
-import org.neo4j.logging.Log;
-import org.neo4j.logging.log4j.Log4jLogProvider;
-import org.neo4j.logging.log4j.LogConfig;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -33,23 +30,16 @@ import static de.julielab.neo4j.plugins.concepts.ConceptLabel.CONCEPT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
-import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class ExportTest {
 
     private static GraphDatabaseService graphDb;
     private static DatabaseManagementService graphDBMS;
-    private static Log log;
 
     @BeforeClass
     public static void initialize() {
         graphDBMS = TestUtilities.getGraphDBMS();
         graphDb = graphDBMS.database(DEFAULT_DATABASE_NAME);
-        Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
-                .withFormat(PLAIN)
-                .withCategory(false)
-                .build());
-        log = log4jLogProvider.getLog(ConceptManagerTest.class);
     }
 
     @AfterClass
@@ -83,7 +73,7 @@ public class ExportTest {
         // We create a second term for orgId2 - this will result in a single new term but with multiple source IDs.
         ImportConcept term = new ImportConcept("Added Last PrefName", new ConceptCoordinates("addedLastSourceId", "TEST_SOURCE", "orgId2", "src2"));
         importConcepts.getConceptsAsList().add(term);
-        ConceptManager tm = new ConceptManager(graphDBMS, log);
+        ConceptManager tm = new ConceptManager(graphDBMS, LogUtilities.getLogger(ConceptManager.class));
         tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
         // Get some more terms; those will be in another label and should be ignored here.
         importConcepts = ConceptManagerTest.getTestConcepts(15);
@@ -172,7 +162,7 @@ public class ExportTest {
         term.coordinates.originalId = "orgId2";
         term.coordinates.originalSource = "src2";
         importConcepts.getConceptsAsList().add(term);
-        ConceptManager tm = new ConceptManager(graphDBMS, log);
+        ConceptManager tm = new ConceptManager(graphDBMS, LogUtilities.getLogger(ConceptManager.class));
         tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
 
         Method method = Export.class.getDeclaredMethod("createIdMapping", OutputStream.class, String.class, String.class,

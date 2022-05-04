@@ -37,6 +37,9 @@ public class ImportConcept {
     public List<String> copyProperties = Collections.emptyList();
     @JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
     public boolean aggregateIncludeInHierarchy;
+    @JsonProperty(ConceptConstants.ADDITIONAL_PROPERTIES)
+    public Map<String, String> additionalProperties;
+
 
     /**
      * This map may contain specific properties required during concept creation. It is not meant to be imported

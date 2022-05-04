@@ -82,7 +82,7 @@ public class ConceptManager {
     private final DatabaseManagementService dbms;
     private Log log;
 
-    public ConceptManager(@Context DatabaseManagementService dbms, Log log) {
+    public ConceptManager(@Context DatabaseManagementService dbms, @Context Log log) {
         this.dbms = dbms;
         this.log = log;
     }

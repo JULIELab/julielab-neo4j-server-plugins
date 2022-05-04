@@ -208,7 +208,7 @@ public class ConceptInsertion {
                             log.debug("Creating hollow relationship target with orig Id/orig source " + targetCoordinates);
                             target = registerNewHollowConceptNode(tx, log, targetCoordinates);
                         }
-                        ConceptEdgeTypes type = ConceptEdgeTypes.valueOf(rsTypeStr);
+                        RelationshipType type = RelationshipType.withName(rsTypeStr);
                         Object[] properties = null;
                         if (jsonRelationship.properties != null) {
                             Set<String> propNames = jsonRelationship.properties.keySet();
@@ -277,7 +277,7 @@ public class ConceptInsertion {
         // Source ID is mandatory if we have a real concept import and not just a
         // merging operation.
         if (!importOptions.merge && coordinates.sourceId == null)
-            throw new IllegalArgumentException("The concept " + jsonConcept + " does not specify a source ID.");
+            throw new IllegalArgumentException("The concept " + jsonConcept + " does not specify a source ID. Coordinates are: " + coordinates);
         // The other properties may have values or not, make it
         // null-proof.
         String srcId = coordinates.sourceId;
@@ -354,6 +354,11 @@ public class ConceptInsertion {
         mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));
         mergeArrayProperty(concept, PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
         addToArrayProperty(concept, PROP_FACETS, facetId);
+        if (jsonConcept.additionalProperties != null) {
+            for (String property : jsonConcept.additionalProperties.keySet()) {
+                setNonNullNodeProperty(concept, property, jsonConcept.additionalProperties.get(property));
+            }
+        }
 
         // There could be multiple sources containing a concept. For
         // now, we just note that facet (if these sources give the same original
@@ -377,8 +382,8 @@ public class ConceptInsertion {
             concept.addLabel(Label.label(generalLabels.get(i)));
         }
 
-        if (StringUtils.isBlank(prefName) && !insertionReport.existingConcepts.contains(concept))
-            throw new IllegalArgumentException("Concept has no property \"" + PROP_PREF_NAME + "\": " + jsonConcept);
+//        if (StringUtils.isBlank(prefName) && !insertionReport.existingConcepts.contains(concept))
+//            throw new IllegalArgumentException("Concept has no property \"" + PROP_PREF_NAME + "\": " + jsonConcept);
     }
 
     /**
@@ -543,7 +548,7 @@ public class ConceptInsertion {
                 }
 
                 if (null != importConcepts) {
-                    int batchsize = 10000;
+                    int batchsize = 1000;
                     log.debug("Beginning to create concept nodes and relationships.");
                     List<ImportConcept> buffer = new ArrayList<>(batchsize);
                     long imported = 0;
@@ -709,7 +714,6 @@ public class ConceptInsertion {
 
             nodesByCoordinates.put(coordinates, conceptNode);
         }
-
         if (!importConceptsToRemove.isEmpty())
             log.info("removing " + importConceptsToRemove.size()
                     + " input concepts that should be omitted because we are merging and don't have them in the database");

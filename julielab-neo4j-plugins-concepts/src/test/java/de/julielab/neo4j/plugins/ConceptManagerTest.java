@@ -106,7 +106,7 @@ public class ConceptManagerTest {
 
     @Test
     public void testOriginalIdMerging() {
-        // This test checks whether multiple, different sources and terms with
+        // This test checks whether multiple, different sources and concepts with
         // the same origin (same original ID and
         // original source) are stored correctly.
         ConceptManager tm = new ConceptManager(graphDBMS, log);
@@ -842,8 +842,11 @@ public class ConceptManagerTest {
                 ConceptEdgeTypes.HAS_SAME_NAMES.name());
         rel2.addProperty("prop1", "value1");
         rel2.addProperty("prop3", "value3");
+        ImportConceptRelationship rel3 = new ImportConceptRelationship(new ConceptCoordinates("CONCEPT" + 1, termSource, true),
+                "anotherType");
         concepts.get(0).addRelationship(rel1);
         concepts.get(0).addRelationship(rel2);
+        concepts.get(0).addRelationship(rel3);
 
         ConceptManager tm = new ConceptManager(graphDBMS, log);
         tm.insertConcepts(new ByteArrayInputStream(ConceptsJsonSerializer.toJson(importConcepts).getBytes(UTF_8)));
@@ -863,6 +866,10 @@ public class ConceptManagerTest {
             assertEquals("value2", relationship.getProperty("prop2"));
             assertTrue(relationship.hasProperty("prop3"));
             assertEquals("value3", relationship.getProperty("prop3"));
+
+            // check that the additional relation with some other type has also been inserted
+            Relationship anotherType = term0.getSingleRelationship(RelationshipType.withName("anotherType"), Direction.OUTGOING);
+            assertNotNull(anotherType);
         }
     }
 

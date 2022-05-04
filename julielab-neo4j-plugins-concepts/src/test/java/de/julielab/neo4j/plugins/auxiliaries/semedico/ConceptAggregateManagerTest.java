@@ -423,4 +423,17 @@ public class ConceptAggregateManagerTest {
             assertTrue(nonAggregateElements.contains(concept21));
         }
     }
+
+    @Test
+    public void someTest() {
+        final ConceptManager cm = new ConceptManager(graphDBMS, log);
+        final ImportConcept concept = new ImportConcept(new ConceptCoordinates("1", "muh", "1", "muh"));
+        final ImportFacet importFacet = FacetManagerTest.getImportFacet();
+        final ImportConcepts importConcepts = new ImportConcepts(List.of(concept), importFacet);
+        try (final Transaction tx = graphDb.beginTx()) {
+            cm.insertConcepts(importConcepts);
+            final Node n = tx.findNode(ConceptLabel.CONCEPT, "id", "tid0");
+            System.out.println(NodeUtilities.getNodePropertiesAsString(n));
+        }
+    }
 }

@@ -2,6 +2,7 @@ package de.julielab.neo4j.plugins;
 
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import de.julielab.neo4j.plugins.auxiliaries.LogUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.NodeUtilities;
 import de.julielab.neo4j.plugins.auxiliaries.semedico.PredefinedTraversals;
@@ -22,6 +23,7 @@ import org.neo4j.logging.Log;
 import org.neo4j.server.rest.repr.RecursiveMappingRepresentation;
 import org.neo4j.server.rest.repr.Representation;
 
+import javax.annotation.Nullable;
 import javax.ws.rs.GET;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
@@ -67,22 +69,55 @@ public class Export {
     public Object exportIdMapping(@QueryParam(PARAM_SOURCE_ID_PROPERTY) String sourceIdProperty, @QueryParam(PARAM_TARGET_ID_PROPERTY) String targetIdProperty, @QueryParam(PARAM_LABELS) String labelStrings, @Context Log log) {
         try {
             final ObjectMapper om = new ObjectMapper();
-            log.info("Exporting ID mapping data.");
+            log(log, "info", "Exporting ID mapping data.");
             String[] labelsArray = null != labelStrings ? om.readValue(labelStrings, String[].class) : new String[]{ConceptLabel.CONCEPT.name()};
             String sProperty = sourceIdProperty != null ? sourceIdProperty : PROP_SRC_IDS;
             String tProperty = targetIdProperty != null ? targetIdProperty : PROP_ID;
-            log.info("Creating mapping file content with source property %s, target property %s and node labels %s", sourceIdProperty, targetIdProperty, labelStrings);
+            log(log, "info", "Creating mapping file content with source property %s, target property %s and node labels %s", sourceIdProperty, targetIdProperty, labelStrings);
             return (StreamingOutput) output -> {
                 try {
                     createIdMapping(output, sProperty, tProperty, labelsArray);
                 } catch (Exception e) {
-                    log.error("Exception occurred during concept ID output streaming.", e);
+                    log(log, "error", "Exception occurred during concept ID output streaming.", e);
                     e.printStackTrace();
                 }
             };
         } catch (Throwable t) {
-            log.error("Could not export concept ID mappings", t);
+            log(log, "error", "Could not export concept ID mappings", t);
             return ConceptManager.getErrorResponse(t);
+        }
+    }
+
+    public Object exportIdMapping(String sourceIdProperty, String targetIdProperty, String labelStrings) {
+        return exportIdMapping(sourceIdProperty, targetIdProperty, labelStrings, LogUtilities.getLogger(Export.class));
+    }
+
+    /**
+     * Helper method for logging. Checks if the Log instance is null. If so, no logging occurs and no error is thrown.
+     *
+     * @param log       The logger.
+     * @param level     The log level - debug, info, warn or error.
+     * @param fmt       The logging format string.
+     * @param arguments The format string arguments.
+     */
+    private void log(@Nullable Log log, String level, String fmt, Object... arguments) {
+        if (log != null) {
+            switch (level) {
+                case "error":
+                    log.error(fmt, arguments);
+                    break;
+                case "warn":
+                    log.warn(fmt, arguments);
+                    break;
+                case "info":
+                    log.info(fmt, arguments);
+                    break;
+                case "debug":
+                    log.debug(fmt, arguments);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported log level '" + level + "'.");
+            }
         }
     }
 

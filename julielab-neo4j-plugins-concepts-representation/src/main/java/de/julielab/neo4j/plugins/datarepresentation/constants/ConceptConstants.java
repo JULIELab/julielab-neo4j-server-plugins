@@ -100,6 +100,10 @@ public class ConceptConstants extends NodeConstants {
      */
     public static final String PROP_MAPPING_TYPE = ConceptRelationConstants.PROP_MAPPING_TYPE;
 
+    /**
+     * A map which holds additional properties to be added to the Neo4j nodes.
+     */
+    public static final String ADDITIONAL_PROPERTIES = "additional_properties";
 
     public static final String COORDINATES = "coordinates";
 
