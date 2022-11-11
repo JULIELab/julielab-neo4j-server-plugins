@@ -927,7 +927,7 @@ public class ConceptManagerTest {
             }
             assertEquals("Term on position 4 has exactly one relationship (HAS_ROOT)", 1, numRels);
             // Now let's copy the term properties into the aggregate.
-            OutboundJaxrsResponse report = (OutboundJaxrsResponse) cam.copyAggregateProperties();
+            OutboundJaxrsResponse report = (OutboundJaxrsResponse) cam.copyAggregateProperties(log);
             Map<String, ?> reportMap = (Map<String, ?>) report.getEntity();
             assertEquals("Number of aggregates", 1, reportMap.get(ConceptManager.RET_KEY_NUM_AGGREGATES));
             assertEquals("Number of element terms", 4, reportMap.get(ConceptManager.RET_KEY_NUM_ELEMENTS));
@@ -1039,7 +1039,7 @@ public class ConceptManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("loom"), CONCEPT,
-                    ConceptLabel.AGGREGATE);
+                    ConceptLabel.AGGREGATE, log);
             // first check if everything is alright, we expect on aggregate with
             // two elements
             Node aggregate = tx.findNode(ConceptLabel.AGGREGATE, PROP_ID,

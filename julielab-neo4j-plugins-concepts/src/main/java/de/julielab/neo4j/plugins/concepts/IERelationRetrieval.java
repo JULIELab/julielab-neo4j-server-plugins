@@ -154,6 +154,12 @@ public class IERelationRetrieval {
         return nodeListRequest;
     }
 
+    /**
+     * Maps 'sourceIds' to 'sourceIds0' since we create a new source ID property for each new source ID for indexing
+     * reasons (there is no indexing for array-valued properties).
+     * @param idListRequest
+     * @return
+     */
     private static String getIdEffectiveIdProperty(RelationIdList idListRequest) {
         return idListRequest.getIdProperty().equals(ConceptConstants.PROP_SRC_IDS) ? ConceptConstants.PROP_SRC_IDS+"0" : idListRequest.getIdProperty();
     }

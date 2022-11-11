@@ -16,7 +16,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.logging.FormattedLogFormat.PLAIN;
@@ -49,18 +51,20 @@ private static Log log;
         URI uri = neo4j.httpURI().resolve(String.format("app/%s/%s", "export", Export.CONCEPT_ID_MAPPING));
         HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
         try (InputStream is = conn.getInputStream()) {
-            String mapping = IOUtils.toString(is);
-            assertThat(mapping).isEqualTo(
-                    "CONCEPT6\ttid6\n" +
-                            "CONCEPT5\ttid5\n" +
-                            "CONCEPT9\ttid9\n" +
-                            "CONCEPT8\ttid8\n" +
-                            "CONCEPT0\ttid0\n" +
-                            "CONCEPT7\ttid7\n" +
-                            "CONCEPT2\ttid2\n" +
-                            "CONCEPT1\ttid1\n" +
-                            "CONCEPT4\ttid4\n" +
-                            "CONCEPT3\ttid3\n");
+            String mapping = IOUtils.toString(is, StandardCharsets.UTF_8);
+            final List<String> expectedItems = List.of(
+                    "CONCEPT6\ttid6\n",
+                    "CONCEPT5\ttid5\n",
+                    "CONCEPT9\ttid9\n",
+                    "CONCEPT8\ttid8\n",
+                    "CONCEPT0\ttid0\n",
+                    "CONCEPT7\ttid7\n",
+                    "CONCEPT2\ttid2\n",
+                    "CONCEPT1\ttid1\n",
+                    "CONCEPT4\ttid4\n",
+                    "CONCEPT3\ttid3\n");
+for (var item : expectedItems)
+    assertThat(mapping).contains(item);
         }
     }
 }

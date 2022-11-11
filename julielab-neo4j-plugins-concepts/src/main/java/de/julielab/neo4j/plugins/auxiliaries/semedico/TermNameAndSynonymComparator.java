@@ -16,8 +16,9 @@ import java.util.List;
  * comparator uses a {@link RuleBasedCollator} to remove differences due to case or accents.
  * 
  * @author faessler
- * 
+ * @deprecated Not used anymore. Was used to build same-name aggregates in de.julielab.neo4j.plugins.concepts.ConceptAggregateManager#buildAggregatesForEqualNames(org.neo4j.graphdb.Transaction, java.lang.String, java.lang.String[])
  */
+@Deprecated
 public class TermNameAndSynonymComparator implements Comparator<Node> {
 	private final RuleBasedCollator collator = createComparisonCollator();
 

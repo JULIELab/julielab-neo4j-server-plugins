@@ -417,16 +417,26 @@ public class ConceptInsertion {
         if (null != properties && properties.length % 2 != 0)
             throw new IllegalArgumentException("Property list must contain of key/value pairs but its length was odd.");
 
+
+        String sourceId = source.hasProperty(PROP_ORG_ID) ? (String) source.getProperty(PROP_ORG_ID) : "";
+        if (sourceId.isBlank() && source.hasProperty(PROP_ID))
+            sourceId = (String) source.getProperty(PROP_ID);
+        String targetId = target.hasProperty(PROP_ORG_ID) ? (String) target.getProperty(PROP_ORG_ID) : "";
+        if (targetId.isBlank() && target.hasProperty(PROP_ID))
+            targetId = (String) target.getProperty(PROP_ID);
+
+
         boolean relationShipExists = false;
         Relationship createdRelationship = null;
         if (insertionReport.relationshipAlreadyWasCreated(source, target, type)) {
             relationShipExists = true;
         } else if (insertionReport.existingConcepts.contains(source)
-                && insertionReport.existingConcepts.contains(target)) {
+                && insertionReport.existingConcepts.contains(target) || source.hasLabel(FacetManager.FacetLabel.FACET) || target.hasLabel(FacetManager.FacetLabel.FACET)) {
             // Both concepts existing before the current processing call to
             // insert_concepts. Thus, we have to check whether
             // the relation already exists and cannot just use
             // insertionReport.relationshipAlreadyWasCreated()
+
             Iterable<Relationship> relationships = source.getRelationships(direction, type);
             for (Relationship relationship : relationships) {
                 if (relationship.getEndNode().equals(target)) {

@@ -182,7 +182,7 @@ public class ConceptAggregateManagerTest {
         Label aggregatedTermsLabel = Label.label("EQUAL_AGG");
 
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel);
+            ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL"), null, aggregatedTermsLabel, log);
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggregatedTermsLabel);
             int count = 0;
             for (Node aggregate : mappingAggregates) {
@@ -227,7 +227,7 @@ public class ConceptAggregateManagerTest {
 
         // Now test whether the removal of aggregates is working as well
         try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateManager.deleteAggregates(tx, aggregatedTermsLabel);
+            ConceptAggregateManager.deleteAggregates(tx, aggregatedTermsLabel, log);
 
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggregatedTermsLabel);
             int count = 0;
@@ -271,7 +271,7 @@ public class ConceptAggregateManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
-                    aggLabel);
+                    aggLabel, log);
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggLabel);
             int count = 0;
             for (Node aggregate : mappingAggregates) {
@@ -331,7 +331,7 @@ public class ConceptAggregateManagerTest {
 
         try (Transaction tx = graphDb.beginTx()) {
             ConceptAggregateManager.buildAggregatesForMappings(tx, Sets.newHashSet("EQUAL", "OTHER_EQUAL"), null,
-                    aggLabel);
+                    aggLabel, log);
             ResourceIterable<Node> mappingAggregates = () -> tx.findNodes(aggLabel);
             // Count of the aggregation terms, i.e. the representation terms
             // that have formerly existing terms as their
