@@ -782,7 +782,7 @@ public class ConceptAggregateManager {
     @Path(COPY_AGGREGATE_PROPERTIES)
     public Object copyAggregateProperties(@Context Log log) {
         try {
-            int batchSize = 10000;
+            int batchSize = 100;
             int numAggregates = 0;
             CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
@@ -799,10 +799,11 @@ public class ConceptAggregateManager {
                 }
             }
             log.info("Retrieved %s aggregates. Now copying properties.", aggregateIds.size());
+            int numAggregatesProcessed = 0;
             do {
-                int numAggregatesProcessed = 0;
+                final Set<String> alreadySeenIds = new HashSet<>();
                 try (Transaction tx = graphDb.beginTx()) {
-                    final Set<String> alreadySeenIds = new HashSet<>();
+                    log.info("Processing next batch of %s aggregates. Already seen aggregates through recursion are skipped.", batchSize);
                     for (int i = 0; i < batchSize && !aggregateIds.isEmpty(); i++) {
                         final String aggregateId = aggregateIds.poll();
                         final Node aggregate = tx.findNode(AGGREGATE, PROP_ID, aggregateId);
@@ -832,6 +833,8 @@ public class ConceptAggregateManager {
         if (alreadySeen.contains(aggregateId))
             return 0;
         List<Node> elementAggregates = new ArrayList<>();
+        // If the current aggregate has other aggregates as elements, those need to obtain their copied properties
+        // first, so we can then use them for this aggregate.
         Iterable<Relationship> elementRels = aggregate.getRelationships(Direction.OUTGOING, ConceptEdgeTypes.HAS_ELEMENT);
         for (Relationship elementRel : elementRels) {
             Node endNode = elementRel.getEndNode();

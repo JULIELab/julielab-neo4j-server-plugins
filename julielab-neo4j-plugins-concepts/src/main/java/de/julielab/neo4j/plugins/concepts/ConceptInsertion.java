@@ -49,7 +49,8 @@ public class ConceptInsertion {
 
     static void createRelationships(Log log, Transaction tx, List<ImportConcept> jsonConcepts, String facetId,
                                     CoordinatesMap nodesByCoordinates, ImportOptions importOptions, InsertionReport insertionReport) {
-        log.debug("Creating relationship between inserted concepts.");
+        log.info("Starting to create relationships between inserted concepts.");
+        long time = System.currentTimeMillis();
         Node facet = FacetManager.getFacetNode(tx, facetId);
         RelationshipType relBroaderThanInFacet = null;
         if (null != facet)
@@ -229,6 +230,10 @@ public class ConceptInsertion {
             }
         }
         log.debug("Finished 100% of concepts for relationship creation.");
+        time = System.currentTimeMillis() - time;
+        log.info(insertionReport.numRelationships
+                + " new relationships have been inserted. This took " + time + " ms ("
+                + (time / 1000) + " s)");
     }
 
     /**
@@ -418,29 +423,48 @@ public class ConceptInsertion {
             throw new IllegalArgumentException("Property list must contain of key/value pairs but its length was odd.");
 
 
-        String sourceId = source.hasProperty(PROP_ORG_ID) ? (String) source.getProperty(PROP_ORG_ID) : "";
-        if (sourceId.isBlank() && source.hasProperty(PROP_ID))
-            sourceId = (String) source.getProperty(PROP_ID);
-        String targetId = target.hasProperty(PROP_ORG_ID) ? (String) target.getProperty(PROP_ORG_ID) : "";
-        if (targetId.isBlank() && target.hasProperty(PROP_ID))
-            targetId = (String) target.getProperty(PROP_ID);
-
-
         boolean relationShipExists = false;
         Relationship createdRelationship = null;
         if (insertionReport.relationshipAlreadyWasCreated(source, target, type)) {
             relationShipExists = true;
         } else if (insertionReport.existingConcepts.contains(source)
-                && insertionReport.existingConcepts.contains(target) || source.hasLabel(FacetManager.FacetLabel.FACET) || target.hasLabel(FacetManager.FacetLabel.FACET)) {
+                && insertionReport.existingConcepts.contains(target)) {
             // Both concepts existing before the current processing call to
             // insert_concepts. Thus, we have to check whether
             // the relation already exists and cannot just use
             // insertionReport.relationshipAlreadyWasCreated()
 
-            Iterable<Relationship> relationships = source.getRelationships(direction, type);
-            for (Relationship relationship : relationships) {
-                if (relationship.getEndNode().equals(target)) {
-                    relationShipExists = mergeProperties(relationship, properties);
+            String sourceId = source.hasProperty(PROP_ORG_ID) ? (String) source.getProperty(PROP_ORG_ID) : "";
+            if (sourceId.isBlank() && source.hasProperty(PROP_ID))
+                sourceId = (String) source.getProperty(PROP_ID);
+            String targetId = target.hasProperty(PROP_ORG_ID) ? (String) target.getProperty(PROP_ORG_ID) : "";
+            if (targetId.isBlank() && target.hasProperty(PROP_ID))
+                targetId = (String) target.getProperty(PROP_ID);
+
+//            System.out.println("Checking if relationship exists between " + sourceId + "-[:" + type + "]-" + targetId + " (direction: " + direction + "). Source labels: " + StreamSupport.stream(source.getLabels().spliterator(), false).map(Label::name).collect(Collectors.toList()) + ", target labels: " + StreamSupport.stream(target.getLabels().spliterator(), false).map(Label::name).collect(Collectors.toList()));
+
+            final int sourceDegree = source.getDegree(type, direction);
+            Direction reverseDirection = Direction.BOTH;
+            if (direction == Direction.INCOMING)
+                reverseDirection = Direction.OUTGOING;
+            else if (direction == Direction.OUTGOING)
+                reverseDirection = Direction.INCOMING;
+            final int targetDegree = target.getDegree(type, reverseDirection);
+            if (sourceDegree <= targetDegree) {
+                Iterable<Relationship> relationships = source.getRelationships(direction, type);
+                for (Relationship relationship : relationships) {
+                    if (relationship.getOtherNode(source).equals(target)) {
+                        relationShipExists = mergeProperties(relationship, properties);
+                    }
+                }
+            } else {
+                Iterable<Relationship> relationships = target.getRelationships(reverseDirection, type);
+                for (Relationship relationship : relationships) {
+                    if (relationship.getOtherNode(target).equals(source)) {
+                        relationShipExists = mergeProperties(relationship, properties);
+                        if (relationShipExists)
+                            break;
+                    }
                 }
             }
         }
@@ -670,6 +694,14 @@ public class ConceptInsertion {
         }
         // Finished finding parents
 
+        // The InsertionReport is used in createRelationshipIfNotExists() to save a lot (!) of time
+        // for large imports for checking if a relationship has already created between two nodes.
+        // This is why we keep track of nodes that are included in the current batch but already existed before.
+        // We also add all facet nodes for the HAS_ROOT_CONCEPT relationship creation. If we do not include
+        // the facet, HAS_ROOT_CONCEPT relations can be duplicated because it is errorneous assumed that
+        // the facet does not exist.
+        tx.findNodes(FacetManager.FacetLabel.FACET).forEachRemaining(facet -> insertionReport.addExistingConcept(facet));
+
         // When merging, we remove those import concepts that are not known in
         // the database from the input data
         List<Integer> importConceptsToRemove = new ArrayList<>();
@@ -721,7 +753,6 @@ public class ConceptInsertion {
         for (ConceptCoordinates coordinates : toBeCreated) {
             Node conceptNode = registerNewHollowConceptNode(tx, log, coordinates);
             ++insertionReport.numConcepts;
-
             nodesByCoordinates.put(coordinates, conceptNode);
         }
         if (!importConceptsToRemove.isEmpty())
