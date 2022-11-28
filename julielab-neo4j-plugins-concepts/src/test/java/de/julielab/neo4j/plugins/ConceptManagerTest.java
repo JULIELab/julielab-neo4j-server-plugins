@@ -927,7 +927,7 @@ public class ConceptManagerTest {
             }
             assertEquals("Term on position 4 has exactly one relationship (HAS_ROOT)", 1, numRels);
             // Now let's copy the term properties into the aggregate.
-            OutboundJaxrsResponse report = (OutboundJaxrsResponse) cam.copyAggregateProperties(log);
+            OutboundJaxrsResponse report = (OutboundJaxrsResponse) cam.copyAggregateProperties(null, log);
             Map<String, ?> reportMap = (Map<String, ?>) report.getEntity();
             assertEquals("Number of aggregates", 1, reportMap.get(ConceptManager.RET_KEY_NUM_AGGREGATES));
             assertEquals("Number of element terms", 4, reportMap.get(ConceptManager.RET_KEY_NUM_ELEMENTS));

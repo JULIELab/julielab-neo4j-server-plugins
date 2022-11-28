@@ -357,7 +357,7 @@ public class ConceptInsertion {
         mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
         mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
         mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));
-        mergeArrayProperty(concept, PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray());
+        mergeArrayProperty(concept, PROP_SYNONYMS, synonyms.stream().filter(s -> !s.equals(prefName)).toArray(), true);
         addToArrayProperty(concept, PROP_FACETS, facetId);
         if (jsonConcept.additionalProperties != null) {
             for (String property : jsonConcept.additionalProperties.keySet()) {

@@ -105,7 +105,7 @@ public class ConceptAggregateManagerTest {
 
             // Copy the element properties to the aggregate.
             CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
-            ConceptAggregateManager.copyAggregateProperties(aggregate, new String[]{"name", "geschmack", "synonyms"},
+            ConceptAggregateManager.copyAggregateProperties(aggregate, false, new String[]{"name", "geschmack", "synonyms"},
                     copyStats);
 
             // Check whether everything is as expected.

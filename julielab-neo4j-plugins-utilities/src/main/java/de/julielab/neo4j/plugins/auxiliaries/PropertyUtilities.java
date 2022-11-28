@@ -18,7 +18,7 @@ public class PropertyUtilities {
     }
 
     public static void copyObjectToEntity(Object object, Entity node,
-                                                     String... exclusions) {
+                                          String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
         for (String exclusion : exclusions) {
             exclusionSet.add(exclusion);
@@ -27,7 +27,7 @@ public class PropertyUtilities {
     }
 
     public static void copyObjectToEntity(Object object, Entity node,
-                                                     Set<String> exclusions) {
+                                          Set<String> exclusions) {
 
         try {
             final Field[] fields = object.getClass().getDeclaredFields();
@@ -56,7 +56,7 @@ public class PropertyUtilities {
     }
 
     public static void mergeObjectIntoEntity(Object object, Entity node,
-                                                        String... exclusions) {
+                                             String... exclusions) {
         Set<String> exclusionSet = new HashSet<>();
         for (String exclusion : exclusions) {
             exclusionSet.add(exclusion);
@@ -65,7 +65,7 @@ public class PropertyUtilities {
     }
 
     public static void mergeObjectIntoEntity(Object object, Entity node,
-                                                        Set<String> exclusions) {
+                                             Set<String> exclusions) {
         try {
             final Field[] fields = object.getClass().getFields();
             for (Field field : fields) {
@@ -79,9 +79,9 @@ public class PropertyUtilities {
                     final Object value = field.get(object);
                     if (value != null) {
                         if (value.getClass().isArray()) {
-                            mergeArrayProperty(node, key, (Object[]) value);
+                            mergeArrayProperty(node, key, (Object[]) value, true);
                         } else if (List.class.isAssignableFrom(value.getClass())) {
-                            mergeArrayProperty(node, key, ((List<?>) value).toArray());
+                            mergeArrayProperty(node, key, ((List<?>) value).toArray(), true);
                         } else {
                             setNonNullNodeProperty(node, key, value);
                         }
@@ -107,7 +107,7 @@ public class PropertyUtilities {
                 continue;
             Object value = from.getProperty(key);
             if (value.getClass().isArray()) {
-                mergeArrayProperty(to, key, (Object[]) value);
+                mergeArrayProperty(to, key, (Object[]) value, true);
             } else {
                 setNonNullNodeProperty(to, key, value);
             }
@@ -117,7 +117,7 @@ public class PropertyUtilities {
     public static <T> void mergeArrayProperty(Entity node, String key, Supplier<T[]> arraySupplier) {
         try {
             final T[] value = arraySupplier.get();
-            mergeArrayProperty(node, key, value);
+            mergeArrayProperty(node, key, value, true);
         } catch (NullPointerException e) {
             // nothing, this was expected
         }
@@ -135,9 +135,10 @@ public class PropertyUtilities {
      * @param node
      * @param key
      * @param array
+     * @param setMergedValueToNode
      */
     @SuppressWarnings("unchecked")
-    public static <T> void mergeArrayProperty(Entity node, String key, T[] array) {
+    public static <T> void mergeArrayProperty(Entity node, String key, T[] array, boolean setMergedValueToNode) {
         try {
             if (null == array || array.length == 0)
                 return;
@@ -169,7 +170,8 @@ public class PropertyUtilities {
                 throw new IllegalArgumentException("Trying to merge array properties of different types (array class: "
                         + newArray.getClass() + " element class: " + next.getClass() + ")");
             }
-            node.setProperty(key, newArray);
+            if (setMergedValueToNode)
+                node.setProperty(key, newArray);
         } catch (Exception e) {
             throw new RuntimeException(
                     "Exception occurred while merging property \"" + key + "\" of property container \"" + node
@@ -388,7 +390,7 @@ public class PropertyUtilities {
                             throw new IllegalArgumentException(
                                     "Trying to merge an array value with a non-array value.");
                         if (existingValueIsArray) {
-                            PropertyUtilities.mergeArrayProperty(propContainer, key, (Object[]) value);
+                            PropertyUtilities.mergeArrayProperty(propContainer, key, (Object[]) value, true);
                         }
                     }
                 } else {

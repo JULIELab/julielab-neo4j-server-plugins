@@ -26,6 +26,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
@@ -48,11 +50,14 @@ public class ConceptAggregateManager {
     public static final String DELETE_AGGREGATES = "delete_aggregates";
     public static final String CAM_REST_ENDPOINT = "concept_aggregate_manager";
     public static final String KEY_LABEL = "label";
-    public static final String KEY_AGGREGATED_LABEL = "aggregatedLabel";
+    public static final String KEY_AGGREGATED_LABEL = "aggregated_label";
+    public static final String KEY_AGGREGATED_LABELS = "aggregated_labels";
+    public static final String KEY_SKIP_EXISTING_PROPERTIES = "skip_existing_properties";
     public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
     public static final String RET_KEY_NUM_AGGREGATES = "numAggregates";
     public static final String RET_KEY_NUM_ELEMENTS = "numElements";
     public static final String RET_KEY_NUM_PROPERTIES = "numProperties";
+
     private final DatabaseManagementService dbms;
 
     public ConceptAggregateManager(@Context DatabaseManagementService dbms) {
@@ -79,7 +84,7 @@ public class ConceptAggregateManager {
      * aggregate and does not have to be present in which case nothing will be
      * copied. The copy process will NOT be done in this method call but must be
      * triggered manually via
-     * {@link #copyAggregateProperties()}.
+     * {@link #copyAggregateProperties(Log)}.
      *
      * @param tx                 The current transaction.
      * @param jsonConcept        The aggregate encoded into JSON format.
@@ -180,30 +185,34 @@ public class ConceptAggregateManager {
      * Aggregates terms that have equal preferred name and synonyms, after some
      * minor normalization.
      *
-     * @param tx The graph database to work on.
+     * @param tx               The graph database to work on.
+     * @param nodeLabels
+     * @param aggregatedLabels
      * @return
      */
-    public static int buildAggregatesForEqualNames(Transaction tx, Label nodeLabel, Log log) {
+    public static int buildAggregatesForEqualNames(Transaction tx, List<Label> nodeLabels, List<Label> aggregatedLabels, Log log) {
         int createdAggregates = 0;
         Comparator<Node> nodeNameComparator = Comparator.comparing(n -> ((String) n.getProperty(PROP_PREF_NAME)).toLowerCase().replaceAll("\\s+", ""));
 
         // Sort the nodes with the target according to their preferred name
-        log.info("Acquiring all nodes with label %s", nodeLabel);
-        ResourceIterable<Node> termIterable = () -> tx.findNodes(nodeLabel);
+        log.info("Acquiring all nodes with labels %s", nodeLabels);
         List<Node> nodes = new ArrayList<>();
-        for (Node term : termIterable) {
-            if (!term.hasLabel(AGGREGATE))
-                nodes.add(term);
+        for (Label nodeLabel : nodeLabels) {
+            ResourceIterable<Node> termIterable = () -> tx.findNodes(nodeLabel);
+            for (Node term : termIterable) {
+                if (!term.hasLabel(AGGREGATE))
+                    nodes.add(term);
+            }
         }
-        log.info("Found %s nodes with label %s", nodes.size(), nodeLabel);
-        log.info("Sorting %s nodes with label %s by name", nodes.size(), nodeLabel);
+        log.info("Found %s nodes with labels %s", nodes.size(), nodeLabels);
+        log.info("Sorting %s nodes with labels %s by name", nodes.size(), nodeLabels);
         nodes.sort(nodeNameComparator);
         log.info("Sorting of nodes by name is done.");
 
-        String[] copyProperties = new String[]{PROP_PREF_NAME, PROP_SYNONYMS,
-                PROP_DESCRIPTIONS};
+        String[] copyProperties = new String[]{PROP_PREF_NAME, PROP_SYNONYMS};
         List<Node> equalNameNodes = new ArrayList<>();
-        log.info("Creating equal-name aggregates with label %s", AGGREGATE_EQUAL_NAMES.name());
+        log.info("Creating equal-name aggregates for labels %s with labels %s", nodeLabels, aggregatedLabels);
+        Label[] aggregatedLabelsArray = aggregatedLabels.toArray(Label[]::new);
         for (Node n : nodes) {
             boolean equalTerm = 0 == equalNameNodes.size()
                     || 0 == nodeNameComparator.compare(equalNameNodes.get(equalNameNodes.size() - 1), n);
@@ -212,10 +221,10 @@ public class ConceptAggregateManager {
             } else if (equalNameNodes.size() > 1) {
                 createAggregate(tx, copyProperties, new HashSet<>(equalNameNodes),
                         new String[]{AGGREGATE_EQUAL_NAMES.toString()},
-                        AGGREGATE_EQUAL_NAMES);
+                        aggregatedLabelsArray);
                 ++createdAggregates;
                 if (createdAggregates % 10000 == 0)
-                    log.info("Created %s equal-name aggregates.", createdAggregates);
+                    log.info("Created %s equal-name aggregates for labels %s with labels %s.", createdAggregates, nodeLabels, aggregatedLabels);
                 equalNameNodes.clear();
                 equalNameNodes.add(n);
             } else {
@@ -227,9 +236,7 @@ public class ConceptAggregateManager {
         if (equalNameNodes.size() > 1)
             createAggregate(tx, copyProperties, new HashSet<>(equalNameNodes),
                     new String[]{AGGREGATE_EQUAL_NAMES.toString()},
-                    AGGREGATE_EQUAL_NAMES);
-        else if (!equalNameNodes.isEmpty())
-            equalNameNodes.get(0).addLabel(AGGREGATE_EQUAL_NAMES);
+                    aggregatedLabelsArray);
         ++createdAggregates;
         log.info("%s equal-name aggregates were created.", createdAggregates);
         return createdAggregates;
@@ -253,45 +260,49 @@ public class ConceptAggregateManager {
         return count;
     }
 
-    public static void deleteAggregatesBatchWise(GraphDatabaseService graphDb, Label aggregateLabel, Log log) {
-        log.info("Removing all nodes with label %s", aggregateLabel.name());
+    public static Map<String, Long> deleteAggregatesBatchWise(GraphDatabaseService graphDb, List<Label> aggregateLabels, Log log) {
+        log.info("Removing all nodes with label %s", aggregateLabels);
         long numNodes = 0;
         long numLabels = 0;
         long numRel = 0;
         long numNodesInThisBatch;
         long numRelInThisBatch;
-        do {
-            try (Transaction tx = graphDb.beginTx()) {
-                numNodesInThisBatch = 0;
-                numRelInThisBatch = 0;
-                Iterator<Node> aggregates = tx.findNodes(aggregateLabel);
-                // Delete the nodes in batches. Otherwise we get very large transactions in, in consequence,
-                // memory issues.
-                while (aggregates.hasNext() && numNodesInThisBatch < 10000) {
-                    Node aggregate = aggregates.next();
-                    if (!aggregate.hasLabel(AGGREGATE)) {
-                        // For terms that are not really aggregates, we just remove
-                        // the label - we want to keep the term
-                        // itself.
-                        aggregate.removeLabel(aggregateLabel);
-                        ++numLabels;
-                        continue;
+        for (Label aggregateLabel : aggregateLabels) {
+            log.info("Deleting aggregate nodes with label %s", aggregateLabel);
+            do {
+                try (Transaction tx = graphDb.beginTx()) {
+                    numNodesInThisBatch = 0;
+                    numRelInThisBatch = 0;
+                    Iterator<Node> aggregates = tx.findNodes(aggregateLabel);
+                    // Delete the nodes in batches. Otherwise, we get very large transactions and, in consequence,
+                    // memory issues.
+                    while (aggregates.hasNext() && numNodesInThisBatch < 10000) {
+                        Node aggregate = aggregates.next();
+                        if (!aggregate.hasLabel(AGGREGATE)) {
+                            // For terms that are not really aggregates, we just remove
+                            // the label - we want to keep the term
+                            // itself.
+                            aggregate.removeLabel(aggregateLabel);
+                            ++numLabels;
+                            continue;
+                        }
+                        // Delete the aggregate.
+                        for (Relationship rel : aggregate.getRelationships()) {
+                            rel.delete();
+                            ++numRelInThisBatch;
+                        }
+                        aggregate.delete();
+                        ++numNodesInThisBatch;
                     }
-                    // Delete the aggregate.
-                    for (Relationship rel : aggregate.getRelationships()) {
-                        rel.delete();
-                        ++numRelInThisBatch;
-                    }
-                    aggregate.delete();
-                    ++numNodesInThisBatch;
+                    numNodes += numNodesInThisBatch;
+                    numRel += numRelInThisBatch;
+                    tx.commit();
+                    log.info("Deleted %s nodes", numNodes);
                 }
-                numNodes += numNodesInThisBatch;
-                numRel += numRelInThisBatch;
-                tx.commit();
-                log.info("Deleted %s nodes", numNodes);
-            }
-        } while (numNodesInThisBatch > 0);
-        log.info("Finished deleting %s edges and %s nodes with label %s and removed %s %s labels from non-aggregate nodes", numRel, numNodes, aggregateLabel.name(), numLabels, aggregateLabel.name());
+            } while (numNodesInThisBatch > 0);
+        }
+        log.info("Finished deleting %s edges and %s nodes with label %s and removed %s %s labels from non-aggregate nodes", numRel, numNodes, aggregateLabels, numLabels, aggregateLabels);
+        return Map.of("numNodes", numNodes, "numRelationships", numRel);
     }
 
     public static void deleteAggregates(Transaction tx, Label aggregateLabel, Log log) {
@@ -522,14 +533,19 @@ public class ConceptAggregateManager {
      * elements after the aggregation creation process has finished. This has to
      * be done explicitly and is not done automatically.
      *
-     * @param aggregate      The aggregate node to assembly element properties to.
-     * @param copyProperties The properties that should be copied into the aggregate.
-     * @param copyStats      An object to collect statistics over the copy process.
+     * @param aggregate              The aggregate node to assembly element properties to.
+     * @param skipExistingProperties
+     * @param copyProperties    The properties that should be copied into the aggregate.
+     * @param copyStats              An object to collect statistics over the copy process.
      */
-    public static void copyAggregateProperties(Node aggregate, String[] copyProperties,
+    public static void copyAggregateProperties(Node aggregate, boolean skipExistingProperties, String[] copyProperties,
                                                CopyAggregatePropertiesStatistics copyStats) {
+        String[] unskippedProperties = copyProperties;
         // first, clear the properties be copied in case we make a refresh
-        for (String copyProperty : copyProperties) {
+        if (!skipExistingProperties) {
+            unskippedProperties = Arrays.stream(copyProperties).filter(Predicate.not(aggregate::hasProperty)).toArray(String[]::new);
+        }
+        for (String copyProperty : unskippedProperties) {
             aggregate.removeProperty(copyProperty);
         }
         Iterable<Relationship> elementRels = aggregate.getRelationships(ConceptEdgeTypes.HAS_ELEMENT);
@@ -548,13 +564,13 @@ public class ConceptAggregateManager {
             // property has multiple, different values
             // among the elements, this property is subject to the majority vote
             // after this loop.
-            for (String copyProperty : copyProperties) {
+            for (String copyProperty : unskippedProperties) {
                 if (term.hasProperty(copyProperty)) {
                     if (null != copyStats)
                         copyStats.numProperties++;
                     Object property = term.getProperty(copyProperty);
                     if (property.getClass().isArray()) {
-                        mergeArrayProperty(aggregate, copyProperty, JulieNeo4jUtilities.convertArray(property));
+                        mergeArrayProperty(aggregate, copyProperty, JulieNeo4jUtilities.convertArray(property), true);
                     } else {
                         setNonNullNodeProperty(aggregate, copyProperty, property);
                         Object aggregateProperty = getNonNullNodeProperty(aggregate, copyProperty);
@@ -597,7 +613,7 @@ public class ConceptAggregateManager {
                     Object[] convert = JulieNeo4jUtilities.convertElementsIntoArray(propertyValue.getClass(),
                             propertyValue);
                     mergeArrayProperty(aggregate,
-                            divergentProperty + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY, convert);
+                            divergentProperty + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY, convert, true);
                 }
             }
         }
@@ -608,7 +624,7 @@ public class ConceptAggregateManager {
         // synonyms.
         mergeArrayProperty(aggregate, PROP_SYNONYMS,
                 (Object[]) getNonNullNodeProperty(aggregate,
-                        PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY));
+                        PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY), true);
 
         // As a last step, remove duplicate synonyms, case ignored
         if (aggregate.hasProperty(PROP_SYNONYMS)) {
@@ -662,6 +678,7 @@ public class ConceptAggregateManager {
         }
     }
 
+
     /**
      * <ul>
      *  <li>{@link #KEY_LABEL}:Label to restrict the concepts to that are considered for aggregation creation. </li>
@@ -676,17 +693,18 @@ public class ConceptAggregateManager {
         try {
             ObjectMapper om = new ObjectMapper();
             var parameterMap = om.readValue(jsonParameterObject, Map.class);
-            Label targetLabel = parameterMap.containsKey(KEY_LABEL) ? Label.label((String) parameterMap.get(KEY_LABEL))
-                    : null;
-            log.info("Creating equal-name-aggregates for concepts with label %s", targetLabel);
+            if (!parameterMap.containsKey(KEY_LABELS))
+                throw new IllegalArgumentException("Parameter '" + KEY_LABELS + "' not specified.");
+            List<Label> aggregatedLabels = List.of(AGGREGATE_EQUAL_NAMES);
+            if (parameterMap.containsKey(KEY_AGGREGATED_LABELS))
+                aggregatedLabels = ((List<String>) parameterMap.get(KEY_AGGREGATED_LABELS)).stream().map(Label::label).collect(Collectors.toList());
+            List<Label> targetLabels = ((List<String>) parameterMap.get(KEY_LABELS)).stream().map(Label::label).collect(Collectors.toList());
+            log.info("Creating equal-name-aggregates for concepts with label %s and assigning them label", targetLabels, aggregatedLabels);
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-            // At first, delete all equal-name aggregates since they will be
-            // built again afterwards.
-            ConceptAggregateManager.deleteAggregatesBatchWise(graphDb, AGGREGATE_EQUAL_NAMES, log);
             int createdAggregates;
             log.info("Beginning transaction for the creation of equal-name aggregates.");
             try (Transaction tx = graphDb.beginTx()) {
-                createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(tx, targetLabel, log);
+                createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(tx, targetLabels, aggregatedLabels, log);
                 log.info("Committing transaction for the creation of equal-name aggregates.");
                 tx.commit();
             }
@@ -707,8 +725,8 @@ public class ConceptAggregateManager {
 //            }
 //            log.info("Adding label %s for all nodes that have a unique name and are not part of an equal-name aggregate.", AGGREGATE_EQUAL_NAMES);
 //            try (Transaction tx = graphDb.beginTx()) {
-//                ConceptAggregateManager.addUniqueNameLabels(tx, targetLabel, log);
-//                log.info("Finished labeling unique-named concepts with label %s.", targetLabel);
+//                ConceptAggregateManager.addUniqueNameLabels(tx, targetLabels, log);
+//                log.info("Finished labeling unique-named concepts with label %s.", targetLabels);
 //                log.info("Committing transaction for the creation of unique-named concepts.");
 //                tx.commit();
 //            }
@@ -766,55 +784,68 @@ public class ConceptAggregateManager {
      * @param aggregatedConceptsLabelString The aggregate node label for which to delete the aggregate nodes.
      */
     @DELETE
-    @Consumes(MediaType.TEXT_PLAIN)
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
     @Path(DELETE_AGGREGATES)
-    public void deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABEL) String aggregatedConceptsLabelString, @Context Log log) {
-        Label aggregatedConceptsLabel = Label.label(aggregatedConceptsLabelString);
-        GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-        try (Transaction tx = graphDb.beginTx()) {
-            ConceptAggregateManager.deleteAggregates(tx, aggregatedConceptsLabel, log);
-            tx.commit();
+    public Response deleteAggregatesByMappings(@QueryParam(KEY_AGGREGATED_LABELS) String aggregatedConceptsLabelString, @Context Log log) {
+        try {
+            ObjectMapper om = new ObjectMapper();
+            var labelList = om.readValue(aggregatedConceptsLabelString, String[].class);
+            List<Label> aggregatedConceptsLabels = Arrays.stream(labelList).map(Label::label).collect(Collectors.toList());
+            GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+            final Map<String, Long> deletionCounts = ConceptAggregateManager.deleteAggregatesBatchWise(graphDb, aggregatedConceptsLabels, log);
+            return Response.ok(deletionCounts).build();
+        } catch (Throwable t) {
+            return getErrorResponse(t);
         }
     }
 
     @PUT
+    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Path(COPY_AGGREGATE_PROPERTIES)
-    public Object copyAggregateProperties(@Context Log log) {
+    public Object copyAggregateProperties(String jsonParameterObject, @Context Log log) {
         try {
+            ObjectMapper om = new ObjectMapper();
+            var parameterMap = jsonParameterObject != null && !jsonParameterObject.isBlank() ? om.readValue(jsonParameterObject, Map.class) : Collections.emptyMap();
+            boolean skipExistingProperties = Boolean.parseBoolean((String) parameterMap.getOrDefault(KEY_SKIP_EXISTING_PROPERTIES, "true"));
+            List<Label> aggregateLabels = ((List<String>) parameterMap.getOrDefault(KEY_AGGREGATED_LABELS, List.of(AGGREGATE.name()))).stream().map(Label::label).collect(Collectors.toList());
             int batchSize = 100;
             int numAggregates = 0;
+            log.info("Copying properties of aggregates with labels %s.", aggregateLabels);
             CopyAggregatePropertiesStatistics copyStats = new CopyAggregatePropertiesStatistics();
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
-            Queue<String> aggregateIds = new ArrayDeque<>();
-            try (Transaction tx = graphDb.beginTx()) {
-                try (ResourceIterator<Node> aggregateIt = tx.findNodes(AGGREGATE)) {
-                    while (aggregateIt.hasNext()) {
-                        Node aggregate = aggregateIt.next();
-                        final String aggregateId = (String) aggregate.getProperty(PROP_ID);
-                        if (aggregateId == null)
-                            throw new IllegalStateException("There are aggregate nodes without an ID.");
-                        aggregateIds.add(aggregateId);
-                    }
-                }
-            }
-            log.info("Retrieved %s aggregates. Now copying properties.", aggregateIds.size());
-            int numAggregatesProcessed = 0;
-            do {
-                final Set<String> alreadySeenIds = new HashSet<>();
+            for (Label aggregateLabel : aggregateLabels) {
+                Queue<String> aggregateIds = new ArrayDeque<>();
                 try (Transaction tx = graphDb.beginTx()) {
-                    log.info("Processing next batch of %s aggregates. Already seen aggregates through recursion are skipped.", batchSize);
-                    for (int i = 0; i < batchSize && !aggregateIds.isEmpty(); i++) {
-                        final String aggregateId = aggregateIds.poll();
-                        final Node aggregate = tx.findNode(AGGREGATE, PROP_ID, aggregateId);
-                        numAggregates += copyAggregatePropertiesRecursively(aggregate, copyStats, alreadySeenIds);
-                        ++numAggregatesProcessed;
+                    try (ResourceIterator<Node> aggregateIt = tx.findNodes(aggregateLabel)) {
+                        while (aggregateIt.hasNext()) {
+                            Node aggregate = aggregateIt.next();
+                            final String aggregateId = (String) aggregate.getProperty(PROP_ID);
+                            if (aggregateId == null)
+                                throw new IllegalStateException("There are aggregate nodes without an ID.");
+                            aggregateIds.add(aggregateId);
+                        }
                     }
-                    log.info("Processed %s aggregates", numAggregatesProcessed);
-                    log.info("Committing aggregate property copy transaction.");
-                    tx.commit();
                 }
-            } while (!aggregateIds.isEmpty());
+                log.info("Retrieved %s aggregates. Now copying properties.", aggregateIds.size());
+                int numAggregatesProcessed = 0;
+                do {
+                    final Set<String> alreadySeenIds = new HashSet<>();
+                    try (Transaction tx = graphDb.beginTx()) {
+                        log.info("Processing next batch of %s aggregates. Already seen aggregates through recursion are skipped.", batchSize);
+                        for (int i = 0; i < batchSize && !aggregateIds.isEmpty(); i++) {
+                            final String aggregateId = aggregateIds.poll();
+                            final Node aggregate = tx.findNode(AGGREGATE, PROP_ID, aggregateId);
+                            numAggregates += copyAggregatePropertiesRecursively(aggregate, skipExistingProperties, copyStats, alreadySeenIds);
+                            ++numAggregatesProcessed;
+                        }
+                        log.info("Processed %s aggregates", numAggregatesProcessed);
+                        log.info("Committing aggregate property copy transaction.");
+                        tx.commit();
+                    }
+                } while (!aggregateIds.isEmpty());
+            }
             log.info("Finished the copying of properties for %s aggregate nodes.", numAggregates);
             Map<String, Object> reportMap = new HashMap<>();
             reportMap.put(RET_KEY_NUM_AGGREGATES, numAggregates);
@@ -826,7 +857,7 @@ public class ConceptAggregateManager {
         }
     }
 
-    private int copyAggregatePropertiesRecursively(Node aggregate, CopyAggregatePropertiesStatistics copyStats,
+    private int copyAggregatePropertiesRecursively(Node aggregate, boolean skipExistingProperties, CopyAggregatePropertiesStatistics copyStats,
                                                    Set<String> alreadySeen) {
         int startSize = alreadySeen.size();
         final String aggregateId = (String) aggregate.getProperty(PROP_ID);
@@ -842,11 +873,11 @@ public class ConceptAggregateManager {
                 elementAggregates.add(endNode);
         }
         for (Node elementAggregate : elementAggregates) {
-            copyAggregatePropertiesRecursively(elementAggregate, copyStats, alreadySeen);
+            copyAggregatePropertiesRecursively(elementAggregate, skipExistingProperties, copyStats, alreadySeen);
         }
         if (aggregate.hasProperty(PROP_COPY_PROPERTIES)) {
             String[] copyProperties = (String[]) aggregate.getProperty(PROP_COPY_PROPERTIES);
-            ConceptAggregateManager.copyAggregateProperties(aggregate, copyProperties, copyStats);
+            ConceptAggregateManager.copyAggregateProperties(aggregate, skipExistingProperties, copyProperties, copyStats);
         }
         alreadySeen.add(aggregateId);
         return alreadySeen.size() - startSize;

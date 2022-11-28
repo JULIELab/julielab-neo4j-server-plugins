@@ -173,13 +173,13 @@ public class NodeUtilities extends de.julielab.neo4j.plugins.auxiliaries.NodeUti
 
             // ----- merging of synonyms
             String[] conceptSynonyms = (String[]) conceptNode.getProperty(PROP_SYNONYMS);
-            mergeArrayProperty(firstNode, ConceptConstants.PROP_SYNONYMS, conceptSynonyms);
+            mergeArrayProperty(firstNode, ConceptConstants.PROP_SYNONYMS, conceptSynonyms, true);
             if (addConceptPrefToSynonyms)
                 addToArrayProperty(firstNode, PROP_SYNONYMS, conceptPrefName);
 
             // ----- merging of facets
             String[] conceptFacets = (String[]) conceptNode.getProperty(PROP_FACETS);
-            mergeArrayProperty(firstNode, PROP_FACETS, conceptFacets);
+            mergeArrayProperty(firstNode, PROP_FACETS, conceptFacets, true);
 
             // ----- merging labels
             Iterable<Label> labels = conceptNode.getLabels();
