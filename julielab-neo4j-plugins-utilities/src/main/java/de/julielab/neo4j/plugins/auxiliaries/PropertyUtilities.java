@@ -79,9 +79,9 @@ public class PropertyUtilities {
                     final Object value = field.get(object);
                     if (value != null) {
                         if (value.getClass().isArray()) {
-                            mergeArrayProperty(node, key, (Object[]) value, true);
+                            mergeArrayProperty(node, key, (Object[]) value);
                         } else if (List.class.isAssignableFrom(value.getClass())) {
-                            mergeArrayProperty(node, key, ((List<?>) value).toArray(), true);
+                            mergeArrayProperty(node, key, ((List<?>) value).toArray());
                         } else {
                             setNonNullNodeProperty(node, key, value);
                         }
@@ -107,7 +107,7 @@ public class PropertyUtilities {
                 continue;
             Object value = from.getProperty(key);
             if (value.getClass().isArray()) {
-                mergeArrayProperty(to, key, (Object[]) value, true);
+                mergeArrayProperty(to, key, (Object[]) value);
             } else {
                 setNonNullNodeProperty(to, key, value);
             }
@@ -117,7 +117,7 @@ public class PropertyUtilities {
     public static <T> void mergeArrayProperty(Entity node, String key, Supplier<T[]> arraySupplier) {
         try {
             final T[] value = arraySupplier.get();
-            mergeArrayProperty(node, key, value, true);
+            mergeArrayProperty(node, key, value);
         } catch (NullPointerException e) {
             // nothing, this was expected
         }
@@ -135,43 +135,15 @@ public class PropertyUtilities {
      * @param node
      * @param key
      * @param array
-     * @param setMergedValueToNode
+     * @return
      */
     @SuppressWarnings("unchecked")
-    public static <T> void mergeArrayProperty(Entity node, String key, T[] array, boolean setMergedValueToNode) {
+    public static <T> void mergeArrayProperty(Entity node, String key, T[] array) {
         try {
             if (null == array || array.length == 0)
                 return;
-
-            if (array[0] == null)
-                throw new IllegalArgumentException("An array was passed whose first element is null. This is not allowed.");
-
-            // we can't directly cast to T[] because sometimes we will get an
-            // Integer[] but the node stored an int[]
-            // which is not castable...
-            // Use the set to avoid duplicates.
-            Set<T> set = new LinkedHashSet<>();
-            for (T o : array)
-                set.add(o);
-
-            if (node.hasProperty(key)) {
-                Object storedArray = node.getProperty(key);
-                // casting the elements one-by-one is working because int can be
-                // cast to Integer and the other way round via
-                // autoboxing
-                for (int i = 0; i < Array.getLength(storedArray); ++i)
-                    set.add((T) Array.get(storedArray, i));
-            }
-            T[] newArray = (T[]) Array.newInstance(array[0].getClass(), set.size());
-            try {
-                set.toArray(newArray);
-            } catch (ArrayStoreException e) {
-                T next = set.iterator().next();
-                throw new IllegalArgumentException("Trying to merge array properties of different types (array class: "
-                        + newArray.getClass() + " element class: " + next.getClass() + ")");
-            }
-            if (setMergedValueToNode)
-                node.setProperty(key, newArray);
+            final T[] mergedArrayValue = mergeArrayValue(node.getProperty(key, null), array);
+                node.setProperty(key, mergedArrayValue);
         } catch (Exception e) {
             throw new RuntimeException(
                     "Exception occurred while merging property \"" + key + "\" of property container \"" + node
@@ -179,6 +151,55 @@ public class PropertyUtilities {
                             + ")\" with data \"" + Arrays.toString(array) + "\" (object notation: \"" + array + "\").",
                     e);
         }
+    }
+
+    /**
+     * <p>Merges the values of <tt>array2</tt> into <tt>array1</tt>.</p>
+     * <p>The first array is meant to be a potentially existing node property value with comparable data type to array2.
+     * The concrete type is determined within the method. <tt>array1</tt> has to be an array of the correct type or null.</p>
+     *
+     *
+     * @param array1
+     * @param array2
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> T[] mergeArrayValue(Object array1, T[] array2) {
+        if (null == array2 || array2.length == 0) {
+            try {
+                return (T[]) array1;
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException("This method does not work when the second argument is null and the first array elements are of a primitive type, e.g. int. Check if the second argument is null before calling this method when the first argument has primitive-typed elements.");
+            }
+        }
+
+        if (array2[0] == null)
+            throw new IllegalArgumentException("An array was passed whose first element is null. This is not allowed.");
+
+        // we can't directly cast to T[] because sometimes we will get an
+        // Integer[] but the node stored an int[]
+        // which is not castable...
+        // Use the set to avoid duplicates.
+        Set<T> set = new LinkedHashSet<>();
+        if (array1 != null) {
+            // casting the elements one-by-one is working because int can be
+            // cast to Integer and the other way round via
+            // autoboxing
+            for (int i = 0; i < Array.getLength(array1); ++i)
+                set.add((T) Array.get(array1, i));
+        }
+        for (T o : array2)
+            set.add(o);
+
+        T[] newArray = (T[]) Array.newInstance(array2[0].getClass(), set.size());
+        try {
+            set.toArray(newArray);
+        } catch (ArrayStoreException e) {
+            T next = set.iterator().next();
+            throw new IllegalArgumentException("Trying to merge array properties of different types (array class: "
+                    + newArray.getClass() + " element class: " + next.getClass() + ")");
+        }
+        return newArray;
     }
 
     /**
@@ -390,7 +411,7 @@ public class PropertyUtilities {
                             throw new IllegalArgumentException(
                                     "Trying to merge an array value with a non-array value.");
                         if (existingValueIsArray) {
-                            PropertyUtilities.mergeArrayProperty(propContainer, key, (Object[]) value, true);
+                            PropertyUtilities.mergeArrayProperty(propContainer, key, (Object[]) value);
                         }
                     }
                 } else {

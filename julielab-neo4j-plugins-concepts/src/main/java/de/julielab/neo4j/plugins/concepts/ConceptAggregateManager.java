@@ -30,7 +30,8 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.*;
+import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.getNonNullNodeProperty;
+import static de.julielab.neo4j.plugins.auxiliaries.PropertyUtilities.mergeArrayValue;
 import static de.julielab.neo4j.plugins.concepts.ConceptInsertion.registerNewHollowConceptNode;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.AGGREGATE;
 import static de.julielab.neo4j.plugins.concepts.ConceptLabel.*;
@@ -54,6 +55,7 @@ public class ConceptAggregateManager {
     public static final String KEY_AGGREGATED_LABELS = "aggregated_labels";
     public static final String KEY_SKIP_EXISTING_PROPERTIES = "skip_existing_properties";
     public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
+    public static final String KEY_COPY_PROPERTIES = "copy_properties";
     public static final String RET_KEY_NUM_AGGREGATES = "numAggregates";
     public static final String RET_KEY_NUM_ELEMENTS = "numElements";
     public static final String RET_KEY_NUM_PROPERTIES = "numProperties";
@@ -188,9 +190,10 @@ public class ConceptAggregateManager {
      * @param tx               The graph database to work on.
      * @param nodeLabels
      * @param aggregatedLabels
+     * @param copyProperties
      * @return
      */
-    public static int buildAggregatesForEqualNames(Transaction tx, List<Label> nodeLabels, List<Label> aggregatedLabels, Log log) {
+    public static int buildAggregatesForEqualNames(Transaction tx, List<Label> nodeLabels, List<Label> aggregatedLabels, String[] copyProperties, Log log) {
         int createdAggregates = 0;
         Comparator<Node> nodeNameComparator = Comparator.comparing(n -> ((String) n.getProperty(PROP_PREF_NAME)).toLowerCase().replaceAll("\\s+", ""));
 
@@ -209,7 +212,7 @@ public class ConceptAggregateManager {
         nodes.sort(nodeNameComparator);
         log.info("Sorting of nodes by name is done.");
 
-        String[] copyProperties = new String[]{PROP_PREF_NAME, PROP_SYNONYMS};
+
         List<Node> equalNameNodes = new ArrayList<>();
         log.info("Creating equal-name aggregates for labels %s with labels %s", nodeLabels, aggregatedLabels);
         Label[] aggregatedLabelsArray = aggregatedLabels.toArray(Label[]::new);
@@ -535,14 +538,14 @@ public class ConceptAggregateManager {
      *
      * @param aggregate              The aggregate node to assembly element properties to.
      * @param skipExistingProperties
-     * @param copyProperties    The properties that should be copied into the aggregate.
+     * @param copyProperties         The properties that should be copied into the aggregate.
      * @param copyStats              An object to collect statistics over the copy process.
      */
     public static void copyAggregateProperties(Node aggregate, boolean skipExistingProperties, String[] copyProperties,
                                                CopyAggregatePropertiesStatistics copyStats) {
         String[] unskippedProperties = copyProperties;
         // first, clear the properties be copied in case we make a refresh
-        if (!skipExistingProperties) {
+        if (skipExistingProperties) {
             unskippedProperties = Arrays.stream(copyProperties).filter(Predicate.not(aggregate::hasProperty)).toArray(String[]::new);
         }
         for (String copyProperty : unskippedProperties) {
@@ -554,6 +557,12 @@ public class ConceptAggregateManager {
         // values.
         Set<String> divergentProperties = new HashSet<>();
         // For each element...
+        Map<String, Object> newAggregateProperties = new HashMap<>();
+        // Collect existing property values on the aggregate
+        for (String copyProperty : unskippedProperties) {
+            if (aggregate.hasProperty(copyProperty))
+                newAggregateProperties.put(copyProperty, aggregate.getProperties(copyProperty));
+        }
         for (Relationship elementRel : elementRels) {
             Node term = elementRel.getEndNode();
             if (null != copyStats)
@@ -570,10 +579,15 @@ public class ConceptAggregateManager {
                         copyStats.numProperties++;
                     Object property = term.getProperty(copyProperty);
                     if (property.getClass().isArray()) {
-                        mergeArrayProperty(aggregate, copyProperty, JulieNeo4jUtilities.convertArray(property), true);
+                        final Object[] mergedValue = mergeArrayValue(newAggregateProperties.getOrDefault(copyProperty, null), JulieNeo4jUtilities.convertArray(property));
+                        // TODO
+//                        aggregate.setProperty(copyProperty, mergedValue);
+                        newAggregateProperties.put(copyProperty, mergedValue);
                     } else {
-                        setNonNullNodeProperty(aggregate, copyProperty, property);
-                        Object aggregateProperty = getNonNullNodeProperty(aggregate, copyProperty);
+                        if (!newAggregateProperties.containsKey(copyProperty))
+                            newAggregateProperties.put(copyProperty, property);
+//                        setNonNullNodeProperty(aggregate, copyProperty, property);
+                        Object aggregateProperty = newAggregateProperties.get(copyProperty);
                         if (!aggregateProperty.equals(property)) {
                             divergentProperties.add(copyProperty);
                         }
@@ -606,14 +620,18 @@ public class ConceptAggregateManager {
             }
 
             // Set the majority value to the aggregate.
-            aggregate.setProperty(divergentProperty, majorityValue);
+//            aggregate.setProperty(divergentProperty, majorityValue);
+            newAggregateProperties.put(divergentProperty, majorityValue);
             // Set the minority values to the aggregate as a special property.
             for (Object propertyValue : propertyValues.elementSet()) {
                 if (!propertyValue.equals(majorityValue)) {
                     Object[] convert = JulieNeo4jUtilities.convertElementsIntoArray(propertyValue.getClass(),
                             propertyValue);
-                    mergeArrayProperty(aggregate,
-                            divergentProperty + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY, convert, true);
+                    final String divergentKey = divergentProperty + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY;
+                    final Object[] mergedValue = mergeArrayValue(newAggregateProperties.getOrDefault(divergentKey, null), convert);
+                    newAggregateProperties.put(divergentKey, mergedValue);
+//                    mergeArrayProperty(aggregate,
+//                            divergentKey, convert);
                 }
             }
         }
@@ -622,13 +640,17 @@ public class ConceptAggregateManager {
         // already resolved by a majority
         // vote above. We now additionally merge the minority names to the
         // synonyms.
-        mergeArrayProperty(aggregate, PROP_SYNONYMS,
-                (Object[]) getNonNullNodeProperty(aggregate,
-                        PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY), true);
+        final String divergentPrefnameKey = PROP_PREF_NAME + AggregateConstants.SUFFIX_DIVERGENT_ELEMENT_ROPERTY;
+        final Object[] synonymsWithDivergentPrefNames = mergeArrayValue(newAggregateProperties.getOrDefault(PROP_SYNONYMS, null), (Object[]) newAggregateProperties.get(divergentPrefnameKey));
+        if (synonymsWithDivergentPrefNames != null)
+            newAggregateProperties.put(PROP_SYNONYMS, synonymsWithDivergentPrefNames);
+//        mergeArrayProperty(aggregate, PROP_SYNONYMS,
+//                (Object[]) getNonNullNodeProperty(aggregate,
+//                        divergentPrefnameKey));
 
         // As a last step, remove duplicate synonyms, case ignored
-        if (aggregate.hasProperty(PROP_SYNONYMS)) {
-            String[] synonyms = (String[]) aggregate.getProperty(PROP_SYNONYMS);
+        if (newAggregateProperties.containsKey(PROP_SYNONYMS)) {
+            String[] synonyms = (String[]) newAggregateProperties.get(PROP_SYNONYMS);
             Set<String> lowerCaseSynonyms = new HashSet<>();
             List<String> acceptedSynonyms = new ArrayList<>();
             for (String synonym : synonyms) {
@@ -639,8 +661,12 @@ public class ConceptAggregateManager {
                 }
             }
             Collections.sort(acceptedSynonyms);
-            aggregate.setProperty(PROP_SYNONYMS,
+            newAggregateProperties.put(PROP_SYNONYMS,
                     acceptedSynonyms.toArray(new String[0]));
+        }
+
+        for (String copyProperty : newAggregateProperties.keySet()) {
+            aggregate.setProperty(copyProperty, newAggregateProperties.get(copyProperty));
         }
     }
 
@@ -698,13 +724,16 @@ public class ConceptAggregateManager {
             List<Label> aggregatedLabels = List.of(AGGREGATE_EQUAL_NAMES);
             if (parameterMap.containsKey(KEY_AGGREGATED_LABELS))
                 aggregatedLabels = ((List<String>) parameterMap.get(KEY_AGGREGATED_LABELS)).stream().map(Label::label).collect(Collectors.toList());
+            List<String> copyProperties = List.of(PROP_PREF_NAME, PROP_SYNONYMS);
+            if (parameterMap.containsKey(KEY_COPY_PROPERTIES))
+                copyProperties = ((List<String>) parameterMap.get(KEY_COPY_PROPERTIES));
             List<Label> targetLabels = ((List<String>) parameterMap.get(KEY_LABELS)).stream().map(Label::label).collect(Collectors.toList());
             log.info("Creating equal-name-aggregates for concepts with label %s and assigning them label", targetLabels, aggregatedLabels);
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             int createdAggregates;
             log.info("Beginning transaction for the creation of equal-name aggregates.");
             try (Transaction tx = graphDb.beginTx()) {
-                createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(tx, targetLabels, aggregatedLabels, log);
+                createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(tx, targetLabels, aggregatedLabels, copyProperties.toArray(String[]::new), log);
                 log.info("Committing transaction for the creation of equal-name aggregates.");
                 tx.commit();
             }
