@@ -73,7 +73,7 @@ public class ConceptManager {
      * lie below this number. The reason is that we store the source IDs in properties named 'sourceIDsX' where X
      * is the Xth source ID occurring for a particular concept (meaning that multiple source defined the concept
      * as identified via its original source (ID)). We need an index on each sourceIDsX property. This is where this
-     * numnber comes into play: We create indexes for all 'sourceIDsX' property with X < MAX_SRC_IDS in {@link #createIndexes(Transaction)}.
+     * number comes into play: We create indexes for all 'sourceIDsX' property with X < MAX_SRC_IDS in {@link #createIndexes(Transaction)}.
      */
     public static final int MAX_SRC_IDS = 10;
 

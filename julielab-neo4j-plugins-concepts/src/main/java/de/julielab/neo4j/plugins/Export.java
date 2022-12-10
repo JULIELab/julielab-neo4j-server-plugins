@@ -48,8 +48,10 @@ public class Export {
     public static final String LINGPIPE_DICT = "lingpipe_dictionary";
     public static final String CONCEPT_TO_FACET = "concept_facet_map";
     public static final String CONCEPT_ID_MAPPING = "concept_id_mapping";
+    public static final String PARAM_UNIQUE_KEYS = "unique_keys";
     public static final String PARAM_SOURCE_ID_PROPERTY = "source_id_property";
     public static final String PARAM_TARGET_ID_PROPERTY = "target_id_property";
+    public static final String PARAM_FACET_NAMES = "facet_names";
     public static final String PARAM_LABELS = "labels";
     public static final String PARAM_LABEL = "label";
     public static final String PARAM_EXCLUSION_LABEL = "exclusion_label";
@@ -153,18 +155,18 @@ public class Export {
     @Produces(MediaType.APPLICATION_JSON)
     @javax.ws.rs.Path(HYPERNYMS)
     public Object exportHypernyms(
-            @QueryParam(PARAM_LABELS) String facetLabelStrings,
+            @QueryParam(PARAM_FACET_NAMES) String facetNames,
             @QueryParam(PARAM_LABEL) String conceptLabel, @Context Log log)
             throws Exception {
         ObjectMapper om = new ObjectMapper();
-        String[] labelsArray = null != facetLabelStrings ? om.readValue(facetLabelStrings, String[].class) : null;
-        if (null == labelsArray)
+        String[] facetNameArray = null != facetNames ? om.readValue(facetNames, String[].class) : null;
+        if (null == facetNameArray)
             log.info("Exporting hypernyms dictionary data for all facets.");
         else
-            log.info("Exporting hypernyms dictionary data for the facets with labels " + Arrays.toString(labelsArray) + ".");
+            log.info("Exporting hypernyms dictionary data for the facets with names " + Arrays.toString(facetNameArray) + ".");
         return (StreamingOutput) output -> {
             try {
-                writeHypernymList(labelsArray, conceptLabel, output);
+                writeHypernymList(facetNameArray, conceptLabel, output);
             } catch (Exception e) {
                 log.error("Exception occurred during concept ID output streaming.", e);
                 e.printStackTrace();
@@ -172,16 +174,12 @@ public class Export {
         };
     }
 
-    private void writeHypernymList(String[] labelsArray,
-                                   String termLabelString, OutputStream output) throws IOException {
+    private void writeHypernymList(String[] facetNames,
+                                   String conceptLabelString, OutputStream output) throws IOException {
 
-        String[] labels = labelsArray;
-        if (null == labels) {
-            labels = new String[]{FacetManager.FacetLabel.FACET.name()};
-        }
-        Label termLabel = null;
-        if (!StringUtils.isBlank(termLabelString))
-            termLabel = Label.label(termLabelString);
+        Label conceptLabel = null;
+        if (!StringUtils.isBlank(conceptLabelString))
+            conceptLabel = Label.label(conceptLabelString);
 
         Map<Node, Set<String>> cache = new HashMap<>(Export.HYPERNYMS_CACHE_SIZE);
 
@@ -197,15 +195,10 @@ public class Export {
             List<RelationshipType> relationshipTypeList = new ArrayList<>();
             // Only create the specific facet IDs set when we have not just
             // all facets
-            if (labels.length > 1 || !labels[0].equals(FacetManager.FacetLabel.FACET.name())) {
-                for (String labelString : labels) {
-                    Label label = Label.label(labelString);
-                    ResourceIterable<Node> facets = () -> tx.findNodes(label);
+            if (facetNames != null && facetNames.length > 1 || !facetNames[0].equals("all")) {
+                for (String facetName : facetNames) {
+                    ResourceIterable<Node> facets = () -> tx.findNodes(FacetManager.FacetLabel.FACET, FacetConstants.PROP_NAME, facetName);
                     for (Node facet : facets) {
-                        if (!facet.hasLabel(FacetManager.FacetLabel.FACET))
-                            throw new IllegalArgumentException("Label node " + facet + " with the label " + label
-                                    + " is no facet since it does not have the " + FacetManager.FacetLabel.FACET
-                                    + " label.");
                         String facetId = (String) facet.getProperty(FacetConstants.PROP_ID);
                         RelationshipType reltype = RelationshipType
                                 .withName(ConceptEdgeTypes.IS_BROADER_THAN + "_" + facetId);
@@ -216,17 +209,16 @@ public class Export {
                 relationshipTypeList.add(ConceptEdgeTypes.IS_BROADER_THAN);
             }
 
-            for (String labelString : labels) {
-                Label label = Label.label(labelString);
-                log.info("Now creating hypernyms for facets with label " + label);
-                ResourceIterable<Node> facets = () -> tx.findNodes(label);
+            for (String facetName : facetNames) {
+                log.info("Now creating hypernyms for facet with name " + facetName);
+                ResourceIterable<Node> facets = () -> tx.findNodes(FacetManager.FacetLabel.FACET, FacetConstants.PROP_NAME, facetName);
                 Set<Node> visitedNodes = new HashSet<>();
                 for (Node facet : facets) {
                     Iterable<Relationship> rels = facet.getRelationships(Direction.OUTGOING,
                             ConceptEdgeTypes.HAS_ROOT_CONCEPT);
                     for (Relationship rel : rels) {
                         Node rootTerm = rel.getEndNode();
-                        if (null != termLabel && !rootTerm.hasLabel(termLabel))
+                        if (null != conceptLabel && !rootTerm.hasLabel(conceptLabel))
                             continue;
                         writeHypernyms(rootTerm, visitedNodes, cache, output,
                                 relationshipTypeList.toArray(new RelationshipType[0]));
@@ -292,6 +284,18 @@ public class Export {
             log.info("Finished " + visitedNodes.size() + ".");
     }
 
+    /**
+     * <p>Produces a dictionary/mapping from concept node names - preferred name, synonyms and, if added to the database, connected acronym node names - to their concept ID ([at]id[0-9]+).</p>
+     * <p>The mapping is a text string that consists of one entry per line, name and conceptId are separated by a tab character. While this format can be used for a number of purposes,
+     * it specifically fits the format used by the JCoRe Lingpipe Gazetteer component.</p>
+     * @param labelsString One or multiple labels that identify the sets of nodes to process for dictionary creation. Lists of labels must be in JSON format. The labels are processed in the specified order. This is important if <tt>uniqueKeys</tt> is enabled.
+     * @param exclusionLabelString One or multiple labels that serve as a node filter. Nodes having one of those labels will be skipped from dictionary creation.
+     * @param nodeCategories The node properties that should be the keys of the dictionary. Separate multiple properties with commas. There are restrictions regarding the types of the properties. They must either all be non-array values or all are arrays of the same length. For multiple properties, a single mapping-target string is created with "||" as a value separator. In case of array values, the string first lists all first elements, then the second elements, then the third elements etc.
+     * @param uniqueKeys Determines if keys may occur multiple times or should be unique. In case of uniqueness, the <tt>labelsString</tt> becomes important: the first occurrence of a key will be included in the output, subsequent occurrences will be discarded.
+     * @param log
+     * @return The dictionary text string GZIP-compressed and Base64-ASCII-encoded.
+     * @throws IOException
+     */
     @GET
     @Produces(MediaType.TEXT_PLAIN)
     @javax.ws.rs.Path(LINGPIPE_DICT)
@@ -299,6 +303,7 @@ public class Export {
             @QueryParam(PARAM_LABELS) String labelsString,
             @QueryParam(PARAM_EXCLUSION_LABEL) String exclusionLabelString,
             @QueryParam(PARAM_SOURCE_ID_PROPERTY) String nodeCategories,
+            @QueryParam(PARAM_UNIQUE_KEYS) boolean uniqueKeys,
             @Context Log log)
             throws IOException {
         final ObjectMapper om = new ObjectMapper();
@@ -333,6 +338,7 @@ public class Export {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream(OUTPUTSTREAM_INIT_SIZE);
         GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
+        Set<String> writtenKeys = uniqueKeys ? new HashSet<>() : null;
         try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
             for (Label label : labels) {
                 try (Transaction tx = graphDb.beginTx()) {
@@ -409,14 +415,14 @@ public class Export {
                                 // writingVariants = (String[]) term
                                 // .getProperty(PROP_WRITING_VARIANTS);
 
-                                writeNormalizedDictionaryEntry(preferredName, categoryString, os);
+                                writeNormalizedDictionaryEntry(preferredName, categoryString, writtenKeys, os);
                                 for (String synonString : synonyms)
-                                    writeNormalizedDictionaryEntry(synonString, categoryString, os);
+                                    writeNormalizedDictionaryEntry(synonString, categoryString, writtenKeys, os);
                                 TraversalDescription acronymsTraversal = PredefinedTraversals.getAcronymsTraversal(tx);
                                 Traverser traverse = acronymsTraversal.traverse(term);
                                 for (Node acronymNode : traverse.nodes()) {
                                     String acronym = (String) acronymNode.getProperty(MorphoConstants.PROP_NAME);
-                                    writeNormalizedDictionaryEntry(acronym, categoryString, os);
+                                    writeNormalizedDictionaryEntry(acronym, categoryString, writtenKeys, os);
                                 }
                                 // for (String variant : writingVariants)
                                 // writeNormalizedDictionaryEntry(variant,
@@ -434,10 +440,11 @@ public class Export {
         return Base64.getEncoder().encodeToString(bytes);
     }
 
-    private void writeNormalizedDictionaryEntry(String name, String termId, OutputStream os) throws IOException {
+    private void writeNormalizedDictionaryEntry(String name, String termId, Set<String> writtenKeys, OutputStream os) throws IOException {
         String normalizedName = StringUtils.normalizeSpace(name);
-        if (normalizedName.length() > 2)
+        if (normalizedName.length() > 2 && (writtenKeys == null || writtenKeys.add(normalizedName))) {
             IOUtils.write(normalizedName + "\t" + termId + "\n", os, "UTF-8");
+        }
     }
 
     @GET

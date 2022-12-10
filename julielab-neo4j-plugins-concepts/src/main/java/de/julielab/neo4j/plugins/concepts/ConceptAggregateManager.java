@@ -25,6 +25,7 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.IOException;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -41,6 +42,8 @@ import static de.julielab.neo4j.plugins.concepts.ConceptManager.UNKNOWN_CONCEPT_
 import static de.julielab.neo4j.plugins.concepts.ConceptManager.getErrorResponse;
 import static de.julielab.neo4j.plugins.datarepresentation.constants.ConceptConstants.*;
 import static org.neo4j.configuration.GraphDatabaseSettings.DEFAULT_DATABASE_NAME;
+
+
 
 @Path("/" + ConceptAggregateManager.CAM_REST_ENDPOINT)
 public class ConceptAggregateManager {
@@ -86,7 +89,7 @@ public class ConceptAggregateManager {
      * aggregate and does not have to be present in which case nothing will be
      * copied. The copy process will NOT be done in this method call but must be
      * triggered manually via
-     * {@link #copyAggregateProperties(Log)}.
+     * {@link #copyAggregateProperties()}.
      *
      * @param tx                 The current transaction.
      * @param jsonConcept        The aggregate encoded into JSON format.
@@ -187,60 +190,84 @@ public class ConceptAggregateManager {
      * Aggregates terms that have equal preferred name and synonyms, after some
      * minor normalization.
      *
-     * @param tx               The graph database to work on.
+     * @param graphDb               The graph database to work on.
      * @param nodeLabels
      * @param aggregatedLabels
      * @param copyProperties
      * @return
      */
-    public static int buildAggregatesForEqualNames(Transaction tx, List<Label> nodeLabels, List<Label> aggregatedLabels, String[] copyProperties, Log log) {
+    public static int buildAggregatesForEqualNames(GraphDatabaseService graphDb, List<Label> nodeLabels, List<Label> aggregatedLabels, String[] copyProperties, Log log) {
         int createdAggregates = 0;
         Comparator<Node> nodeNameComparator = Comparator.comparing(n -> ((String) n.getProperty(PROP_PREF_NAME)).toLowerCase().replaceAll("\\s+", ""));
 
         // Sort the nodes with the target according to their preferred name
-        log.info("Acquiring all nodes with labels %s", nodeLabels);
-        List<Node> nodes = new ArrayList<>();
-        for (Label nodeLabel : nodeLabels) {
-            ResourceIterable<Node> termIterable = () -> tx.findNodes(nodeLabel);
-            for (Node term : termIterable) {
-                if (!term.hasLabel(AGGREGATE))
-                    nodes.add(term);
+        log.info("Acquiring all non-aggregate nodes with labels %s", nodeLabels);
+        List<Long> nodeIds;
+        try (final Transaction tx = graphDb.beginTx()) {
+            List<Node> nodes = new ArrayList<>();
+            for (Label nodeLabel : nodeLabels) {
+                ResourceIterable<Node> nodeIterable = () -> tx.findNodes(nodeLabel);
+                for (Node node : nodeIterable) {
+                    if (!node.hasLabel(AGGREGATE))
+                        nodes.add(node);
+                }
             }
+            log.info("Found %s nodes with labels %s", nodes.size(), nodeLabels);
+            log.info("Sorting %s nodes with labels %s by name", nodes.size(), nodeLabels);
+            nodes.sort(nodeNameComparator);
+            log.info("Sorting of nodes by name is done.");
+            nodeIds = nodes.stream().map(Node::getId).collect(Collectors.toList());
         }
-        log.info("Found %s nodes with labels %s", nodes.size(), nodeLabels);
-        log.info("Sorting %s nodes with labels %s by name", nodes.size(), nodeLabels);
-        nodes.sort(nodeNameComparator);
-        log.info("Sorting of nodes by name is done.");
 
 
         List<Node> equalNameNodes = new ArrayList<>();
         log.info("Creating equal-name aggregates for labels %s with labels %s", nodeLabels, aggregatedLabels);
         Label[] aggregatedLabelsArray = aggregatedLabels.toArray(Label[]::new);
-        for (Node n : nodes) {
-            boolean equalTerm = 0 == equalNameNodes.size()
-                    || 0 == nodeNameComparator.compare(equalNameNodes.get(equalNameNodes.size() - 1), n);
-            if (equalTerm) {
-                equalNameNodes.add(n);
-            } else if (equalNameNodes.size() > 1) {
-                createAggregate(tx, copyProperties, new HashSet<>(equalNameNodes),
-                        new String[]{AGGREGATE_EQUAL_NAMES.toString()},
-                        aggregatedLabelsArray);
-                ++createdAggregates;
-                if (createdAggregates % 10000 == 0)
-                    log.info("Created %s equal-name aggregates for labels %s with labels %s.", createdAggregates, nodeLabels, aggregatedLabels);
-                equalNameNodes.clear();
-                equalNameNodes.add(n);
-            } else {
-                equalNameNodes.clear();
-                equalNameNodes.add(n);
+        final Iterator<Long> nodeitId = nodeIds.iterator();
+        int batchsize = 1000;
+        List<Long> currentBatch = new ArrayList<>(batchsize);
+        while (nodeitId.hasNext()) {
+            currentBatch.add(nodeitId.next());
+            if (currentBatch.size() == batchsize || !nodeitId.hasNext()) {
+                try (final Transaction tx = graphDb.beginTx()) {
+                    for (long nodeId : currentBatch) {
+                        Node n = tx.getNodeById(nodeId);
+                        boolean equalTerm = 0 == equalNameNodes.size()
+                                || 0 == nodeNameComparator.compare(equalNameNodes.get(equalNameNodes.size() - 1), n);
+                        if (equalTerm) {
+                            equalNameNodes.add(n);
+                        } else if (equalNameNodes.size() > 1) {
+                            createAggregate(tx, copyProperties, new HashSet<>(equalNameNodes),
+                                    new String[]{AGGREGATE_EQUAL_NAMES.toString()},
+                                    aggregatedLabelsArray);
+                            ++createdAggregates;
+                            if (createdAggregates % 10000 == 0)
+                                log.info("Created %s equal-name aggregates for labels %s with labels %s.", createdAggregates, nodeLabels, aggregatedLabels);
+                            equalNameNodes.clear();
+                            equalNameNodes.add(n);
+                        } else {
+                            equalNameNodes.clear();
+                            equalNameNodes.add(n);
+                        }
+                    }
+                    // handle the last set of equal nodes of the last batch
+                    if (!nodeitId.hasNext() && equalNameNodes.size() > 1) {
+                        createAggregate(tx, copyProperties, new HashSet<>(equalNameNodes),
+                                new String[]{AGGREGATE_EQUAL_NAMES.toString()},
+                                aggregatedLabelsArray);
+                        ++createdAggregates;
+                    }
+
+                    tx.commit();
+                    currentBatch.clear();
+                    // Clear the nodes that belong to the aggregates that were just committed but also
+                    // those that have not yet been processed. We cannot transfer them to another transaction.
+                    // Thus, we put their IDs back to the list
+                    equalNameNodes.clear();
+                    equalNameNodes.stream().map(Node::getId).forEach(currentBatch::add);
+                }
             }
         }
-        // handle the last set of equal nodes
-        if (equalNameNodes.size() > 1)
-            createAggregate(tx, copyProperties, new HashSet<>(equalNameNodes),
-                    new String[]{AGGREGATE_EQUAL_NAMES.toString()},
-                    aggregatedLabelsArray);
-        ++createdAggregates;
         log.info("%s equal-name aggregates were created.", createdAggregates);
         return createdAggregates;
     }
@@ -704,7 +731,6 @@ public class ConceptAggregateManager {
         }
     }
 
-
     /**
      * <ul>
      *  <li>{@link #KEY_LABEL}:Label to restrict the concepts to that are considered for aggregation creation. </li>
@@ -732,11 +758,7 @@ public class ConceptAggregateManager {
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             int createdAggregates;
             log.info("Beginning transaction for the creation of equal-name aggregates.");
-            try (Transaction tx = graphDb.beginTx()) {
-                createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(tx, targetLabels, aggregatedLabels, copyProperties.toArray(String[]::new), log);
-                log.info("Committing transaction for the creation of equal-name aggregates.");
-                tx.commit();
-            }
+            createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(graphDb, targetLabels, aggregatedLabels, copyProperties.toArray(String[]::new), log);
 //            log.info("Finding nodes");
 //            List<ConceptCoordinates> uniquelyNamedNodes = new ArrayList<>();
 //            try (Transaction tx = graphDb.beginTx()) {
@@ -761,8 +783,8 @@ public class ConceptAggregateManager {
 //            }
             log.info("Process for the creation of equal-name aggregates has finished.");
             return Response.ok(createdAggregates).build();
-        } catch (Throwable t) {
-            return getErrorResponse(t);
+        } catch (IOException e) {
+            return getErrorResponse(e);
         }
     }
 

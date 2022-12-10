@@ -18,6 +18,8 @@ public class ImportConcept {
     public List<String> writingVariants = Collections.emptyList();
     @JsonProperty(ConceptConstants.COORDINATES)
     public ConceptCoordinates coordinates;
+    @JsonProperty(ConceptConstants.ADDITIONAL_COORDINATES)
+    public List<ConceptCoordinates> additionalCoordinates = Collections.emptyList();
     @JsonProperty(ConceptConstants.PARENT_COORDINATES)
     public List<ConceptCoordinates> parentCoordinates = Collections.emptyList();
     @JsonProperty(ConceptConstants.RELATIONSHIPS)
@@ -38,7 +40,9 @@ public class ImportConcept {
     @JsonProperty(ConceptConstants.AGGREGATE_INCLUDE_IN_HIERARCHY)
     public boolean aggregateIncludeInHierarchy;
     @JsonProperty(ConceptConstants.ADDITIONAL_PROPERTIES)
-    public Map<String, String> additionalProperties;
+    public Map<String, Object> additionalProperties = Collections.emptyMap();
+    @JsonProperty(ConceptConstants.ELIGIBLE_FOR_FACET_ROOT)
+    public boolean eligibleForFacetRoot = true;
 
 
     /**
@@ -211,5 +215,15 @@ public class ImportConcept {
         return !parentCoordinates.isEmpty();
     }
 
+    public void addAdditionalCoordinates(ConceptCoordinates additionalCoordinates) {
+        if (this.additionalCoordinates.isEmpty())
+            this.additionalCoordinates = new ArrayList<>();
+        this.additionalCoordinates.add(additionalCoordinates);
+    }
 
+    public void addAdditionalProperty(String property, Object value) {
+        if (this.additionalProperties.isEmpty())
+            this.additionalProperties = new HashMap<>();
+        this.additionalProperties.put(property, value);
+    }
 }

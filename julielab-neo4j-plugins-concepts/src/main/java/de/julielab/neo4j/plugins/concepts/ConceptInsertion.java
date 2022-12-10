@@ -54,7 +54,7 @@ public class ConceptInsertion {
         Node facet = FacetManager.getFacetNode(tx, facetId);
         RelationshipType relBroaderThanInFacet = null;
         if (null != facet)
-            relBroaderThanInFacet = RelationshipType.withName(ConceptEdgeTypes.IS_BROADER_THAN.toString() + "_" + facetId);
+            relBroaderThanInFacet = RelationshipType.withName(ConceptEdgeTypes.IS_BROADER_THAN + "_" + facetId);
         AddToNonFacetGroupCommand noFacetCmd = importOptions.noFacetCmd;
         Node noFacet = null;
         for (ImportConcept jsonConcept : jsonConcepts) {
@@ -68,7 +68,7 @@ public class ConceptInsertion {
             String srcId = coordinates.sourceId;
             // ...but it is not required to have a parent in its source.
             // Then, it's a facet root.
-            Node concept = nodesByCoordinates.get(new ConceptCoordinates(coordinates));
+            Node concept = nodesByCoordinates.get(coordinates);
             // Perhaps the concept was omitted on purpose?
             if (null == concept && insertionReport.omittedConcepts.contains(srcId))
                 continue;
@@ -177,7 +177,7 @@ public class ConceptInsertion {
                                     .collect(joining(", ")));
                     }
 
-                } else {
+                } else if (jsonConcept.eligibleForFacetRoot) {
                     if (noFacetCmd != null && noFacetCmd.getParentCriteria()
                             .contains(AddToNonFacetGroupCommand.ParentCriterium.NO_PARENT)) {
                         if (null == noFacet) {
@@ -204,7 +204,9 @@ public class ConceptInsertion {
                     for (ImportConceptRelationship jsonRelationship : jsonConcept.relationships) {
                         String rsTypeStr = jsonRelationship.type;
                         final ConceptCoordinates targetCoordinates = jsonRelationship.targetCoordinates;
-                        Node target = lookupConcept(tx, targetCoordinates);
+                        Node target = nodesByCoordinates.get(targetCoordinates);
+                        if (null == target)
+                            target = lookupConcept(tx, targetCoordinates);
                         if (null == target) {
                             log.debug("Creating hollow relationship target with orig Id/orig source " + targetCoordinates);
                             target = registerNewHollowConceptNode(tx, log, targetCoordinates);
@@ -224,7 +226,6 @@ public class ConceptInsertion {
                         }
                         createRelationShipIfNotExists(concept, target, type, insertionReport, Direction.OUTGOING,
                                 properties);
-                        insertionReport.numRelationships++;
                     }
                 }
             }
@@ -382,6 +383,15 @@ public class ConceptInsertion {
         // full text index on the source ID property.
 
         NodeUtilities.mergeSourceId(tx, concept, srcId, source, uniqueSourceId);
+        if (jsonConcept.additionalCoordinates != null) {
+            for (ConceptCoordinates additionalCoordinates : jsonConcept.additionalCoordinates) {
+                if (additionalCoordinates.source != null && additionalCoordinates.sourceId != null) {
+                    NodeUtilities.mergeSourceId(tx, concept, additionalCoordinates.sourceId, additionalCoordinates.source, additionalCoordinates.uniqueSourceId);
+                } else {
+                    log.debug("ImportConcept with main coordinates %s defines additional coordinates %s. The additional coordinates need to define a source (not an original source) and sourceId but these don't. They are skipped.", coordinates.toString(), additionalCoordinates.toString());
+                }
+            }
+        }
 
         for (int i = 0; null != generalLabels && i < generalLabels.size(); i++) {
             concept.addLabel(Label.label(generalLabels.get(i)));
@@ -425,24 +435,25 @@ public class ConceptInsertion {
 
         boolean relationShipExists = false;
         Relationship createdRelationship = null;
+//        String sourceId = source.hasProperty(PROP_ORG_ID) ? (String) source.getProperty(PROP_ORG_ID) : "";
+//        if (sourceId.isBlank() && source.hasProperty(PROP_ID))
+//            sourceId = (String) source.getProperty(PROP_ID);
+//        String targetId = target.hasProperty(PROP_ORG_ID) ? (String) target.getProperty(PROP_ORG_ID) : "";
+//        if (targetId.isBlank() && target.hasProperty(PROP_ID))
+//            targetId = (String) target.getProperty(PROP_ID);
+
+//        System.out.println("Checking if relationship exists between " + sourceId + "-[:" + type + "]-" + targetId + " (direction: " + direction + ")");
         if (insertionReport.relationshipAlreadyWasCreated(source, target, type)) {
             relationShipExists = true;
+//            System.out.println("Found relation in the relationship cache.");
         } else if (insertionReport.existingConcepts.contains(source)
                 && insertionReport.existingConcepts.contains(target)) {
             // Both concepts existing before the current processing call to
             // insert_concepts. Thus, we have to check whether
             // the relation already exists and cannot just use
             // insertionReport.relationshipAlreadyWasCreated()
-
-            String sourceId = source.hasProperty(PROP_ORG_ID) ? (String) source.getProperty(PROP_ORG_ID) : "";
-            if (sourceId.isBlank() && source.hasProperty(PROP_ID))
-                sourceId = (String) source.getProperty(PROP_ID);
-            String targetId = target.hasProperty(PROP_ORG_ID) ? (String) target.getProperty(PROP_ORG_ID) : "";
-            if (targetId.isBlank() && target.hasProperty(PROP_ID))
-                targetId = (String) target.getProperty(PROP_ID);
-
-//            System.out.println("Checking if relationship exists between " + sourceId + "-[:" + type + "]-" + targetId + " (direction: " + direction + "). Source labels: " + StreamSupport.stream(source.getLabels().spliterator(), false).map(Label::name).collect(Collectors.toList()) + ", target labels: " + StreamSupport.stream(target.getLabels().spliterator(), false).map(Label::name).collect(Collectors.toList()));
-
+//
+//            System.out.println("Both nodes existed before. Retrieving relationships of nodes from the database and searching if the relationship to be imported already exists.");
             final int sourceDegree = source.getDegree(type, direction);
             Direction reverseDirection = Direction.BOTH;
             if (direction == Direction.INCOMING)
@@ -455,20 +466,27 @@ public class ConceptInsertion {
                 for (Relationship relationship : relationships) {
                     if (relationship.getOtherNode(source).equals(target)) {
                         relationShipExists = mergeProperties(relationship, properties);
+                        if (relationShipExists) {
+                            break;
+                        }
                     }
                 }
+//                System.out.println("Tried direction source -> target; did find the relation: " + relationShipExists);
             } else {
                 Iterable<Relationship> relationships = target.getRelationships(reverseDirection, type);
                 for (Relationship relationship : relationships) {
                     if (relationship.getOtherNode(target).equals(source)) {
                         relationShipExists = mergeProperties(relationship, properties);
-                        if (relationShipExists)
+                        if (relationShipExists) {
                             break;
+                        }
                     }
                 }
+//                System.out.println("Tried direction target <- source; did find the relation: " + relationShipExists);
             }
         }
         if (!relationShipExists) {
+//            System.out.println("The relationship does not yet exist. Creating it.");
             // The relationship does not exist. Create it.
             createdRelationship = source.createRelationshipTo(target, type);
             // Add the properties.
@@ -747,8 +765,23 @@ public class ConceptInsertion {
                 // continue
                 importConceptsToRemove.add(i);
             }
-
+            // Also check if the nodes for which relationships should explicitly created do already exist to avoid
+            // relationship duplicates.
+            // We only need to check if the conceptNode itself does exist. If not, its relationship cannot exist, after all.
+            if (conceptNode != null) {
+                if (jsonConcept.relationships != null) {
+                    for (ImportConceptRelationship rel : jsonConcept.relationships) {
+                        final ConceptCoordinates targetCoordinates = rel.targetCoordinates;
+                        final Node relTarget = lookupConcept(tx, targetCoordinates);
+                        if (relTarget != null) {
+                            insertionReport.addExistingConcept(relTarget);
+                            nodesByCoordinates.put(targetCoordinates, relTarget);
+                        }
+                    }
+                }
+            }
         }
+
         // Finished getting existing nodes and creating HOLLOW nodes
         for (ConceptCoordinates coordinates : toBeCreated) {
             Node conceptNode = registerNewHollowConceptNode(tx, log, coordinates);
@@ -818,11 +851,11 @@ public class ConceptInsertion {
             if (null == n1) {
                 Iterator<Node> indexHits = ConceptLookup.lookupConceptsBySourceId(tx, id1).iterator();
                 if (indexHits.hasNext())
-                    n1 = (Node) indexHits.next();
+                    n1 = indexHits.next();
                 if (indexHits.hasNext()) {
                     log.error("More than one node for source ID {}", id1);
                     while (indexHits.hasNext())
-                        log.error(NodeUtilities.getNodePropertiesAsString((Entity) indexHits.next()));
+                        log.error(NodeUtilities.getNodePropertiesAsString(indexHits.next()));
                     throw new IllegalStateException("More than one node for source ID " + id1);
                 }
                 if (null == n1) {

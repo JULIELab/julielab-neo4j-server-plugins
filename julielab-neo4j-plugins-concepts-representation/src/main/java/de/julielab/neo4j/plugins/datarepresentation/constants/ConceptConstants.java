@@ -107,4 +107,10 @@ public class ConceptConstants extends NodeConstants {
 
     public static final String COORDINATES = "coordinates";
 
+    public static final String ADDITIONAL_COORDINATES = "additional_coordinates";
+
+    /**
+     * Whether a ImportConcept can be connected to its ImportFacet via a HAS_ROOT_CONCEPT relationship. Useful to switch off when importing concepts with one facet that would rather belong to another one but that is not imported at all or later.
+     */
+    public static final String ELIGIBLE_FOR_FACET_ROOT = "eligible_for_facet_root";
 }
