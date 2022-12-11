@@ -59,6 +59,7 @@ public class ConceptAggregateManager {
     public static final String KEY_SKIP_EXISTING_PROPERTIES = "skip_existing_properties";
     public static final String KEY_ALLOWED_MAPPING_TYPES = "allowedMappingTypes";
     public static final String KEY_COPY_PROPERTIES = "copy_properties";
+    public static final String KEY_NAME_PROPERTY = "name_property";
     public static final String RET_KEY_NUM_AGGREGATES = "numAggregates";
     public static final String RET_KEY_NUM_ELEMENTS = "numElements";
     public static final String RET_KEY_NUM_PROPERTIES = "numProperties";
@@ -192,13 +193,14 @@ public class ConceptAggregateManager {
      *
      * @param graphDb               The graph database to work on.
      * @param nodeLabels
+     * @param nameProperty
      * @param aggregatedLabels
      * @param copyProperties
      * @return
      */
-    public static int buildAggregatesForEqualNames(GraphDatabaseService graphDb, List<Label> nodeLabels, List<Label> aggregatedLabels, String[] copyProperties, Log log) {
+    public static int buildAggregatesForEqualNames(GraphDatabaseService graphDb, List<Label> nodeLabels, String nameProperty, List<Label> aggregatedLabels, String[] copyProperties, Log log) {
         int createdAggregates = 0;
-        Comparator<Node> nodeNameComparator = Comparator.comparing(n -> ((String) n.getProperty(PROP_PREF_NAME)).toLowerCase().replaceAll("\\s+", ""));
+        Comparator<Node> nodeNameComparator = Comparator.comparing(n -> ((String) n.getProperty(nameProperty)));
 
         // Sort the nodes with the target according to their preferred name
         log.info("Acquiring all non-aggregate nodes with labels %s", nodeLabels);
@@ -748,39 +750,20 @@ public class ConceptAggregateManager {
             if (!parameterMap.containsKey(KEY_LABELS))
                 throw new IllegalArgumentException("Parameter '" + KEY_LABELS + "' not specified.");
             List<Label> aggregatedLabels = List.of(AGGREGATE_EQUAL_NAMES);
+            String nameProperty = PROP_PREF_NAME;
+            if (parameterMap.containsKey(KEY_NAME_PROPERTY))
+                nameProperty = (String) parameterMap.get(KEY_NAME_PROPERTY);
             if (parameterMap.containsKey(KEY_AGGREGATED_LABELS))
                 aggregatedLabels = ((List<String>) parameterMap.get(KEY_AGGREGATED_LABELS)).stream().map(Label::label).collect(Collectors.toList());
             List<String> copyProperties = List.of(PROP_PREF_NAME, PROP_SYNONYMS);
             if (parameterMap.containsKey(KEY_COPY_PROPERTIES))
                 copyProperties = ((List<String>) parameterMap.get(KEY_COPY_PROPERTIES));
             List<Label> targetLabels = ((List<String>) parameterMap.get(KEY_LABELS)).stream().map(Label::label).collect(Collectors.toList());
-            log.info("Creating equal-name-aggregates for concepts with label %s and assigning them label", targetLabels, aggregatedLabels);
+            log.info("Creating equal-name-aggregates regarding the '%s' property for concepts with label %s and assigning them label %s", nameProperty, targetLabels, aggregatedLabels);
             GraphDatabaseService graphDb = dbms.database(DEFAULT_DATABASE_NAME);
             int createdAggregates;
             log.info("Beginning transaction for the creation of equal-name aggregates.");
-            createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(graphDb, targetLabels, aggregatedLabels, copyProperties.toArray(String[]::new), log);
-//            log.info("Finding nodes");
-//            List<ConceptCoordinates> uniquelyNamedNodes = new ArrayList<>();
-//            try (Transaction tx = graphDb.beginTx()) {
-//                ResourceIterable<Node> nodeIterable = () -> tx.findNodes(targetLabel);
-//                for (Node n : nodeIterable) {
-//                    // omit aggregate nodes
-//                    if (n.hasLabel(AGGREGATE))
-//                        continue;
-//                    // omit nodes that are element of an equal-name aggregate
-//                    if (StreamSupport.stream(n.getRelationships(Direction.INCOMING, ConceptEdgeTypes.HAS_ELEMENT).spliterator(), false).anyMatch(r -> r.getOtherNode(n).hasLabel(AGGREGATE_EQUAL_NAMES)))
-//                        continue;
-//                    uniquelyNamedNodes.add(new ConceptCoordinates((String) n.getProperty(PROP_ORG_ID), (String) n.getProperty(PROP_ORG_SRC), CoordinateType.OSRC));
-//                }
-//
-//            }
-//            log.info("Adding label %s for all nodes that have a unique name and are not part of an equal-name aggregate.", AGGREGATE_EQUAL_NAMES);
-//            try (Transaction tx = graphDb.beginTx()) {
-//                ConceptAggregateManager.addUniqueNameLabels(tx, targetLabels, log);
-//                log.info("Finished labeling unique-named concepts with label %s.", targetLabels);
-//                log.info("Committing transaction for the creation of unique-named concepts.");
-//                tx.commit();
-//            }
+            createdAggregates = ConceptAggregateManager.buildAggregatesForEqualNames(graphDb, targetLabels, nameProperty, aggregatedLabels, copyProperties.toArray(String[]::new), log);
             log.info("Process for the creation of equal-name aggregates has finished.");
             return Response.ok(createdAggregates).build();
         } catch (IOException e) {
