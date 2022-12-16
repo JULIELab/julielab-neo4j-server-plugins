@@ -24,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.neo4j.logging.FormattedLogFormat.PLAIN;
 
 public class ExportIntegrationTest {
-private static Log log;
+    private static Log log;
+
     static {
         Log4jLogProvider log4jLogProvider = new Log4jLogProvider(LogConfig.createBuilder(System.out, Level.INFO)
                 .withFormat(PLAIN)
@@ -63,8 +64,8 @@ private static Log log;
                     "CONCEPT1\ttid1\n",
                     "CONCEPT4\ttid4\n",
                     "CONCEPT3\ttid3\n");
-for (var item : expectedItems)
-    assertThat(mapping).contains(item);
+            for (var item : expectedItems)
+                assertThat(mapping).contains(item);
         }
     }
 }
