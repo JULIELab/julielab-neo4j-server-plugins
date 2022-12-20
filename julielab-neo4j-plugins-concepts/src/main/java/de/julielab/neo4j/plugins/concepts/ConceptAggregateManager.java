@@ -609,13 +609,10 @@ public class ConceptAggregateManager {
                     Object property = term.getProperty(copyProperty);
                     if (property.getClass().isArray()) {
                         final Object[] mergedValue = mergeArrayValue(newAggregateProperties.getOrDefault(copyProperty, null), JulieNeo4jUtilities.convertArray(property));
-                        // TODO
-//                        aggregate.setProperty(copyProperty, mergedValue);
                         newAggregateProperties.put(copyProperty, mergedValue);
                     } else {
                         if (!newAggregateProperties.containsKey(copyProperty))
                             newAggregateProperties.put(copyProperty, property);
-//                        setNonNullNodeProperty(aggregate, copyProperty, property);
                         Object aggregateProperty = newAggregateProperties.get(copyProperty);
                         if (!aggregateProperty.equals(property)) {
                             divergentProperties.add(copyProperty);
