@@ -50,6 +50,7 @@ public class Export {
     public static final String CONCEPT_ID_MAPPING = "concept_id_mapping";
     public static final String PARAM_UNIQUE_KEYS = "unique_keys";
     public static final String PARAM_SOURCE_ID_PROPERTY = "source_id_property";
+    public static final String PARAM_ADD_SOURCE_PREFIX = "add_source_prefix";
     public static final String PARAM_TARGET_ID_PROPERTY = "target_id_property";
     public static final String PARAM_FACET_NAMES = "facet_names";
     public static final String PARAM_LABELS = "labels";
@@ -290,7 +291,7 @@ public class Export {
      * it specifically fits the format used by the JCoRe Lingpipe Gazetteer component.</p>
      * @param labelsString One or multiple labels that identify the sets of nodes to process for dictionary creation. Lists of labels must be in JSON format. The labels are processed in the specified order. This is important if <tt>uniqueKeys</tt> is enabled.
      * @param exclusionLabelString One or multiple labels that serve as a node filter. Nodes having one of those labels will be skipped from dictionary creation.
-     * @param nodeCategories The node properties that should be the keys of the dictionary. Separate multiple properties with commas. There are restrictions regarding the types of the properties. They must either all be non-array values or all are arrays of the same length. For multiple properties, a single mapping-target string is created with "||" as a value separator. In case of array values, the string first lists all first elements, then the second elements, then the third elements etc.
+     * @param idProperties The node properties that should be the keys of the dictionary. Separate multiple properties with commas. There are restrictions regarding the types of the properties. They must either all be non-array values or all are arrays of the same length. For multiple properties, a single mapping-target string is created with "||" as a value separator. In case of array values, the string first lists all first elements, then the second elements, then the third elements etc.
      * @param uniqueKeys Determines if keys may occur multiple times or should be unique. In case of uniqueness, the <tt>labelsString</tt> becomes important: the first occurrence of a key will be included in the output, subsequent occurrences will be discarded.
      * @param log
      * @return The dictionary text string GZIP-compressed and Base64-ASCII-encoded.
@@ -302,7 +303,8 @@ public class Export {
     public String exportLingpipeDictionary(
             @QueryParam(PARAM_LABELS) String labelsString,
             @QueryParam(PARAM_EXCLUSION_LABEL) String exclusionLabelString,
-            @QueryParam(PARAM_SOURCE_ID_PROPERTY) String nodeCategories,
+            @QueryParam(PARAM_SOURCE_ID_PROPERTY) String idProperties,
+            @QueryParam(PARAM_ADD_SOURCE_PREFIX) boolean addSourcePrefix,
             @QueryParam(PARAM_UNIQUE_KEYS) boolean uniqueKeys,
             @Context Log log)
             throws IOException {
@@ -314,11 +316,23 @@ public class Export {
         else
             labels = Arrays.stream(om.readValue(labelsString, String[].class)).map(Label::label).toArray(Label[]::new);
         List<String> propertiesToWrite = new ArrayList<>();
-        if (nodeCategories == null || nodeCategories.length() == 0) {
+        if (idProperties == null || idProperties.length() == 0) {
             propertiesToWrite.add(PROP_ID);
-        } else {
-            Collections.addAll(propertiesToWrite, nodeCategories.split(","));
-        }
+        } else if (!idProperties.contains("[")){
+            Collections.addAll(propertiesToWrite, idProperties.split(","));
+        } else
+            propertiesToWrite = Arrays.stream(om.readValue(idProperties, String[].class)).collect(Collectors.toList());
+
+        Map<String, String> sourcePropertyNamesByIdPropertyName = Map.of(PROP_ID, "",
+                PROP_ORG_ID, PROP_ORG_SRC,
+                PROP_SRC_IDS + 0,   PROP_SOURCES + 0,
+                PROP_SRC_IDS + 1,   PROP_SOURCES + 1,
+                PROP_SRC_IDS + 2,   PROP_SOURCES + 2,
+                PROP_SRC_IDS + 3,   PROP_SOURCES + 3,
+                PROP_SRC_IDS + 4,   PROP_SOURCES + 4,
+                PROP_SRC_IDS + 5,   PROP_SOURCES + 5,
+                PROP_SRC_IDS + 6,   PROP_SOURCES + 6,
+                PROP_SRC_IDS + 7, PROP_SOURCES + 7);
         log.info("Exporting lingpipe dictionary data for nodes with labels \"" + Arrays.stream(labels).map(Label::name).collect(Collectors.joining(", "))
                 + "\", mapping their names to their properties " + propertiesToWrite + ".");
         Label[] exclusionLabels = null;
@@ -342,20 +356,20 @@ public class Export {
         try (GZIPOutputStream os = new GZIPOutputStream(baos)) {
             for (Label label : labels) {
                 try (Transaction tx = graphDb.beginTx()) {
-                    ResourceIterator<Node> terms = tx.findNodes(label);
+                    ResourceIterator<Node> conceptNodes = tx.findNodes(label);
                     int count = 0;
-                    while (terms.hasNext()) {
-                        Node term = terms.next();
+                    while (conceptNodes.hasNext()) {
+                        Node node = conceptNodes.next();
                         count++;
                         boolean termHasExclusionLabel = false;
                         for (int i = 0; null != exclusionLabels && i < exclusionLabels.length; i++) {
                             Label exclusionLabel = exclusionLabels[i];
-                            if (term.hasLabel(exclusionLabel)) {
+                            if (node.hasLabel(exclusionLabel)) {
                                 termHasExclusionLabel = true;
                                 break;
                             }
                         }
-                        if (!termHasExclusionLabel && term.hasProperty(PROP_ID) && term.hasProperty(PROP_PREF_NAME)) {
+                        if (!termHasExclusionLabel && node.hasProperty(PROP_ID) && node.hasProperty(PROP_PREF_NAME)) {
 
                             int arraySize;
                             String idProperty = propertiesToWrite.get(0);
@@ -363,42 +377,77 @@ public class Export {
                             // arrays are of the same length. Thus, to determine the
                             // required number of iterations we just use the first
                             // array since the others should have the same length.
-                            String[] value = NodeUtilities.getNodePropertyAsStringArrayValue(term, idProperty);
+                            String[] ids = NodeUtilities.getNodePropertyAsStringArrayValue(node, idProperty);
 
-                            if (null == value && term.hasLabel(ConceptLabel.AGGREGATE))
+                            if (null == ids && node.hasLabel(ConceptLabel.AGGREGATE))
                                 // perhaps we have an aggregate term, then we can
                                 // try and retrieve the value from its elements
-                                value = ConceptAggregateManager.getPropertyValueOfElements(term, idProperty);
-                            if (null == value) {
-                                terms.close();
-                                throw new IllegalArgumentException("A concept occurred that does not have a value for the property \"" + idProperty + "\": " + NodeUtilities.getNodePropertiesAsString(term));
+                                ids = ConceptAggregateManager.getPropertyValueOfElements(node, idProperty);
+                            if (null == ids) {
+                                conceptNodes.close();
+                                throw new IllegalArgumentException("A concept occurred that does not have a value for the property \"" + idProperty + "\": " + NodeUtilities.getNodePropertiesAsString(node));
                             }
-                            arraySize = value.length;
+                            arraySize = ids.length;
 
                             List<String> categoryStrings = new ArrayList<>();
                             for (int i = 0; i < arraySize; ++i) {
                                 StringBuilder sb = new StringBuilder();
                                 for (int j = 0; j < propertiesToWrite.size(); ++j) {
                                     String property = propertiesToWrite.get(j);
-                                    value = NodeUtilities.getNodePropertyAsStringArrayValue(term, property);
-                                    if (null == value && term.hasLabel(ConceptLabel.AGGREGATE))
+                                    ids = NodeUtilities.getNodePropertyAsStringArrayValue(node, property);
+                                    String[] sources = null;
+                                    if (addSourcePrefix) {
+                                        final String sourceProperty = sourcePropertyNamesByIdPropertyName.get(property);
+                                        if (sourceProperty == null)
+                                            throw new IllegalArgumentException("Dictionary creation with source prefix should be performed but the source property is unknown for ID property '" + property + "'.");
+                                        // for PROP_ID we assigned an empty string
+                                        if (!sourceProperty.isEmpty()) {
+                                            sources = NodeUtilities.getNodePropertyAsStringArrayValue(node, sourceProperty);
+                                        } else {
+                                            sources = new String[ids.length];
+                                            for (int k = 0; k < sources.length; k++) {
+                                                sources[k] = "id";
+                                            }
+                                        }
+
+                                    }
+                                    if (null == ids && node.hasLabel(ConceptLabel.AGGREGATE)) {
                                         // perhaps we have an aggregate term, then
                                         // we can try and retrieve the value from
                                         // its elements
-                                        value = ConceptAggregateManager.getPropertyValueOfElements(term, idProperty);
-                                    if (null == value || value.length == 0) {
-                                        terms.close();
-                                        throw new IllegalArgumentException("The property \"" + property
-                                                + "\" does not contain a value for node " + term + " (properties: "
-                                                + PropertyUtilities.getNodePropertiesAsString(term) + ")");
+                                        ids = ConceptAggregateManager.getPropertyValueOfElements(node, idProperty);
+                                        if (addSourcePrefix) {
+                                            final String sourceProperty = sourcePropertyNamesByIdPropertyName.get(property);
+                                            if (sourceProperty == null)
+                                                throw new IllegalArgumentException("Dictionary creation with source prefix should be performed but the source property is unknown for ID property '" + property + "'.");
+                                            // for PROP_ID we assigned an empty string
+                                            if (!sourceProperty.isEmpty()) {
+                                                sources = ConceptAggregateManager.getPropertyValueOfElements(node, sourceProperty);
+                                            } else {
+                                                sources = new String[ids.length];
+                                                for (int k = 0; k < sources.length; k++) {
+                                                    sources[k] = "id";
+                                                }
+                                            }
+                                        }
                                     }
-                                    if (value.length != arraySize) {
-                                        terms.close();
+
+                                    if (null == ids || ids.length == 0) {
+                                        conceptNodes.close();
+                                        throw new IllegalArgumentException("The property \"" + property
+                                                + "\" does not contain a value for node " + node + " (properties: "
+                                                + PropertyUtilities.getNodePropertiesAsString(node) + ")");
+                                    }
+                                    if (ids.length != arraySize) {
+                                        conceptNodes.close();
                                         throw new IllegalArgumentException("The properties \"" + propertiesToWrite
-                                                + "\" on term " + PropertyUtilities.getNodePropertiesAsString(term)
+                                                + "\" on term " + PropertyUtilities.getNodePropertiesAsString(node)
                                                 + " do not have all the same number of value elements which is required for dictionary creation by this method.");
                                     }
-                                    sb.append(value[i]);
+                                    if (addSourcePrefix)
+                                        sb.append(sources[i]).append(":").append(ids[i]);
+                                        else
+                                    sb.append(ids[i]);
                                     if (j < propertiesToWrite.size() - 1)
                                         sb.append("||");
                                 }
@@ -406,10 +455,10 @@ public class Export {
                             }
 
                             for (String categoryString : categoryStrings) {
-                                String preferredName = (String) term.getProperty(PROP_PREF_NAME);
+                                String preferredName = (String) node.getProperty(PROP_PREF_NAME);
                                 String[] synonyms = new String[0];
-                                if (term.hasProperty(PROP_SYNONYMS))
-                                    synonyms = (String[]) term.getProperty(PROP_SYNONYMS);
+                                if (node.hasProperty(PROP_SYNONYMS))
+                                    synonyms = (String[]) node.getProperty(PROP_SYNONYMS);
                                 // String[] writingVariants = new String[0];
                                 // if (term.hasProperty(PROP_WRITING_VARIANTS))
                                 // writingVariants = (String[]) term
@@ -419,7 +468,7 @@ public class Export {
                                 for (String synonString : synonyms)
                                     writeNormalizedDictionaryEntry(synonString, categoryString, writtenKeys, os);
                                 TraversalDescription acronymsTraversal = PredefinedTraversals.getAcronymsTraversal(tx);
-                                Traverser traverse = acronymsTraversal.traverse(term);
+                                Traverser traverse = acronymsTraversal.traverse(node);
                                 for (Node acronymNode : traverse.nodes()) {
                                     String acronym = (String) acronymNode.getProperty(MorphoConstants.PROP_NAME);
                                     writeNormalizedDictionaryEntry(acronym, categoryString, writtenKeys, os);
