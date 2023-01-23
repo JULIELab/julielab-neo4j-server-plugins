@@ -1957,4 +1957,28 @@ public class ConceptManagerTest {
         }
     }
 
+    @Test
+    public void testOverridePreferredName() {
+        final ImportConcepts testConcepts = getTestConcepts(1);
+        final ConceptManager cm = new ConceptManager(graphDBMS, log);
+        cm.insertConcepts(testConcepts);
+
+        // Make sure a node exists with the default name now
+        try (Transaction tx = graphDb.beginTx()) {
+            final Node concept = tx.findNode(CONCEPT, PROP_ID, NodeIDPrefixConstants.TERM + 0);
+            assertEquals("prefname0", concept.getProperty(PROP_PREF_NAME));
+        }
+
+        // Now change the name, insert again and check that the name was actually changed
+        final ImportConcepts changedTestConcepts = getTestConcepts(1);
+        changedTestConcepts.setImportOptions(new ImportOptions());
+        changedTestConcepts.getImportOptions().overridePreferredName = true;
+        changedTestConcepts.getConceptsAsList().get(0).prefName = "changedName";
+        cm.insertConcepts(changedTestConcepts);
+        try (Transaction tx = graphDb.beginTx()) {
+            final Node concept = tx.findNode(CONCEPT, PROP_ID, NodeIDPrefixConstants.TERM + 0);
+            assertEquals("changedName", concept.getProperty(PROP_PREF_NAME));
+        }
+    }
+
 }

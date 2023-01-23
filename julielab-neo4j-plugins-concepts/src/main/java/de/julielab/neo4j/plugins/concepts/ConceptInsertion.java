@@ -354,7 +354,10 @@ public class ConceptInsertion {
             concept.setProperty(PROP_ORG_ID, coordinates.originalId);
             concept.setProperty(PROP_ORG_SRC, coordinates.originalSource);
         }
-        setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
+        if (!importOptions.overridePreferredName)
+            setNonNullNodeProperty(concept, PROP_PREF_NAME, jsonConcept.prefName);
+        else if (!jsonConcept.prefName.isBlank())
+            concept.setProperty(PROP_PREF_NAME, jsonConcept.prefName);
         mergeArrayProperty(concept, PROP_DESCRIPTIONS, () -> jsonConcept.descriptions.toArray(new String[0]));
         mergeArrayProperty(concept, PROP_WRITING_VARIANTS, () -> jsonConcept.writingVariants.toArray(new String[0]));
         mergeArrayProperty(concept, PROP_COPY_PROPERTIES, () -> jsonConcept.copyProperties.toArray(new String[0]));

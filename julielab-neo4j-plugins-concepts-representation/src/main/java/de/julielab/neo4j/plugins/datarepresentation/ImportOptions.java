@@ -35,6 +35,11 @@ public class ImportOptions {
 	 * will be changed.
 	 */
 	public boolean merge;
+	/**
+	 * Normally, the preferred name is only set once. In case of correction or necessary update, this option
+	 * allows to set the preferred name on already existing nodes. Only non-blank names are accepted.
+	 */
+	public boolean overridePreferredName;
 
 	public ImportOptions() {
 		doNotCreateHollowParents = false;
